@@ -1,0 +1,887 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>Omni Visual iOS Safe</title>
+  <style>
+    :root {
+      --bg: #090b10;
+      --fg: #e8eef8;
+      --muted: #99a8bd;
+      --accent: #7de2ff;
+      --ok: #5dff9b;
+      --warn: #ffc56a;
+      --bad: #ff7f7f;
+      --panel: rgba(12, 16, 24, 0.92);
+      --border: rgba(255,255,255,0.12);
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      margin: 0; width: 100%; height: 100%; overflow: hidden;
+      background: var(--bg); color: var(--fg);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      touch-action: none;
+      overscroll-behavior: none;
+    }
+    canvas { position: fixed; inset: 0; width: 100%; height: 100%; touch-action: none; }
+
+    #startScreen {
+      position: fixed; inset: 0; z-index: 30;
+      display: flex; flex-direction: column; gap: 12px;
+      justify-content: center; align-items: center;
+      background: radial-gradient(circle at 50% 40%, rgba(40,65,95,0.65), rgba(5,7,12,0.95));
+      padding: 20px;
+      text-align: center;
+    }
+    #startScreen h1 { margin: 0 0 8px; font-size: 30px; letter-spacing: 0.02em; }
+    #startScreen p { margin: 0 0 10px; color: var(--muted); max-width: 560px; }
+
+    button {
+      min-height: 48px;
+      min-width: 260px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.07);
+      color: var(--fg);
+      font-size: 17px;
+      font-weight: 700;
+      padding: 12px 16px;
+    }
+    button:active { transform: scale(0.98); }
+
+    #statusOverlay {
+      position: fixed; z-index: 20; left: 10px; top: calc(8px + env(safe-area-inset-top));
+      background: rgba(8,10,14,0.75); border: 1px solid var(--border);
+      border-radius: 10px; padding: 8px 10px;
+      backdrop-filter: blur(4px);
+      font-size: 12px; line-height: 1.4;
+      pointer-events: none;
+      white-space: pre;
+    }
+
+    #panel {
+      position: fixed; z-index: 25;
+      left: 0; right: 0;
+      bottom: 0;
+      padding: 8px 10px calc(12px + env(safe-area-inset-bottom));
+      background: var(--panel);
+      border-top: 1px solid var(--border);
+      transform: translateY(0%);
+      transition: transform 220ms ease;
+      max-height: min(65vh, 520px);
+      overflow: auto;
+    }
+    #panel.collapsed { transform: translateY(calc(100% - 50px - env(safe-area-inset-bottom))); }
+
+    .panelHeader {
+      display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+      position: sticky; top: 0; background: var(--panel); padding-bottom: 8px;
+    }
+    .panelHeader button { min-width: 44px; min-height: 44px; font-size: 14px; }
+    .grow { flex: 1; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(120px, 1fr));
+      gap: 10px 12px;
+    }
+    .ctrl {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px;
+    }
+    label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+    input[type="range"] {
+      width: 100%; min-height: 44px;
+      accent-color: var(--accent);
+      margin: 0;
+    }
+    .row {
+      display: flex; gap: 8px; align-items: center;
+    }
+    .badge {
+      border-radius: 999px; font-size: 11px; padding: 2px 8px; border: 1px solid var(--border);
+    }
+    .on { color: var(--ok); }
+    .off { color: var(--bad); }
+  </style>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+
+  <div id="statusOverlay">booting...</div>
+
+  <div id="panel" class="collapsed">
+    <div class="panelHeader">
+      <button id="togglePanelBtn">▲</button>
+      <button id="sceneBtn">Szene</button>
+      <button id="presetSaveBtn">Preset Save</button>
+      <button id="presetLoadBtn">Preset Load</button>
+      <div class="grow"></div>
+      <span id="micBadge" class="badge off">Mic Off</span>
+      <span id="gyroBadge" class="badge off">Gyro Off</span>
+    </div>
+    <div class="grid" id="controlsGrid"></div>
+  </div>
+
+  <div id="startScreen">
+    <h1>Omni Visual</h1>
+    <p>iOS-safe, offline-fähig, audio-reaktiv. Starte mit Audio, Gyro oder Demo.</p>
+    <button id="btnAudio">AUDIO AKTIVIEREN</button>
+    <button id="btnGyro">GYRO AKTIVIEREN</button>
+    <button id="btnDemo">DEMO MODUS</button>
+    <p id="startStatus"></p>
+  </div>
+
+<script>
+(() => {
+  'use strict';
+
+  const STORAGE_KEY = 'omniVisualPresetV1';
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const smoothstep = (x) => x * x * (3 - 2 * x);
+
+  const state = {
+    renderer: '2D',
+    webglRequested: false,
+    running: true,
+    started: false,
+    demoMode: false,
+    lastTs: 0,
+    dt: 0.016,
+
+    fps: 60,
+    fpsAvg: 60,
+    frameCounter: 0,
+    uiTimer: 0,
+    lowFpsTime: 0,
+    highFpsTime: 0,
+
+    qualityLevel: 2,
+    qualityMin: 0,
+    qualityMax: 3,
+    safeMode: 0,
+
+    dpr: 1,
+    scaleByQuality: [0.6, 0.75, 0.88, 1.0],
+
+    audio: {
+      enabled: false,
+      ctx: null,
+      stream: null,
+      src: null,
+      analyser: null,
+      freqData: null,
+      timeData: null,
+      micGain: 1.0,
+      noiseGate: 0.03,
+      rms: 0,
+      env: 0,
+      bass: 0,
+      lowmid: 0,
+      high: 0,
+      amp: 0,
+    },
+
+    motion: {
+      enabled: false,
+      permission: 'n/a',
+      alpha: 0,
+      beta: 0,
+      gamma: 0,
+      x: 0,
+      y: 0,
+      z: 0,
+      smX: 0,
+      smY: 0,
+      smZ: 0,
+      deadzone: 0.03,
+      sensitivity: 1.0,
+      gyroMix: 0.55,
+      touchRotX: 0,
+      touchRotY: 0,
+      pointerCount: 0,
+      pinchStartDist: 0,
+      startZoom: 1,
+      lastTapTime: 0,
+    },
+
+    params: {
+      intensity: 0.7,
+      speed: 0.45,
+      zoom: 1.0,
+      warp: 0.45,
+      trails: 0.62,
+      detail: 0.55,
+      colorShift: 0.2,
+      micGain: 1.0,
+      noiseGate: 0.03,
+      gyroMix: 0.55,
+      gyroSensitivity: 1.0,
+      safeMode: 0,
+      webglToggle: 0,
+    },
+
+    scene: 0,
+
+    flow: {
+      particles: [],
+      maxParticlesByQuality: [90, 140, 210, 320],
+    },
+
+    noise: {
+      lines: 64,
+    }
+  };
+
+  let canvas, ctx2d, statusOverlay, panel, controlsGrid, startScreen, startStatus;
+  let micBadge, gyroBadge;
+  let w = 1, h = 1, cw = 1, ch = 1;
+
+  const uiSpec = [
+    ['Intensity', 'intensity', 0, 1.5, 0.01],
+    ['Speed', 'speed', 0, 1.5, 0.01],
+    ['Zoom', 'zoom', 0.5, 2.2, 0.01],
+    ['Warp', 'warp', 0, 1.2, 0.01],
+    ['Trails', 'trails', 0, 0.95, 0.01],
+    ['Detail', 'detail', 0.1, 1.2, 0.01],
+    ['ColorShift', 'colorShift', 0, 1, 0.01],
+    ['MicGain', 'micGain', 0, 3, 0.01],
+    ['NoiseGate', 'noiseGate', 0, 0.2, 0.001],
+    ['GyroMix', 'gyroMix', 0, 1, 0.01],
+    ['GyroSensitivity', 'gyroSensitivity', 0.2, 2.5, 0.01],
+    ['SafeMode', 'safeMode', 0, 1, 1],
+    ['WebGL2 (optional)', 'webglToggle', 0, 1, 1]
+  ];
+
+  function initApp() {
+    canvas = document.getElementById('canvas');
+    statusOverlay = document.getElementById('statusOverlay');
+    panel = document.getElementById('panel');
+    controlsGrid = document.getElementById('controlsGrid');
+    startScreen = document.getElementById('startScreen');
+    startStatus = document.getElementById('startStatus');
+    micBadge = document.getElementById('micBadge');
+    gyroBadge = document.getElementById('gyroBadge');
+
+    initRenderer2D();
+    initUI();
+    initTouch();
+    initMotionListeners();
+    loadPreset();
+    applyParamsToState();
+
+    window.addEventListener('resize', resize, { passive: true });
+    document.addEventListener('visibilitychange', onVisibilityChange, { passive: true });
+    resize();
+    seedParticles();
+    requestAnimationFrame(loop);
+  }
+
+  function initRenderer2D() {
+    ctx2d = canvas.getContext('2d', { alpha: false, desynchronized: true });
+    state.renderer = '2D';
+  }
+
+  function initWebGL() {
+    if (!state.params.webglToggle) return false;
+    try {
+      const gl = canvas.getContext('webgl2', { antialias: false, alpha: false, powerPreference: 'low-power' });
+      if (!gl) return false;
+      state.renderer = 'WebGL2';
+      gl.getExtension('WEBGL_lose_context');
+      gl.clearColor(0, 0, 0, 1);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async function initAudio() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) throw new Error('AudioContext unavailable');
+      const audioCtx = state.audio.ctx || new Ctx({ latencyHint: 'interactive' });
+      const source = audioCtx.createMediaStreamSource(stream);
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 1024;
+      analyser.smoothingTimeConstant = 0.78;
+      source.connect(analyser);
+
+      state.audio.stream = stream;
+      state.audio.ctx = audioCtx;
+      state.audio.src = source;
+      state.audio.analyser = analyser;
+      state.audio.freqData = new Uint8Array(analyser.frequencyBinCount);
+      state.audio.timeData = new Uint8Array(analyser.fftSize);
+      state.audio.enabled = true;
+
+      try { await audioCtx.resume(); } catch {}
+      return true;
+    } catch (err) {
+      console.warn('Audio init failed', err);
+      state.audio.enabled = false;
+      return false;
+    }
+  }
+
+  function initMotionListeners() {
+    window.addEventListener('deviceorientation', (ev) => {
+      if (!ev) return;
+      const a = Number.isFinite(ev.alpha) ? ev.alpha : 0;
+      const b = Number.isFinite(ev.beta) ? ev.beta : 0;
+      const g = Number.isFinite(ev.gamma) ? ev.gamma : 0;
+      state.motion.alpha = a;
+      state.motion.beta = b;
+      state.motion.gamma = g;
+      state.motion.enabled = state.motion.permission === 'granted' || state.motion.enabled;
+    }, { passive: true });
+
+    window.addEventListener('devicemotion', (ev) => {
+      if (!ev || !ev.accelerationIncludingGravity) return;
+      const ag = ev.accelerationIncludingGravity;
+      state.motion.x = Number.isFinite(ag.x) ? ag.x : 0;
+      state.motion.y = Number.isFinite(ag.y) ? ag.y : 0;
+      state.motion.z = Number.isFinite(ag.z) ? ag.z : 0;
+    }, { passive: true });
+  }
+
+  async function initMotion() {
+    try {
+      if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+        let p = 'denied';
+        try { p = await DeviceMotionEvent.requestPermission(); }
+        catch (e) { console.warn('DeviceMotion permission error', e); p = 'denied'; }
+        state.motion.permission = p;
+        state.motion.enabled = p === 'granted';
+        return state.motion.enabled;
+      }
+
+      state.motion.permission = 'granted';
+      state.motion.enabled = true;
+      return true;
+    } catch (err) {
+      console.warn('Motion init failed', err);
+      state.motion.permission = 'denied';
+      state.motion.enabled = false;
+      return false;
+    }
+  }
+
+  function initUI() {
+    controlsGrid.innerHTML = '';
+    for (const [label, key, min, max, step] of uiSpec) {
+      const wrap = document.createElement('div');
+      wrap.className = 'ctrl';
+      const lab = document.createElement('label');
+      lab.textContent = `${label}: `;
+      const valueSpan = document.createElement('span');
+      valueSpan.id = `v_${key}`;
+      valueSpan.textContent = String(state.params[key]);
+      lab.appendChild(valueSpan);
+      const input = document.createElement('input');
+      input.type = 'range';
+      input.min = min;
+      input.max = max;
+      input.step = step;
+      input.value = state.params[key];
+      input.id = `s_${key}`;
+      input.addEventListener('input', () => {
+        state.params[key] = parseFloat(input.value);
+        valueSpan.textContent = input.value;
+        applyParamsToState();
+        if (key === 'webglToggle') {
+          if (state.params.webglToggle) {
+            const ok = initWebGL();
+            if (!ok) state.params.webglToggle = 0;
+          } else {
+            initRenderer2D();
+          }
+        }
+      });
+      wrap.appendChild(lab);
+      wrap.appendChild(input);
+      controlsGrid.appendChild(wrap);
+    }
+
+    document.getElementById('togglePanelBtn').addEventListener('click', togglePanel);
+    document.getElementById('sceneBtn').addEventListener('click', nextScene);
+    document.getElementById('presetSaveBtn').addEventListener('click', savePreset);
+    document.getElementById('presetLoadBtn').addEventListener('click', () => { loadPreset(); syncUIFromParams(); });
+
+    document.getElementById('btnAudio').addEventListener('click', async () => {
+      state.demoMode = false;
+      const ok = await initAudio();
+      startStatus.textContent = ok ? 'Audio aktiv.' : 'Audio fehlgeschlagen, Demo weiterhin möglich.';
+      markStarted();
+    });
+
+    document.getElementById('btnGyro').addEventListener('click', async () => {
+      const ok = await initMotion();
+      startStatus.textContent = ok ? 'Gyro aktiv.' : 'Gyro abgelehnt/nicht verfügbar. App läuft weiter.';
+      markStarted();
+    });
+
+    document.getElementById('btnDemo').addEventListener('click', () => {
+      state.demoMode = true;
+      markStarted();
+    });
+  }
+
+  function markStarted() {
+    state.started = true;
+    startScreen.style.display = 'none';
+  }
+
+  function togglePanel() {
+    panel.classList.toggle('collapsed');
+    document.getElementById('togglePanelBtn').textContent = panel.classList.contains('collapsed') ? '▲' : '▼';
+  }
+
+  function initTouch() {
+    const pointers = new Map();
+
+    canvas.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      canvas.setPointerCapture(e.pointerId);
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      state.motion.pointerCount = pointers.size;
+
+      const now = performance.now();
+      if (now - state.motion.lastTapTime < 300) {
+        if (panel.classList.contains('collapsed')) panel.classList.remove('collapsed');
+        else nextScene();
+      }
+      state.motion.lastTapTime = now;
+
+      if (pointers.size === 2) {
+        const arr = [...pointers.values()];
+        state.motion.pinchStartDist = Math.hypot(arr[0].x - arr[1].x, arr[0].y - arr[1].y);
+        state.motion.startZoom = state.params.zoom;
+      }
+    }, { passive: false });
+
+    canvas.addEventListener('pointermove', (e) => {
+      if (!pointers.has(e.pointerId)) return;
+      e.preventDefault();
+      const prev = pointers.get(e.pointerId);
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+      if (pointers.size === 1) {
+        const dx = e.clientX - prev.x;
+        const dy = e.clientY - prev.y;
+        state.motion.touchRotY += dx * 0.003;
+        state.motion.touchRotX += dy * 0.003;
+      } else if (pointers.size === 2) {
+        const arr = [...pointers.values()];
+        const d = Math.hypot(arr[0].x - arr[1].x, arr[0].y - arr[1].y);
+        if (state.motion.pinchStartDist > 0) {
+          const ratio = d / state.motion.pinchStartDist;
+          state.params.zoom = clamp(state.motion.startZoom * ratio, 0.5, 2.2);
+          const el = document.getElementById('s_zoom');
+          if (el) el.value = String(state.params.zoom);
+        }
+      }
+    }, { passive: false });
+
+    const end = (e) => {
+      if (pointers.has(e.pointerId)) {
+        pointers.delete(e.pointerId);
+      }
+      state.motion.pointerCount = pointers.size;
+    };
+    canvas.addEventListener('pointerup', end, { passive: true });
+    canvas.addEventListener('pointercancel', end, { passive: true });
+  }
+
+  function nextScene() {
+    state.scene = (state.scene + 1) % 3;
+  }
+
+  function applyParamsToState() {
+    state.audio.micGain = state.params.micGain;
+    state.audio.noiseGate = state.params.noiseGate;
+    state.motion.gyroMix = state.params.gyroMix;
+    state.motion.sensitivity = state.params.gyroSensitivity;
+    state.safeMode = state.params.safeMode ? 1 : 0;
+
+    if (state.safeMode) {
+      state.qualityLevel = Math.min(state.qualityLevel, 1);
+      state.params.trails = Math.min(state.params.trails, 0.45);
+      state.params.detail = Math.min(state.params.detail, 0.6);
+    }
+  }
+
+  function savePreset() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ params: state.params, scene: state.scene }));
+    } catch (e) {
+      console.warn('Save preset failed', e);
+    }
+  }
+
+  function loadPreset() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed?.params) Object.assign(state.params, parsed.params);
+      if (Number.isFinite(parsed?.scene)) state.scene = parsed.scene % 3;
+    } catch (e) {
+      console.warn('Load preset failed', e);
+    }
+  }
+
+  function syncUIFromParams() {
+    for (const [, key] of uiSpec) {
+      const s = document.getElementById(`s_${key}`);
+      const v = document.getElementById(`v_${key}`);
+      if (s) s.value = String(state.params[key]);
+      if (v) v.textContent = String(state.params[key]);
+    }
+    applyParamsToState();
+  }
+
+  function resize() {
+    state.dpr = Math.min(window.devicePixelRatio || 1, 2.0);
+    w = window.innerWidth;
+    h = window.innerHeight;
+    const scale = state.scaleByQuality[state.qualityLevel] * (state.safeMode ? 0.9 : 1);
+    cw = Math.max(64, Math.floor(w * state.dpr * scale));
+    ch = Math.max(64, Math.floor(h * state.dpr * scale));
+    canvas.width = cw;
+    canvas.height = ch;
+    canvas.style.width = `${w}px`;
+    canvas.style.height = `${h}px`;
+    if (ctx2d) ctx2d.setTransform(cw / w, 0, 0, ch / h, 0, 0);
+  }
+
+  function seedParticles() {
+    state.flow.particles.length = 0;
+    const maxN = state.flow.maxParticlesByQuality[state.qualityLevel];
+    for (let i = 0; i < maxN; i++) {
+      state.flow.particles.push({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        vx: (Math.random() - 0.5) * 0.8,
+        vy: (Math.random() - 0.5) * 0.8,
+        life: Math.random(),
+      });
+    }
+  }
+
+  function updateAudioFeatures(t) {
+    let rms = 0, bass = 0, lowmid = 0, high = 0;
+
+    if (state.audio.enabled && state.audio.analyser) {
+      const analyser = state.audio.analyser;
+      analyser.getByteTimeDomainData(state.audio.timeData);
+      analyser.getByteFrequencyData(state.audio.freqData);
+
+      const td = state.audio.timeData;
+      for (let i = 0; i < td.length; i++) {
+        const n = (td[i] - 128) / 128;
+        rms += n * n;
+      }
+      rms = Math.sqrt(rms / td.length) * state.audio.micGain;
+      if (rms < state.audio.noiseGate) rms = 0;
+
+      const fd = state.audio.freqData;
+      const n = fd.length;
+      const iBass = Math.floor(n * 0.08);
+      const iLow = Math.floor(n * 0.25);
+      const iHigh = Math.floor(n * 0.7);
+      let c1 = 0, c2 = 0, c3 = 0;
+
+      for (let i = 0; i < iBass; i++) { bass += fd[i]; c1++; }
+      for (let i = iBass; i < iLow; i++) { lowmid += fd[i]; c2++; }
+      for (let i = iLow; i < iHigh; i++) { high += fd[i]; c3++; }
+
+      bass = c1 ? bass / c1 / 255 : 0;
+      lowmid = c2 ? lowmid / c2 / 255 : 0;
+      high = c3 ? high / c3 / 255 : 0;
+    } else {
+      const lfo1 = 0.5 + 0.5 * Math.sin(t * 0.0011);
+      const lfo2 = 0.5 + 0.5 * Math.sin(t * 0.0017 + 1.2);
+      const lfo3 = 0.5 + 0.5 * Math.sin(t * 0.0023 + 2.1);
+      rms = 0.12 + 0.08 * lfo1;
+      bass = 0.2 + 0.6 * lfo2;
+      lowmid = 0.2 + 0.5 * lfo1;
+      high = 0.15 + 0.7 * lfo3;
+    }
+
+    state.audio.rms = rms;
+    state.audio.env = lerp(state.audio.env, rms, 0.12);
+    state.audio.bass = lerp(state.audio.bass, bass, 0.09);
+    state.audio.lowmid = lerp(state.audio.lowmid, lowmid, 0.09);
+    state.audio.high = lerp(state.audio.high, high, 0.09);
+
+    state.audio.amp = clamp(state.audio.env * 3.2, 0, 1.5);
+  }
+
+  function updateMotion() {
+    const m = state.motion;
+    let gx = 0, gy = 0;
+
+    if (m.enabled) {
+      gx = clamp((m.gamma / 45) * m.sensitivity, -1, 1);
+      gy = clamp((m.beta / 45) * m.sensitivity, -1, 1);
+
+      if (Math.abs(gx) < m.deadzone) gx = 0;
+      if (Math.abs(gy) < m.deadzone) gy = 0;
+    }
+
+    m.smX = lerp(m.smX, gx, 0.08);
+    m.smY = lerp(m.smY, gy, 0.08);
+    m.smZ = lerp(m.smZ, clamp((m.x + m.y) * 0.05, -1, 1), 0.06);
+  }
+
+  function adaptiveQuality(dt) {
+    const fps = 1 / Math.max(0.001, dt);
+    state.fps = fps;
+    state.fpsAvg = lerp(state.fpsAvg, fps, 0.05);
+
+    if (state.fpsAvg < 28) {
+      state.lowFpsTime += dt;
+      state.highFpsTime = 0;
+      if (state.lowFpsTime > 2) {
+        state.lowFpsTime = 0;
+        if (state.qualityLevel > state.qualityMin) {
+          state.qualityLevel--;
+          resize();
+          seedParticles();
+        }
+      }
+    } else if (state.fpsAvg > 50) {
+      state.highFpsTime += dt;
+      state.lowFpsTime = 0;
+      if (state.highFpsTime > 3) {
+        state.highFpsTime = 0;
+        if (state.qualityLevel < state.qualityMax && !state.safeMode) {
+          state.qualityLevel++;
+          resize();
+          seedParticles();
+        }
+      }
+    } else {
+      state.lowFpsTime = Math.max(0, state.lowFpsTime - dt * 0.5);
+      state.highFpsTime = Math.max(0, state.highFpsTime - dt * 0.5);
+    }
+  }
+
+  function renderSceneFlow(t) {
+    const ctx = ctx2d;
+    const trails = state.safeMode ? 0.4 : state.params.trails;
+    ctx.fillStyle = `rgba(6,8,12,${clamp(1 - trails, 0.05, 0.95)})`;
+    ctx.fillRect(0, 0, w, h);
+
+    const amp = state.audio.amp;
+    const bass = state.audio.bass;
+    const high = state.audio.high;
+    const detailFactor = state.params.detail * (state.safeMode ? 0.7 : 1);
+
+    const nTarget = Math.floor(state.flow.maxParticlesByQuality[state.qualityLevel] * detailFactor);
+    const particles = state.flow.particles;
+    while (particles.length < nTarget) {
+      particles.push({ x: Math.random() * w, y: Math.random() * h, vx: (Math.random()-0.5), vy: (Math.random()-0.5), life: Math.random() });
+    }
+    if (particles.length > nTarget) particles.length = nTarget;
+
+    const mix = state.motion.gyroMix;
+    const rotX = lerp(state.motion.touchRotX, state.motion.smY, mix);
+    const rotY = lerp(state.motion.touchRotY, state.motion.smX, mix);
+
+    const speed = 0.8 + state.params.speed * 2.1 + bass * 2.2;
+    const radius = 2.2 + 4.5 * high;
+
+    ctx.globalCompositeOperation = 'source-over';
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
+      const fx = Math.sin((p.y * 0.01 + t * 0.0004 * speed) + rotY * 2.5);
+      const fy = Math.cos((p.x * 0.01 - t * 0.00033 * speed) + rotX * 2.5);
+      p.vx = p.vx * 0.96 + fx * (0.05 + amp * 0.09);
+      p.vy = p.vy * 0.96 + fy * (0.05 + amp * 0.09);
+
+      p.x += p.vx * speed;
+      p.y += p.vy * speed;
+      p.life -= 0.002 + high * 0.002;
+
+      if (p.x < 0) p.x += w;
+      if (p.y < 0) p.y += h;
+      if (p.x > w) p.x -= w;
+      if (p.y > h) p.y -= h;
+      if (p.life <= 0) {
+        p.x = Math.random() * w;
+        p.y = Math.random() * h;
+        p.vx = (Math.random() - 0.5);
+        p.vy = (Math.random() - 0.5);
+        p.life = 1;
+      }
+
+      const hue = (220 + i * 0.25 + t * 0.02 + state.params.colorShift * 200 + high * 80) % 360;
+      ctx.fillStyle = `hsla(${hue},95%,${45 + amp * 35}%,${0.25 + amp * 0.4})`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  function renderSceneMandala(t) {
+    const ctx = ctx2d;
+    ctx.fillStyle = `rgba(6,7,10,${0.12 + (1 - state.params.trails) * 0.7})`;
+    ctx.fillRect(0, 0, w, h);
+
+    const amp = state.audio.amp;
+    const bass = state.audio.bass;
+    const high = state.audio.high;
+    const low = state.audio.lowmid;
+    const detail = clamp(state.params.detail, 0.1, 1.2);
+    const rings = Math.floor(5 + detail * 22 * (state.safeMode ? 0.7 : 1));
+    const segs = Math.floor(18 + detail * 70 * (state.safeMode ? 0.7 : 1));
+
+    const mix = state.motion.gyroMix;
+    const rot = (lerp(state.motion.touchRotY, state.motion.smX, mix) * 1.8) + t * (0.0002 + state.params.speed * 0.0008);
+    const warp = state.params.warp * (0.5 + 1.8 * lerp(state.motion.touchRotX, state.motion.smY, mix));
+
+    ctx.save();
+    ctx.translate(w * 0.5, h * 0.5);
+    const z = state.params.zoom * (1 + bass * 0.35);
+    ctx.scale(z, z);
+
+    for (let r = 1; r <= rings; r++) {
+      const rr = (Math.min(w, h) * 0.04) + r * (Math.min(w, h) * 0.018 + bass * 6);
+      const hue = (r * 16 + t * 0.03 + state.params.colorShift * 180) % 360;
+      ctx.strokeStyle = `hsla(${hue},90%,${40 + 40 * high}%,${0.15 + amp * 0.5})`;
+      ctx.lineWidth = 0.6 + (r % 3) * 0.6;
+      ctx.beginPath();
+      for (let s = 0; s <= segs; s++) {
+        const a = (s / segs) * Math.PI * 2;
+        const wobble = Math.sin(a * (3 + low * 10) + rot * 3 + r * 0.24) * (4 + 28 * warp * amp);
+        const x = Math.cos(a + rot) * (rr + wobble);
+        const y = Math.sin(a + rot) * (rr + wobble * 0.6);
+        if (s === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
+  function renderSceneNoise(t) {
+    const ctx = ctx2d;
+    ctx.fillStyle = 'rgba(4,6,10,0.2)';
+    ctx.fillRect(0, 0, w, h);
+
+    const amp = state.audio.amp;
+    const bass = state.audio.bass;
+    const high = state.audio.high;
+    const mix = state.motion.gyroMix;
+    const gx = lerp(state.motion.touchRotY, state.motion.smX, mix);
+    const gy = lerp(state.motion.touchRotX, state.motion.smY, mix);
+
+    const lines = Math.floor((state.safeMode ? 36 : state.noise.lines) + state.params.detail * 30);
+    const lh = h / lines;
+
+    for (let i = 0; i < lines; i++) {
+      const yy = i * lh;
+      const n = Math.sin(i * 0.21 + t * 0.003 + gy * 2) * 0.5 + 0.5;
+      const shift = (n - 0.5) * (22 + 80 * state.params.warp + bass * 120) + gx * 50;
+      const hue = (200 + i * 2 + t * 0.04 + state.params.colorShift * 240) % 360;
+
+      ctx.fillStyle = `hsla(${hue},70%,${25 + n * 45 + amp * 15}%,${0.12 + 0.35 * amp})`;
+      const barW = w * (0.5 + 0.5 * smoothstep(n));
+      ctx.fillRect((w - barW) * 0.5 + shift, yy, barW, lh + 1);
+    }
+
+    const glitchCount = Math.floor((3 + high * 18) * (state.safeMode ? 0.5 : 1));
+    ctx.globalCompositeOperation = 'lighter';
+    for (let g = 0; g < glitchCount; g++) {
+      const gh = 1 + Math.random() * (3 + high * 8);
+      const gyy = Math.random() * h;
+      const hue = (Math.random() * 360 + t * 0.1) % 360;
+      ctx.fillStyle = `hsla(${hue},100%,70%,${0.05 + Math.random() * 0.2})`;
+      ctx.fillRect(0, gyy, w, gh);
+    }
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  function renderFrame(t) {
+    if (state.renderer !== '2D') {
+      initRenderer2D();
+    }
+
+    switch (state.scene) {
+      case 0: renderSceneFlow(t); break;
+      case 1: renderSceneMandala(t); break;
+      case 2: renderSceneNoise(t); break;
+    }
+  }
+
+  function updateStatusUI() {
+    micBadge.className = `badge ${state.audio.enabled ? 'on' : 'off'}`;
+    gyroBadge.className = `badge ${state.motion.enabled ? 'on' : 'off'}`;
+    micBadge.textContent = state.audio.enabled ? 'Mic On' : 'Mic Off';
+    gyroBadge.textContent = state.motion.enabled ? 'Gyro On' : 'Gyro Off';
+
+    statusOverlay.textContent =
+`FPS ${state.fpsAvg.toFixed(1)}
+Q ${state.qualityLevel}
+Renderer ${state.renderer}
+Mic ${state.audio.enabled ? 'on' : 'off'}
+Gyro ${state.motion.enabled ? 'on' : 'off'}
+Scene ${state.scene + 1}`;
+  }
+
+  function onVisibilityChange() {
+    if (document.hidden) {
+      state.running = false;
+      if (state.audio.ctx && state.audio.ctx.state === 'running') {
+        state.audio.ctx.suspend().catch(() => {});
+      }
+    } else {
+      state.running = true;
+      state.lastTs = 0;
+      if (state.audio.ctx) {
+        state.audio.ctx.resume().catch(() => {});
+      }
+      requestAnimationFrame(loop);
+    }
+  }
+
+  function loop(ts) {
+    if (!state.running) return;
+
+    if (!state.lastTs) state.lastTs = ts;
+    state.dt = clamp((ts - state.lastTs) / 1000, 0.001, 0.05);
+    state.lastTs = ts;
+
+    if (state.started) {
+      updateAudioFeatures(ts);
+      updateMotion();
+      adaptiveQuality(state.dt);
+      renderFrame(ts);
+    } else {
+      ctx2d.fillStyle = '#07090f';
+      ctx2d.fillRect(0, 0, w, h);
+    }
+
+    state.uiTimer += state.dt;
+    if (state.uiTimer > 0.1) {
+      state.uiTimer = 0;
+      updateStatusUI();
+    }
+
+    requestAnimationFrame(loop);
+  }
+
+  initApp();
+})();
+</script>
+</body>
+</html>
