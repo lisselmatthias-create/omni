@@ -1,0 +1,1163 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#000000">
+<title>Omni Visual</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{
+  width:100%;height:100%;overflow:hidden;
+  background:#000;
+  font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',Helvetica,sans-serif;
+  color:#fff;
+  touch-action:none;
+  -webkit-user-select:none;user-select:none;
+  overscroll-behavior:none;
+  -webkit-overflow-scrolling:none;
+}
+#mainCanvas{
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  touch-action:none;display:none;
+}
+/* ====== START SCREEN ====== */
+#startScreen{
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  background:radial-gradient(ellipse at 30% 40%,#1a0a3e 0%,#0a0a1a 50%,#001a2e 100%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  z-index:200;padding:24px;gap:14px;
+}
+#startScreen h1{
+  font-size:clamp(2rem,8vw,3rem);font-weight:700;letter-spacing:0.04em;
+  background:linear-gradient(135deg,#c084fc,#60a5fa,#34d399);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;margin-bottom:4px;
+}
+#startScreen .sub{
+  font-size:0.85rem;color:rgba(255,255,255,0.45);margin-bottom:8px;text-align:center;
+}
+.start-btn{
+  width:100%;max-width:340px;min-height:58px;
+  border:none;border-radius:18px;
+  font-size:1rem;font-weight:600;letter-spacing:0.06em;
+  cursor:pointer;padding:0 24px;
+  transition:transform 0.12s,opacity 0.12s;
+  display:flex;align-items:center;justify-content:center;gap:10px;
+}
+.start-btn:active{transform:scale(0.96);}
+#btnAudio{background:linear-gradient(135deg,#7c3aed,#a78bfa);color:#fff;box-shadow:0 4px 24px rgba(124,58,237,0.4);}
+#btnGyro{background:linear-gradient(135deg,#0369a1,#38bdf8);color:#fff;box-shadow:0 4px 24px rgba(3,105,161,0.4);}
+#btnDemo{background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.85);border:1px solid rgba(255,255,255,0.15);}
+#startStatus{
+  font-size:0.78rem;color:rgba(255,255,255,0.45);min-height:20px;
+  text-align:center;padding:0 16px;max-width:340px;
+}
+/* ====== STATUS OVERLAY ====== */
+#statusOverlay{
+  position:fixed;
+  top:calc(env(safe-area-inset-top,0px) + 10px);
+  left:12px;
+  background:rgba(0,0,0,0.55);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border-radius:10px;padding:6px 10px;
+  font-size:10px;font-family:monospace;
+  color:rgba(255,255,255,0.65);
+  z-index:100;pointer-events:none;display:none;
+  line-height:1.7;border:1px solid rgba(255,255,255,0.08);
+}
+/* ====== SCENE SWITCHER ====== */
+#sceneSwitcher{
+  position:fixed;
+  top:calc(env(safe-area-inset-top,0px) + 10px);
+  right:12px;
+  display:none;gap:8px;z-index:100;
+}
+.scene-btn{
+  min-width:48px;height:48px;border-radius:14px;
+  border:1px solid rgba(255,255,255,0.18);
+  background:rgba(0,0,0,0.55);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  color:rgba(255,255,255,0.65);
+  font-size:0.62rem;font-weight:700;letter-spacing:0.03em;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  flex-direction:column;text-align:center;line-height:1.3;padding:4px 6px;
+  transition:background 0.2s,border-color 0.2s,color 0.2s;
+}
+.scene-btn.active{
+  background:rgba(167,139,250,0.25);
+  border-color:rgba(167,139,250,0.55);color:#e9d5ff;
+}
+/* ====== CONTROL PANEL ====== */
+#controlPanel{
+  position:fixed;bottom:0;left:0;right:0;
+  z-index:100;display:none;
+}
+#panelHandle{
+  width:100%;height:48px;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;
+  background:rgba(10,10,20,0.75);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border-top:1px solid rgba(255,255,255,0.1);
+  border-radius:20px 20px 0 0;
+  touch-action:manipulation;
+}
+#panelHandle::before{
+  content:'';width:36px;height:4px;
+  border-radius:2px;background:rgba(255,255,255,0.28);
+}
+#panelContent{
+  background:rgba(8,8,18,0.92);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  padding:8px 16px;
+  padding-bottom:calc(8px + env(safe-area-inset-bottom,0px));
+  max-height:58vh;overflow-y:auto;
+  -webkit-overflow-scrolling:touch;display:none;
+  border-top:1px solid rgba(255,255,255,0.06);
+}
+.sec-hdr{
+  font-size:0.65rem;font-weight:700;letter-spacing:0.12em;
+  color:rgba(167,139,250,0.75);padding:10px 0 4px;
+  text-transform:uppercase;
+}
+.slider-row{
+  display:flex;align-items:center;gap:10px;
+  min-height:46px;border-bottom:1px solid rgba(255,255,255,0.04);
+}
+.s-label{
+  min-width:84px;font-size:0.72rem;color:rgba(255,255,255,0.55);
+  flex-shrink:0;
+}
+.s-val{
+  min-width:34px;font-size:0.72rem;color:rgba(255,255,255,0.4);
+  text-align:right;font-family:monospace;flex-shrink:0;
+}
+input[type=range]{
+  flex:1;-webkit-appearance:none;appearance:none;
+  height:4px;border-radius:2px;background:rgba(255,255,255,0.12);
+  outline:none;cursor:pointer;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:26px;height:26px;
+  border-radius:50%;background:linear-gradient(135deg,#a78bfa,#60a5fa);
+  cursor:pointer;border:2px solid rgba(255,255,255,0.25);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+}
+.toggle-row{
+  display:flex;align-items:center;justify-content:space-between;
+  min-height:46px;border-bottom:1px solid rgba(255,255,255,0.04);
+}
+.t-label{font-size:0.82rem;color:rgba(255,255,255,0.75);}
+.toggle-sw{
+  width:52px;height:30px;border-radius:15px;
+  background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.18);
+  cursor:pointer;position:relative;transition:background 0.25s,border-color 0.25s;
+  flex-shrink:0;touch-action:manipulation;
+}
+.toggle-sw.on{background:#7c3aed;border-color:#a78bfa;}
+.toggle-sw::after{
+  content:'';position:absolute;top:3px;left:3px;
+  width:22px;height:22px;border-radius:50%;background:#fff;
+  transition:transform 0.25s;box-shadow:0 1px 4px rgba(0,0,0,0.3);
+}
+.toggle-sw.on::after{transform:translateX(22px);}
+.preset-row{
+  display:flex;gap:8px;flex-wrap:wrap;padding:10px 0;
+}
+.preset-btn{
+  flex:1;min-width:70px;min-height:40px;border-radius:12px;
+  background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);
+  color:rgba(255,255,255,0.75);font-size:0.78rem;font-weight:600;
+  cursor:pointer;touch-action:manipulation;
+  transition:background 0.15s;
+}
+.preset-btn:active{background:rgba(167,139,250,0.3);}
+.gyro-req-btn{
+  width:100%;min-height:44px;border-radius:12px;
+  background:rgba(3,105,161,0.25);border:1px solid rgba(56,189,248,0.3);
+  color:rgba(56,189,248,0.9);font-size:0.82rem;font-weight:600;
+  cursor:pointer;touch-action:manipulation;margin:8px 0;
+  transition:background 0.15s;
+}
+.gyro-req-btn:active{background:rgba(3,105,161,0.45);}
+</style>
+</head>
+<body>
+
+<!-- ====== START SCREEN ====== -->
+<div id="startScreen">
+  <h1>Omni Visual</h1>
+  <div class="sub">Audio-reaktive Visuals · iPhone-optimiert</div>
+  <button class="start-btn" id="btnAudio"><span>🎙</span> AUDIO AKTIVIEREN</button>
+  <button class="start-btn" id="btnGyro"><span>📱</span> GYRO AKTIVIEREN</button>
+  <button class="start-btn" id="btnDemo"><span>✦</span> DEMO MODUS</button>
+  <div id="startStatus"></div>
+</div>
+
+<!-- ====== CANVAS ====== -->
+<canvas id="mainCanvas"></canvas>
+
+<!-- ====== STATUS OVERLAY ====== -->
+<div id="statusOverlay"><div id="statusText"></div></div>
+
+<!-- ====== SCENE SWITCHER ====== -->
+<div id="sceneSwitcher">
+  <button class="scene-btn active" data-scene="0">Flow<br>Trails</button>
+  <button class="scene-btn" data-scene="1">Kyma<br>tik</button>
+  <button class="scene-btn" data-scene="2">Glitch<br>Warp</button>
+</div>
+
+<!-- ====== CONTROL PANEL ====== -->
+<div id="controlPanel">
+  <div id="panelHandle"></div>
+  <div id="panelContent">
+
+    <div class="sec-hdr">Visuals</div>
+    <div class="slider-row">
+      <span class="s-label">Intensity</span>
+      <input type="range" min="0" max="1" step="0.01" value="0.5" id="sIntensity">
+      <span class="s-val" id="vIntensity">0.50</span>
+    </div>
+    <div class="slider-row">
+      <span class="s-label">Speed</span>
+      <input type="range" min="0" max="1" step="0.01" value="0.5" id="sSpeed">
+      <span class="s-val" id="vSpeed">0.50</span>
+    </div>
+    <div class="slider-row">
+      <span class="s-label">Zoom</span>
+      <input type="range" min="0.2" max="3" step="0.01" value="1" id="sZoom">
+      <span class="s-val" id="vZoom">1.00</span>
+    </div>
+    <div class="slider-row">
+      <span class="s-label">Warp</span>
+      <input type="range" min="0" max="1" step="0.01" value="0.3" id="sWarp">
+      <span class="s-val" id="vWarp">0.30</span>
+    </div>
+    <div class="slider-row">
+      <span class="s-label">Trails</span>
+      <input type="range" min="0" max="1" step="0.01" value="0.6" id="sTrails">
+      <span class="s-val" id="vTrails">0.60</span>
+    </div>
+    <div class="slider-row">
+      <span class="s-label">Detail</span>
+      <input type="range" min="0" max="1" step="0.01" value="0.5" id="sDetail">
+      <span class="s-val" id="vDetail">0.50</span>
+    </div>
+    <div class="slider-row">
+      <span class="s-label">ColorShift</span>
+      <input type="range" min="0" max="1" step="0.01" value="0.5" id="sColorShift">
+      <span class="s-val" id="vColorShift">0.50</span>
+    </div>
+
+    <div class="sec-hdr">Audio</div>
+    <div class="slider-row">
+      <span class="s-label">MicGain</span>
+      <input type="range" min="0.1" max="4" step="0.01" value="1" id="sMicGain">
+      <span class="s-val" id="vMicGain">1.00</span>
+    </div>
+    <div class="slider-row">
+      <span class="s-label">NoiseGate</span>
+      <input type="range" min="0" max="0.15" step="0.001" value="0.01" id="sNoiseGate">
+      <span class="s-val" id="vNoiseGate">0.01</span>
+    </div>
+
+    <div class="sec-hdr">Motion</div>
+    <div class="slider-row">
+      <span class="s-label">GyroMix</span>
+      <input type="range" min="0" max="1" step="0.01" value="0.5" id="sGyroMix">
+      <span class="s-val" id="vGyroMix">0.50</span>
+    </div>
+    <div class="slider-row">
+      <span class="s-label">GyroSens</span>
+      <input type="range" min="0.1" max="3" step="0.01" value="1" id="sGyroSens">
+      <span class="s-val" id="vGyroSens">1.00</span>
+    </div>
+    <button class="gyro-req-btn" id="btnGyroInApp">📱 Gyro jetzt aktivieren</button>
+
+    <div class="sec-hdr">System</div>
+    <div class="toggle-row">
+      <span class="t-label">Safe Mode (Qualität ↓)</span>
+      <div class="toggle-sw" id="tSafeMode"></div>
+    </div>
+    <div class="toggle-row">
+      <span class="t-label">WebGL (experimentell)</span>
+      <div class="toggle-sw" id="tWebGL"></div>
+    </div>
+
+    <div class="sec-hdr">Presets</div>
+    <div class="preset-row">
+      <button class="preset-btn" data-preset="0">Chill</button>
+      <button class="preset-btn" data-preset="1">Energy</button>
+      <button class="preset-btn" data-preset="2">Cosmic</button>
+      <button class="preset-btn" data-preset="save">Speichern</button>
+    </div>
+
+  </div><!-- /panelContent -->
+</div><!-- /controlPanel -->
+
+<script>
+'use strict';
+
+// ================================================================
+// STATE
+// ================================================================
+const P = { // Parameters (user-controlled)
+  intensity: 0.5, speed: 0.5, zoom: 1.0,
+  warp: 0.3, trails: 0.6, detail: 0.5, colorShift: 0.5,
+  micGain: 1.0, noiseGate: 0.01,
+  gyroMix: 0.5, gyroSens: 1.0,
+  safeMode: false, useWebGL: false,
+};
+
+const A = { // Audio features
+  rms: 0, bass: 0, mid: 0, high: 0,   // raw
+  rmsS: 0, bassS: 0, midS: 0, highS: 0, // smoothed
+};
+
+const M = { // Motion
+  x: 0, y: 0,       // low-pass filtered gyro (degrees)
+  touchRotX: 0, touchRotY: 0,
+  touchVX: 0, touchVY: 0,
+};
+
+const Q = { // Quality / performance
+  level: 2,         // 0..3
+  fps: 60, fpsAvg: 60,
+  fpsBuf: [],
+  lowTimer: 0, highTimer: 0,
+};
+
+let APP = {
+  started: false,
+  micEnabled: false,
+  gyroEnabled: false,
+  demoMode: false,
+  hidden: false,
+  scene: 0, prevScene: -1,
+  t: 0, frame: 0,
+  lastTime: 0, dt: 0,
+  lastDomMs: 0,
+  panelOpen: false,
+};
+
+// LFOs for demo mode
+let lfo1 = 0, lfo2 = 0, lfo3 = 0;
+
+// ================================================================
+// AUDIO SYSTEM
+// ================================================================
+let audioCtx = null, analyser = null, gainNode = null;
+let fftBuf = null, timeBuf = null;
+const FFT = 2048;
+
+async function initAudio() {
+  try {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
+    }
+    if (audioCtx.state === 'suspended') await audioCtx.resume();
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: false, autoGainControl: false }
+    });
+
+    const src = audioCtx.createMediaStreamSource(stream);
+    gainNode = audioCtx.createGain();
+    gainNode.gain.value = P.micGain;
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = FFT;
+    analyser.smoothingTimeConstant = 0.8;
+    src.connect(gainNode);
+    gainNode.connect(analyser);
+    // intentionally NOT connected to destination → no feedback
+
+    fftBuf = new Uint8Array(analyser.frequencyBinCount);
+    timeBuf = new Uint8Array(FFT);
+
+    APP.micEnabled = true;
+    return true;
+  } catch (e) {
+    console.warn('[Audio]', e.name, e.message);
+    APP.micEnabled = false;
+    return false;
+  }
+}
+
+function updateAudio() {
+  if (!analyser || !APP.micEnabled) {
+    // Demo mode: sine LFOs simulate audio reactivity
+    A.rms  = 0.28 + 0.22 * Math.sin(lfo1);
+    A.bass = 0.35 + 0.30 * Math.sin(lfo1 * 0.73 + 0.5);
+    A.mid  = 0.18 + 0.18 * Math.sin(lfo2);
+    A.high = 0.10 + 0.12 * Math.sin(lfo3);
+  } else {
+    // RMS from time domain
+    analyser.getByteTimeDomainData(timeBuf);
+    let rmsAcc = 0;
+    for (let i = 0; i < timeBuf.length; i++) {
+      const v = (timeBuf[i] - 128) / 128.0;
+      rmsAcc += v * v;
+    }
+    const raw = Math.sqrt(rmsAcc / timeBuf.length) * P.micGain;
+    A.rms = raw > P.noiseGate ? raw : 0;
+
+    // FFT bands
+    analyser.getByteFrequencyData(fftBuf);
+    const bins = fftBuf.length;
+    const sr   = audioCtx.sampleRate;
+    const bHz  = sr / FFT;
+
+    const b0 = Math.floor(30 / bHz),  b1 = Math.floor(250 / bHz);
+    const m0 = b1,                     m1 = Math.floor(2000 / bHz);
+    const h0 = m1,                     h1 = Math.min(Math.floor(8000 / bHz), bins - 1);
+
+    let bs = 0, ms = 0, hs = 0;
+    for (let i = b0; i < b1; i++) bs += fftBuf[i];
+    for (let i = m0; i < m1; i++) ms += fftBuf[i];
+    for (let i = h0; i < h1; i++) hs += fftBuf[i];
+
+    const g = P.micGain;
+    A.bass = Math.min(1, (bs / ((b1 - b0) * 255)) * g * 2.5);
+    A.mid  = Math.min(1, (ms / ((m1 - m0) * 255)) * g * 2.5);
+    A.high = Math.min(1, (hs / ((h1 - h0) * 255)) * g * 3.0);
+  }
+
+  // Exponential smoothing
+  const k = 0.12;
+  A.rmsS  += k * (A.rms  - A.rmsS);
+  A.bassS += k * (A.bass - A.bassS);
+  A.midS  += k * (A.mid  - A.midS);
+  A.highS += k * (A.high - A.highS);
+}
+
+// ================================================================
+// MOTION SYSTEM
+// ================================================================
+async function initMotion() {
+  if (typeof DeviceMotionEvent !== 'undefined' &&
+      typeof DeviceMotionEvent.requestPermission === 'function') {
+    try {
+      const r = await DeviceMotionEvent.requestPermission();
+      if (r !== 'granted') return false;
+    } catch (e) { return false; }
+  }
+  window.addEventListener('deviceorientation', onOrientation, { passive: true });
+  APP.gyroEnabled = true;
+  return true;
+}
+
+function onOrientation(e) {
+  if (e.gamma === null || e.beta === null) return;
+  const alpha = 0.08; // low-pass
+  const tX = (e.gamma || 0) * P.gyroSens; // left/right tilt
+  const tY = (e.beta  || 0) * P.gyroSens; // forward/back tilt
+  M.x += alpha * (tX - M.x);
+  M.y += alpha * (tY - M.y);
+}
+
+// ================================================================
+// TOUCH SYSTEM
+// ================================================================
+let _touches = {};
+let _lastTap = 0, _pinchStart = 0, _pinchZoom = 1;
+
+function initTouch(el) {
+  el.addEventListener('touchstart',  onTS, { passive: false });
+  el.addEventListener('touchmove',   onTM, { passive: false });
+  el.addEventListener('touchend',    onTE, { passive: false });
+  el.addEventListener('touchcancel', onTE, { passive: false });
+}
+
+function onTS(e) {
+  e.preventDefault();
+  const now = performance.now();
+  if (e.touches.length === 1 && now - _lastTap < 280) {
+    // Double tap: next scene (if panel closed) or toggle panel
+    if (!APP.panelOpen) {
+      APP.scene = (APP.scene + 1) % 3;
+      updateSceneBtns();
+    } else {
+      togglePanel();
+    }
+  }
+  _lastTap = now;
+
+  for (let i = 0; i < e.touches.length; i++) {
+    const t = e.touches[i];
+    _touches[t.identifier] = { x: t.clientX, y: t.clientY };
+  }
+  if (e.touches.length === 2) {
+    const t1 = e.touches[0], t2 = e.touches[1];
+    _pinchStart = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+    _pinchZoom  = P.zoom;
+  }
+}
+
+function onTM(e) {
+  e.preventDefault();
+  if (e.touches.length === 1) {
+    const t = e.touches[0];
+    const prev = _touches[t.identifier];
+    if (prev && !APP.gyroEnabled) {
+      const dx = t.clientX - prev.x;
+      const dy = t.clientY - prev.y;
+      M.touchVX = dx * 0.4;
+      M.touchVY = dy * 0.4;
+      M.touchRotX += dx * 0.004;
+      M.touchRotY += dy * 0.004;
+    }
+    _touches[t.identifier] = { x: t.clientX, y: t.clientY };
+  }
+  if (e.touches.length === 2) {
+    const t1 = e.touches[0], t2 = e.touches[1];
+    const d = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+    if (_pinchStart > 0) {
+      P.zoom = Math.max(0.2, Math.min(3.0, _pinchZoom * d / _pinchStart));
+      syncSlider('sZoom', 'vZoom', P.zoom);
+    }
+    _touches[t1.identifier] = { x: t1.clientX, y: t1.clientY };
+    _touches[t2.identifier] = { x: t2.clientX, y: t2.clientY };
+  }
+}
+
+function onTE(e) {
+  for (let i = 0; i < e.changedTouches.length; i++) {
+    delete _touches[e.changedTouches[i].identifier];
+  }
+  if (e.touches.length < 2) _pinchStart = 0;
+}
+
+// ================================================================
+// CANVAS / RENDERER
+// ================================================================
+let canvas, ctx;
+let W = 1, H = 1, _px = 1; // CSS dims + pixel ratio
+
+function initRenderer() {
+  canvas = document.getElementById('mainCanvas');
+  canvas.style.display = 'block';
+  ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
+  ctx.imageSmoothingEnabled = false;
+  sizeCanvas();
+  window.addEventListener('resize', sizeCanvas, { passive: true });
+  initTouch(canvas);
+}
+
+function qScale() {
+  if (P.safeMode) return 0.5;
+  return [0.55, 0.7, 0.85, 1.0][Q.level];
+}
+
+function sizeCanvas() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2.0);
+  const qs  = qScale();
+  _px = dpr * qs;
+  W   = window.innerWidth;
+  H   = window.innerHeight;
+  canvas.width  = Math.round(W * _px);
+  canvas.height = Math.round(H * _px);
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
+  if (ctx) {
+    ctx.setTransform(_px, 0, 0, _px, 0, 0);
+    ctx.imageSmoothingEnabled = false;
+  }
+}
+
+// ================================================================
+// NOISE / MATH HELPERS
+// ================================================================
+// Fast smooth hash-based noise  [-1, 1]
+function h2(x, y) {
+  const n = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
+  return (n - Math.floor(n)) * 2 - 1;
+}
+// Bilinear smooth noise
+function sn(x, y) {
+  const ix = Math.floor(x), iy = Math.floor(y);
+  const fx = x - ix, fy = y - iy;
+  const ux = fx * fx * (3 - 2 * fx), uy = fy * fy * (3 - 2 * fy);
+  const a = h2(ix, iy), b = h2(ix + 1, iy);
+  const c = h2(ix, iy + 1), d = h2(ix + 1, iy + 1);
+  return a + (b - a) * ux + (c - a) * uy + (d - a - c + a) * ux * uy;
+}
+// Flow field angle (smooth, animated)
+function flowAngle(x, y, t) {
+  return (
+    Math.sin(x * 0.35 + t * 0.7) * Math.cos(y * 0.28 - t * 0.5) +
+    Math.sin((x + y) * 0.22 - t * 0.4) * 0.6
+  ) * Math.PI * 2;
+}
+
+// ================================================================
+// SCENE 1 – FLOW TRAILS
+// ================================================================
+const MAX_P = [35, 70, 110, 180];
+let parts = [];
+
+function mkPart() {
+  return {
+    x: W * Math.random(), y: H * Math.random(),
+    vx: (Math.random() - 0.5) * 1.5,
+    vy: (Math.random() - 0.5) * 1.5,
+    hue: Math.random() * 360,
+    size: 1 + Math.random() * 2.5,
+    age: 0, life: 2 + Math.random() * 5,
+  };
+}
+
+function initParts() {
+  const n = MAX_P[Q.level];
+  while (parts.length > n) parts.pop();
+  while (parts.length < n) parts.push(mkPart());
+}
+
+function renderFlow() {
+  const w = W, h = H;
+  const trA = P.safeMode ? 0.18 : (P.trails * 0.13 + 0.03);
+  ctx.fillStyle = 'rgba(0,0,0,' + trA + ')';
+  ctx.fillRect(0, 0, w, h);
+
+  const n     = P.safeMode ? Math.min(35, parts.length) : MAX_P[Q.level];
+  const spd   = (P.speed * 0.85 + 0.15) * (1 + A.midS * 1.5);
+  const intens = P.intensity + A.rmsS * 1.4;
+  const csHue = P.colorShift * 360;
+  const gx    = APP.gyroEnabled ? M.x * P.gyroMix * 0.025 : M.touchRotX * 0.12;
+  const gy    = APP.gyroEnabled ? M.y * P.gyroMix * 0.025 : M.touchRotY * 0.12;
+
+  while (parts.length < n) parts.push(mkPart());
+
+  for (let i = 0; i < n; i++) {
+    const p = parts[i];
+    p.age += APP.dt * spd;
+
+    // Flow field
+    const angle = flowAngle(p.x / w * 3, p.y / h * 3, APP.t * spd);
+    const force = (0.4 + intens * 1.8) * APP.dt;
+    p.vx += Math.cos(angle) * force;
+    p.vy += Math.sin(angle) * force;
+
+    // Gyro / touch push
+    p.vx += gx;
+    p.vy += gy;
+
+    // Bass kicks
+    p.vx += (Math.random() - 0.5) * A.bassS * 1.5 * APP.dt;
+    p.vy += (Math.random() - 0.5) * A.bassS * 1.5 * APP.dt;
+
+    // Damping
+    const damp = 0.88 + A.bassS * 0.05;
+    p.vx *= damp;
+    p.vy *= damp;
+
+    p.x += p.vx * spd;
+    p.y += p.vy * spd;
+
+    // Wrap
+    if (p.x < -8) p.x = w + 8;
+    else if (p.x > w + 8) p.x = -8;
+    if (p.y < -8) p.y = h + 8;
+    else if (p.y > h + 8) p.y = -8;
+
+    const lifeF = Math.min(1, p.age / p.life);
+    const alpha = (1 - lifeF) * (0.45 + intens * 0.5);
+    const hue   = (p.hue + csHue + APP.t * 22) % 360;
+    const sz    = Math.max(0.5, p.size * (1 + A.highS * 1.8) * (0.7 + A.bassS * 0.5));
+
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, sz, 0, 6.2832);
+    ctx.fillStyle = 'hsla(' + hue + ',80%,65%,' + alpha + ')';
+    ctx.fill();
+
+    if (p.age >= p.life) parts[i] = mkPart();
+  }
+}
+
+// ================================================================
+// SCENE 2 – KYMATIK MANDALA
+// ================================================================
+function renderMandala() {
+  const w = W, h = H, cx = w / 2, cy = h / 2;
+  const trA = P.safeMode ? 0.22 : (P.trails * 0.16 + 0.04);
+  ctx.fillStyle = 'rgba(0,0,0,' + trA + ')';
+  ctx.fillRect(0, 0, w, h);
+
+  const rings = P.safeMode ? 3 : [3, 4, 6, 8][Q.level];
+  const pts   = P.safeMode ? 36 : [36, 54, 72, 108][Q.level];
+  const base  = Math.min(w, h) * 0.22 * P.zoom;
+  const intens = P.intensity + A.rmsS * 1.8;
+  const csHue = P.colorShift * 360;
+  const detail = P.detail + A.highS * 0.5;
+  const warp  = P.warp * (1 + A.bassS * 2.5);
+
+  const gRot  = APP.gyroEnabled ? M.x * P.gyroMix * 0.012 : M.touchRotX * 0.6;
+  const gWarp = APP.gyroEnabled ? M.y * P.gyroMix * 0.008 : M.touchRotY * 0.4;
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(APP.t * P.speed * 0.18 + gRot);
+
+  for (let r = 0; r < rings; r++) {
+    const rFrac = (r + 1) / rings;
+    const ringR = base * (0.25 + r * 0.22);
+    const hue   = (rFrac * 280 + csHue + APP.t * 28) % 360;
+    const ri    = intens * (1 - r * 0.12);
+    const fq    = 3 + Math.floor(detail * 5) + r;
+    const wAmt  = warp * ringR * 0.32;
+
+    ctx.beginPath();
+    for (let i = 0; i <= pts; i++) {
+      const θ    = (i / pts) * 6.2832;
+      const dθ   = θ * fq + APP.t * P.speed * 1.8 + r * 0.9;
+      const mod  = Math.sin(dθ) * wAmt
+                 + Math.sin(θ * 7 + APP.t + gWarp) * ringR * 0.1 * ri;
+      const rr   = ringR * (1 + A.bassS * 0.45) + mod;
+      const x    = Math.cos(θ) * rr;
+      const y    = Math.sin(θ) * rr;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+
+    ctx.strokeStyle = 'hsla(' + hue + ',88%,68%,' + (0.28 + ri * 0.55) + ')';
+    ctx.lineWidth   = 0.8 + A.highS * 2.2;
+    ctx.stroke();
+
+    if (r === 0) {
+      ctx.fillStyle = 'hsla(' + hue + ',70%,35%,' + (0.04 + A.rmsS * 0.1) + ')';
+      ctx.fill();
+    }
+  }
+
+  // Center orb
+  const orbR = 16 + A.rmsS * 40;
+  const g    = ctx.createRadialGradient(0, 0, 0, 0, 0, orbR);
+  const oh   = (csHue + APP.t * 55) % 360;
+  g.addColorStop(0, 'hsla(' + oh + ',100%,92%,0.95)');
+  g.addColorStop(0.4, 'hsla(' + oh + ',90%,60%,0.5)');
+  g.addColorStop(1, 'hsla(' + oh + ',80%,40%,0)');
+  ctx.beginPath();
+  ctx.arc(0, 0, orbR, 0, 6.2832);
+  ctx.fillStyle = g;
+  ctx.fill();
+
+  ctx.restore();
+}
+
+// ================================================================
+// SCENE 3 – NOISE WARP GLITCH
+// ================================================================
+function renderGlitch() {
+  const w = W, h = H;
+  const trA = P.safeMode ? 0.35 : (P.trails * 0.22 + 0.06);
+  ctx.fillStyle = 'rgba(0,0,0,' + trA + ')';
+  ctx.fillRect(0, 0, w, h);
+
+  const bands  = P.safeMode ? 14 : [14, 20, 28, 42][Q.level];
+  const bh     = h / bands;
+  const intens = P.intensity + A.rmsS * 1.8;
+  const csHue  = P.colorShift * 360;
+  const wStr   = P.warp * w * 0.14 * (1 + A.bassS * 2);
+  const gShift = APP.gyroEnabled ? M.x * P.gyroMix * 1.8 : M.touchRotX * 22;
+  const pStep  = P.safeMode ? 4 : [4, 5, 7, 10][Q.level];
+
+  for (let b = 0; b < bands; b++) {
+    const y  = b * bh;
+    const n1 = sn(b * 0.28, APP.t * P.speed * 0.45);
+    const n2 = sn(b * 0.45 + 80, APP.t * P.speed * 0.28 + 30);
+    const ox = n1 * wStr
+             + gShift
+             + Math.sin(APP.t * 1.9 + b * 0.35) * wStr * 0.45 * intens;
+
+    const hue = (b / bands * 140 + csHue + APP.t * 18) % 360;
+    const sat = 55 + n2 * 38;
+    // Posterize lightness
+    const lRaw = 18 + n1 * 28 + intens * 12;
+    const light = Math.round(lRaw / (100 / pStep)) * (100 / pStep);
+    const alpha = 0.28 + intens * 0.5 + Math.abs(n1) * 0.28;
+
+    ctx.fillStyle = 'hsla(' + hue + ',' + sat + '%,' + light + '%,' + alpha + ')';
+    ctx.fillRect(ox, y, w, bh + 0.5);
+
+    // Glitch edge line (highs)
+    if (n1 > 0.55 && A.highS > 0.08) {
+      ctx.fillStyle = 'hsla(' + ((hue + 180) % 360) + ',100%,82%,' + (A.highS * 0.85) + ')';
+      ctx.fillRect(ox, y, w, 1.2);
+    }
+  }
+
+  // Vertical glitch bars (quality ≥2, audio reactive)
+  if (!P.safeMode && Q.level >= 2 && A.rmsS > 0.06) {
+    const numBars = Math.floor(A.highS * 4 + 0.5);
+    for (let i = 0; i < numBars; i++) {
+      const bx = (sn(i * 2.1, APP.t * 4) + 1) * 0.5 * w;
+      const bw = 1.5 + A.highS * 6;
+      ctx.fillStyle = 'hsla(' + ((csHue + 30 + i * 47) % 360) + ',100%,75%,' + (0.25 + A.rmsS * 0.4) + ')';
+      ctx.fillRect(bx, 0, bw, h);
+    }
+  }
+}
+
+// ================================================================
+// ADAPTIVE QUALITY
+// ================================================================
+function adaptQuality(fps) {
+  Q.fpsBuf.push(fps);
+  if (Q.fpsBuf.length > 50) Q.fpsBuf.shift();
+  if (Q.fpsBuf.length < 8) return;
+
+  let sum = 0;
+  for (let i = 0; i < Q.fpsBuf.length; i++) sum += Q.fpsBuf[i];
+  Q.fpsAvg = sum / Q.fpsBuf.length;
+
+  if (Q.fpsAvg < 28) {
+    Q.lowTimer  += APP.dt;
+    Q.highTimer  = 0;
+    if (Q.lowTimer > 2 && Q.level > 0) {
+      Q.level--;
+      Q.lowTimer = 0;
+      Q.fpsBuf = [];
+      sizeCanvas();
+      initParts();
+    }
+  } else if (Q.fpsAvg > 50) {
+    Q.highTimer += APP.dt;
+    Q.lowTimer   = 0;
+    if (Q.highTimer > 3 && Q.level < 3 && !P.safeMode) {
+      Q.level++;
+      Q.highTimer = 0;
+      Q.fpsBuf = [];
+      sizeCanvas();
+      initParts();
+    }
+  } else {
+    Q.lowTimer = Q.highTimer = 0;
+  }
+}
+
+// ================================================================
+// RENDER LOOP
+// ================================================================
+let _rafId = null;
+
+function loop(ts) {
+  _rafId = requestAnimationFrame(loop);
+
+  if (APP.hidden) return;
+
+  // Delta time
+  if (!APP.lastTime) APP.lastTime = ts;
+  APP.dt       = Math.min((ts - APP.lastTime) / 1000, 0.1);
+  APP.lastTime = ts;
+  APP.t       += APP.dt;
+  APP.frame++;
+
+  Q.fps = APP.dt > 0 ? (1 / APP.dt) : 60;
+
+  // Demo LFOs
+  lfo1 += APP.dt * 0.65;
+  lfo2 += APP.dt * 1.05;
+  lfo3 += APP.dt * 2.2;
+
+  // Touch momentum damping
+  M.touchVX *= Math.pow(0.82, APP.dt * 60);
+  M.touchVY *= Math.pow(0.82, APP.dt * 60);
+
+  // Update audio features
+  updateAudio();
+
+  // Adaptive quality
+  adaptQuality(Q.fps);
+
+  // Scene switch → clear
+  if (APP.scene !== APP.prevScene) {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, H);
+    APP.prevScene = APP.scene;
+    if (APP.scene === 0) initParts();
+  }
+
+  // Render
+  switch (APP.scene) {
+    case 0: renderFlow();    break;
+    case 1: renderMandala(); break;
+    case 2: renderGlitch();  break;
+  }
+
+  // DOM status (max 10 Hz)
+  if (ts - APP.lastDomMs > 100) {
+    updateStatus();
+    APP.lastDomMs = ts;
+  }
+}
+
+// ================================================================
+// DOM / STATUS
+// ================================================================
+function updateStatus() {
+  const el = document.getElementById('statusText');
+  if (!el) return;
+  const ql  = ['Lo', 'Med', 'Hi', 'Max'][Q.level];
+  const mic = APP.micEnabled ? 'ON' : (APP.demoMode ? 'Demo' : 'OFF');
+  const gyr = APP.gyroEnabled ? 'ON' : (APP.micEnabled ? 'Touch' : 'OFF');
+  const sc  = ['Flow', 'Mandala', 'Glitch'][APP.scene];
+  el.textContent =
+    'FPS:' + Q.fps.toFixed(0) + ' Q:' + ql + ' 2D\n' +
+    'Mic:' + mic + ' Gyro:' + gyr + '\n' +
+    'Scene:' + sc;
+}
+
+// ================================================================
+// UI SETUP
+// ================================================================
+function syncSlider(sid, vid, val) {
+  const s = document.getElementById(sid);
+  const v = document.getElementById(vid);
+  if (s) s.value = val;
+  if (v) v.textContent = val.toFixed(2);
+}
+
+function mkSlider(sid, vid, fn) {
+  const s = document.getElementById(sid);
+  const v = document.getElementById(vid);
+  if (!s) return;
+  s.addEventListener('input', () => {
+    const val = parseFloat(s.value);
+    if (v) v.textContent = val.toFixed(2);
+    fn(val);
+  });
+}
+
+function mkToggle(tid, fn) {
+  const el = document.getElementById(tid);
+  if (!el) return;
+  el.addEventListener('click', () => {
+    const on = el.classList.toggle('on');
+    fn(on, el);
+  });
+}
+
+function togglePanel() {
+  APP.panelOpen = !APP.panelOpen;
+  const c = document.getElementById('panelContent');
+  if (c) c.style.display = APP.panelOpen ? 'block' : 'none';
+}
+
+function updateSceneBtns() {
+  document.querySelectorAll('.scene-btn').forEach(b => {
+    b.classList.toggle('active', parseInt(b.dataset.scene) === APP.scene);
+  });
+}
+
+function setStatus(msg) {
+  const el = document.getElementById('startStatus');
+  if (el) el.textContent = msg;
+}
+
+const PRESETS = [
+  // Chill
+  { intensity:0.28, speed:0.28, zoom:1.0, warp:0.18, trails:0.82, detail:0.28, colorShift:0.18, micGain:1.5, noiseGate:0.01, gyroMix:0.4, gyroSens:1.0 },
+  // Energy
+  { intensity:0.82, speed:0.78, zoom:1.15, warp:0.65, trails:0.28, detail:0.82, colorShift:0.72, micGain:2.2, noiseGate:0.005, gyroMix:0.65, gyroSens:1.5 },
+  // Cosmic
+  { intensity:0.58, speed:0.38, zoom:1.45, warp:0.52, trails:0.72, detail:0.58, colorShift:0.5, micGain:1.1, noiseGate:0.012, gyroMix:0.55, gyroSens:1.0 },
+];
+
+function applyPreset(p) {
+  P.intensity  = p.intensity;  syncSlider('sIntensity', 'vIntensity', p.intensity);
+  P.speed      = p.speed;      syncSlider('sSpeed',     'vSpeed',     p.speed);
+  P.zoom       = p.zoom;       syncSlider('sZoom',      'vZoom',      p.zoom);
+  P.warp       = p.warp;       syncSlider('sWarp',      'vWarp',      p.warp);
+  P.trails     = p.trails;     syncSlider('sTrails',    'vTrails',    p.trails);
+  P.detail     = p.detail;     syncSlider('sDetail',    'vDetail',    p.detail);
+  P.colorShift = p.colorShift; syncSlider('sColorShift','vColorShift',p.colorShift);
+  P.micGain    = p.micGain;    syncSlider('sMicGain',   'vMicGain',   p.micGain);
+  P.noiseGate  = p.noiseGate;  syncSlider('sNoiseGate', 'vNoiseGate', p.noiseGate);
+  P.gyroMix    = p.gyroMix;    syncSlider('sGyroMix',   'vGyroMix',   p.gyroMix);
+  P.gyroSens   = p.gyroSens;   syncSlider('sGyroSens',  'vGyroSens',  p.gyroSens);
+  if (gainNode) gainNode.gain.value = P.micGain;
+}
+
+function savePreset() {
+  try {
+    const snap = Object.assign({}, P);
+    localStorage.setItem('omniVisual_preset', JSON.stringify(snap));
+  } catch (e) {}
+}
+
+function loadSaved() {
+  try {
+    const s = localStorage.getItem('omniVisual_preset');
+    if (s) applyPreset(JSON.parse(s));
+  } catch (e) {}
+}
+
+function initUI() {
+  // Start screen buttons
+  document.getElementById('btnAudio').addEventListener('click', async () => {
+    setStatus('Mikrofon wird aktiviert…');
+    const ok = await initAudio();
+    if (ok) {
+      setStatus('Audio aktiv ✓');
+      setTimeout(startApp, 400);
+    } else {
+      setStatus('Mikrofon abgelehnt – Demo-Modus läuft');
+      APP.demoMode = true;
+      setTimeout(startApp, 1200);
+    }
+  });
+
+  document.getElementById('btnGyro').addEventListener('click', async () => {
+    setStatus('Gyro-Zugriff anfragen…');
+    const ok = await initMotion();
+    setStatus(ok
+      ? 'Gyro aktiv ✓ – Demo-Audio läuft'
+      : 'Gyro abgelehnt – läuft trotzdem weiter');
+    APP.demoMode = true;
+    setTimeout(startApp, ok ? 400 : 1200);
+  });
+
+  document.getElementById('btnDemo').addEventListener('click', () => {
+    APP.demoMode = true;
+    setStatus('Demo-Modus gestartet');
+    startApp();
+  });
+
+  // Panel
+  document.getElementById('panelHandle').addEventListener('click', togglePanel);
+
+  // Scene switcher
+  document.querySelectorAll('.scene-btn').forEach(b => {
+    b.addEventListener('click', () => {
+      APP.scene = parseInt(b.dataset.scene);
+      updateSceneBtns();
+    });
+  });
+
+  // In-app gyro button
+  document.getElementById('btnGyroInApp').addEventListener('click', async () => {
+    if (APP.gyroEnabled) return;
+    const ok = await initMotion();
+    document.getElementById('btnGyroInApp').textContent =
+      ok ? '📱 Gyro aktiv ✓' : '📱 Gyro abgelehnt';
+  });
+
+  // Sliders
+  mkSlider('sIntensity',  'vIntensity',  v => P.intensity  = v);
+  mkSlider('sSpeed',      'vSpeed',      v => P.speed      = v);
+  mkSlider('sZoom',       'vZoom',       v => P.zoom       = v);
+  mkSlider('sWarp',       'vWarp',       v => P.warp       = v);
+  mkSlider('sTrails',     'vTrails',     v => P.trails     = v);
+  mkSlider('sDetail',     'vDetail',     v => P.detail     = v);
+  mkSlider('sColorShift', 'vColorShift', v => P.colorShift = v);
+  mkSlider('sMicGain',    'vMicGain',    v => {
+    P.micGain = v;
+    if (gainNode) gainNode.gain.value = v;
+  });
+  mkSlider('sNoiseGate',  'vNoiseGate',  v => P.noiseGate  = v);
+  mkSlider('sGyroMix',    'vGyroMix',    v => P.gyroMix    = v);
+  mkSlider('sGyroSens',   'vGyroSens',   v => P.gyroSens   = v);
+
+  // Toggles
+  mkToggle('tSafeMode', (on) => {
+    P.safeMode = on;
+    if (on) { Q.level = Math.min(Q.level, 1); sizeCanvas(); initParts(); }
+  });
+
+  mkToggle('tWebGL', (on, el) => {
+    // WebGL deliberately kept off for iOS stability
+    if (on) {
+      // Try graceful fallback - always stay on 2D
+      setTimeout(() => {
+        el.classList.remove('on');
+        P.useWebGL = false;
+      }, 200);
+    }
+  });
+
+  // Presets
+  document.querySelectorAll('.preset-btn').forEach(b => {
+    b.addEventListener('click', () => {
+      const idx = b.dataset.preset;
+      if (idx === 'save') {
+        savePreset();
+        const orig = b.textContent;
+        b.textContent = '✓ Gespeichert';
+        setTimeout(() => { b.textContent = orig; }, 1500);
+      } else {
+        applyPreset(PRESETS[parseInt(idx)]);
+      }
+    });
+  });
+
+  loadSaved();
+}
+
+// ================================================================
+// APP START
+// ================================================================
+function startApp() {
+  if (APP.started) return;
+  APP.started = true;
+
+  document.getElementById('startScreen').style.display = 'none';
+  document.getElementById('statusOverlay').style.display = 'block';
+  document.getElementById('sceneSwitcher').style.display = 'flex';
+  document.getElementById('controlPanel').style.display  = 'block';
+
+  initRenderer();
+  initParts();
+
+  // Clear to black
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+
+  APP.lastTime = 0;
+  _rafId = requestAnimationFrame(loop);
+}
+
+// ================================================================
+// VISIBILITY CHANGE (pause in background)
+// ================================================================
+document.addEventListener('visibilitychange', () => {
+  APP.hidden = document.hidden;
+  if (!APP.hidden) {
+    APP.lastTime = 0; // reset dt on return to avoid jump
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume().catch(() => {});
+    }
+    if (!_rafId) {
+      _rafId = requestAnimationFrame(loop);
+    }
+  }
+});
+
+// ================================================================
+// PREVENT IOS SCROLL / BOUNCE / ZOOM
+// ================================================================
+document.addEventListener('touchmove', e => {
+  // Allow scroll only inside panelContent
+  if (!e.target.closest('#panelContent')) e.preventDefault();
+}, { passive: false });
+
+document.addEventListener('gesturestart',  e => e.preventDefault(), { passive: false });
+document.addEventListener('gesturechange', e => e.preventDefault(), { passive: false });
+document.addEventListener('gestureend',    e => e.preventDefault(), { passive: false });
+
+// Resume AudioContext on any tap (iOS requirement)
+document.addEventListener('touchend', () => {
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume().catch(() => {});
+  }
+}, { passive: true });
+
+// ================================================================
+// BOOT
+// ================================================================
+window.addEventListener('DOMContentLoaded', initUI);
+
+</script>
+</body>
+</html>
