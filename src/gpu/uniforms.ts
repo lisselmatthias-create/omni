@@ -1,11 +1,11 @@
 export class UniformBuffer {
   readonly buffer: GPUBuffer;
-  private data: Float32Array;
+  private data: Float32Array<ArrayBuffer>;
   private readonly device: GPUDevice;
 
   constructor(device: GPUDevice, floatCount: number, label?: string) {
     this.device = device;
-    this.data = new Float32Array(Math.ceil(floatCount / 4) * 4);
+    this.data = new Float32Array(new ArrayBuffer(Math.ceil(floatCount / 4) * 4 * 4));
     this.buffer = device.createBuffer({
       label,
       size: this.data.byteLength,

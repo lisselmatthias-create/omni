@@ -9,9 +9,9 @@ export class AudioEngine {
   private workletNode: AudioWorkletNode | null = null;
   private stream: MediaStream | null = null;
   private beatDetector = new BeatDetector();
-  private freqData: Uint8Array | null = null;
-  private timeData: Float32Array | null = null;
-  private prevFreqData: Uint8Array | null = null;
+  private freqData: Uint8Array<ArrayBuffer> | null = null;
+  private timeData: Float32Array<ArrayBuffer> | null = null;
+  private prevFreqData: Uint8Array<ArrayBuffer> | null = null;
   private fftSize = 2048;
   private workletUrl: string | null = null;
 
