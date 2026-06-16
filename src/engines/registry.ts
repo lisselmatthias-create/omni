@@ -1,5 +1,6 @@
 import type { EngineFactory, EngineManifest } from '../types/engine';
 import { SDF_MANIFEST, createSdfEngine } from './sdf/sdfEngine';
+import { RD_MANIFEST, createRdEngine } from './reactionDiffusion/rdEngine';
 
 const registry = new Map<string, EngineFactory>();
 
@@ -8,6 +9,7 @@ function register(manifest: EngineManifest, create: EngineFactory['create']): vo
 }
 
 register(SDF_MANIFEST, (device, w, h) => createSdfEngine(device, w, h));
+register(RD_MANIFEST,  (device, w, h) => createRdEngine(device, w, h));
 
 export function getEngineFactory(type: string): EngineFactory | undefined {
   return registry.get(type);
