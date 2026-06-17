@@ -1,0 +1,2455 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="RD Audio Synth Dual Pointcloud - iPad-ready MP3/MP4 WebGL instrument.">
+<meta name="theme-color" content="#111111">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="RD Dual PC">
+<title>RD Dual Pointcloud · iPad</title>
+<style>
+  :root {
+    --bg: #111;
+    --panel: #1a1a1a;
+    --txt: #ddd;
+    --acc: #ffaa00;
+    --brd: #333;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    height: 100%;
+    height: 100dvh;
+    overflow: hidden;
+    overscroll-behavior: none;
+    touch-action: none;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--txt);
+    font-family: system-ui, sans-serif;
+    overflow: hidden;
+    display: flex;
+    height: 100vh;
+    height: 100dvh;
+    padding-top: env(safe-area-inset-top);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  canvas {
+    flex: 1;
+    display: block;
+    cursor: crosshair;
+    min-width: 0;
+    touch-action: none;
+  }
+
+  #ui {
+    width: 280px;
+    background: var(--panel);
+    border-left: 1px solid var(--brd);
+    padding: 15px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    z-index: 10;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+  }
+
+  h2 {
+    font-size: 14px;
+    color: var(--acc);
+    border-bottom: 1px solid var(--brd);
+    padding-bottom: 5px;
+  }
+
+  .ctrl {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  .value,
+  #fps,
+  #recordStatus {
+    color: var(--acc);
+    font-variant-numeric: tabular-nums;
+  }
+
+  label {
+    font-size: 11px;
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    align-items: center;
+  }
+
+  input[type="range"] {
+    width: 100%;
+    accent-color: var(--acc);
+  }
+
+  select,
+  input[type="file"] {
+    width: 100%;
+    background: var(--bg);
+    color: var(--txt);
+    border: 1px solid var(--brd);
+    padding: 4px;
+    border-radius: 3px;
+    font-size: 11px;
+  }
+
+  button {
+    background: var(--acc);
+    color: #000;
+    border: none;
+    padding: 6px;
+    cursor: pointer;
+    border-radius: 3px;
+    font-weight: bold;
+    width: 100%;
+    min-height: 34px;
+  }
+
+  button.secondary {
+    background: #2a2a2a;
+    color: var(--txt);
+    border: 1px solid var(--brd);
+  }
+
+  button.recording {
+    background: #f04c4c;
+    color: #fff;
+  }
+
+  button.active {
+    outline: 2px solid var(--acc);
+    outline-offset: 1px;
+  }
+
+  button:hover {
+    opacity: 0.8;
+  }
+
+  .meter {
+    height: 5px;
+    background: #080808;
+    border: 1px solid var(--brd);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .meter span {
+    display: block;
+    height: 100%;
+    width: 0%;
+    background: var(--acc);
+    transition: width 80ms linear;
+  }
+
+  @media (max-width: 900px) {
+    body {
+      flex-direction: column;
+      height: 100dvh;
+    }
+
+    canvas {
+      min-height: 54dvh;
+    }
+
+    #ui {
+      width: 100%;
+      border-left: 0;
+      border-top: 1px solid var(--brd);
+      max-height: 46dvh;
+    }
+  }
+</style>
+</head>
+<body>
+<canvas id="glCanvas"></canvas>
+
+<div id="ui">
+  <h2>Engine</h2>
+  <div class="ctrl">
+    <label>Preset <select id="preset"></select></label>
+    <div class="row">
+      <button id="savePresetBtn" class="secondary">Save Preset</button>
+      <button id="deletePresetBtn" class="secondary">Delete</button>
+    </div>
+    <button id="randomizeBtn" class="secondary">Randomize</button>
+    <button id="ipadModeBtn" class="secondary">iPad Dual Pointcloud</button>
+    <label>Resolution <select id="res"><option value="256" selected>256</option><option value="512">512</option><option value="1024">1024</option></select></label>
+    <label>Sim Steps <span class="value" id="simStepsVal">2</span></label>
+    <input type="range" id="simSteps" min="1" max="8" step="1" value="2">
+    <label>DPR Limit <select id="dprLimit"><option value="1">1</option><option value="1.5" selected>1.5</option><option value="2">2</option><option value="3">3</option></select></label>
+    <label>FPS <span id="fps">--</span></label>
+    <button id="resetBtn">Reset Simulation</button>
+  </div>
+
+  <h2>Pattern (RD)</h2>
+  <div class="ctrl">
+    <label>Growth Mode <select id="patternMode">
+      <option value="classic">Classic RD</option>
+      <option value="labyrinth">Labyrinth</option>
+      <option value="spots">Organic Spots</option>
+      <option value="soliton">Pulsing Solitons</option>
+      <option value="chaos">Boiling Chaos</option>
+      <option value="inverted">Inverted Pores</option>
+      <option value="worms">Worms & Loops</option>
+      <option value="crystal">Crystallization</option>
+    </select></label>
+    <label>Feed (F) <span class="value" id="feedVal">0.055</span></label>
+    <input type="range" id="feed" min="0.01" max="0.08" step="0.001" value="0.055">
+    <label>Kill (K) <span class="value" id="killVal">0.062</span></label>
+    <input type="range" id="kill" min="0.04" max="0.07" step="0.001" value="0.062">
+    <label>Du (Diff U) <span class="value" id="duVal">1.00</span></label>
+    <input type="range" id="du" min="0.1" max="1.0" step="0.01" value="1.0">
+    <label>Dv (Diff V) <span class="value" id="dvVal">0.50</span></label>
+    <input type="range" id="dv" min="0.1" max="1.0" step="0.01" value="0.5">
+    <label>Growth Drive <span class="value" id="growthDriveVal">0.50</span></label>
+    <input type="range" id="growthDrive" min="0" max="1" step="0.01" value="0.5">
+    <label>Pulse Rate <span class="value" id="pulseRateVal">0.35</span></label>
+    <input type="range" id="pulseRate" min="0" max="2" step="0.01" value="0.35">
+    <label>Edge Gain <span class="value" id="edgeGainVal">1.00</span></label>
+    <input type="range" id="edgeGain" min="0" max="3" step="0.01" value="1">
+  </div>
+
+  <h2>Flow & Injection</h2>
+  <div class="ctrl">
+    <label>Flow Curl <span class="value" id="curlVal">0.010</span></label>
+    <input type="range" id="curl" min="0.0" max="0.05" step="0.001" value="0.01">
+    <label>Brush Size <span class="value" id="brushSizeVal">0.015</span></label>
+    <input type="range" id="brushSize" min="0.005" max="0.05" step="0.001" value="0.015">
+    <label>Brush Intensity <span class="value" id="brushIntVal">0.50</span></label>
+    <input type="range" id="brushInt" min="0.1" max="1.0" step="0.01" value="0.5">
+  </div>
+
+  <h2>Audio Reactivity</h2>
+  <div class="ctrl">
+    <label>Audio File <input type="file" id="audioFile" accept=".mp3,.m4a,.aac,.wav,audio/*"></label>
+    <label>Bass Influence <span class="value" id="bassInfVal">0.65</span></label>
+    <input type="range" id="bassInf" min="0" max="2" step="0.01" value="0.65">
+    <label>Mid Influence <span class="value" id="midInfVal">0.35</span></label>
+    <input type="range" id="midInf" min="0" max="2" step="0.01" value="0.35">
+    <label>High Influence <span class="value" id="highInfVal">0.55</span></label>
+    <input type="range" id="highInf" min="0" max="2" step="0.01" value="0.55">
+    <label>Beat Influence <span class="value" id="beatInfVal">0.85</span></label>
+    <input type="range" id="beatInf" min="0" max="2" step="0.01" value="0.85">
+    <label>Smoothing <span class="value" id="smoothingVal">0.82</span></label>
+    <input type="range" id="smoothing" min="0" max="0.95" step="0.01" value="0.82">
+    <label>Bass</label><div class="meter"><span id="bassMeter"></span></div>
+    <label>Mid</label><div class="meter"><span id="midMeter"></span></div>
+    <label>High</label><div class="meter"><span id="highMeter"></span></div>
+    <audio id="audioPlayer" controls style="width:100%; display:none; margin-top:5px;"></audio>
+  </div>
+
+  <h2>Export</h2>
+  <div class="ctrl">
+    <button id="screenshotBtn" class="secondary">Screenshot PNG</button>
+    <button id="recordBtn">Start Recording</button>
+    <label>Status <span id="recordStatus">idle</span></label>
+  </div>
+
+  <h2>Media Influence</h2>
+  <div class="ctrl">
+    <label>Image/Video <input type="file" id="mediaFile" accept=".mp4,.mov,.m4v,.webm,image/*,video/*"></label>
+    <div class="row">
+      <button id="mediaPlayBtn" class="secondary">Play/Pause</button>
+      <button id="mediaRestartBtn" class="secondary">Restart</button>
+    </div>
+    <div class="row">
+      <button id="flipYBtn" class="secondary">Flip V</button>
+      <button id="flipXBtn" class="secondary">Flip H</button>
+    </div>
+    <label>Video Speed <span class="value" id="videoSpeedVal">1.00</span></label>
+    <input type="range" id="videoSpeed" min="0.1" max="3" step="0.05" value="1">
+    <label>Media Bias <span class="value" id="mediaBiasVal">0.010</span></label>
+    <input type="range" id="mediaBias" min="0" max="0.1" step="0.001" value="0.01">
+    <label>Status <span id="mediaStatus">none</span></label>
+  </div>
+
+  <h2>Color</h2>
+  <div class="ctrl">
+    <label>Palette <select id="palette">
+      <option value="aurora">Aurora</option>
+      <option value="ember">Ember</option>
+      <option value="acid">Acid</option>
+      <option value="ocean">Ocean</option>
+      <option value="mono">Mono</option>
+    </select></label>
+    <label>Hue Shift <span class="value" id="hueShiftVal">0.00</span></label>
+    <input type="range" id="hueShift" min="-1" max="1" step="0.01" value="0">
+    <label>Saturation <span class="value" id="saturationVal">1.00</span></label>
+    <input type="range" id="saturation" min="0" max="2" step="0.01" value="1">
+    <label>Contrast <span class="value" id="contrastVal">1.00</span></label>
+    <input type="range" id="contrast" min="0.4" max="2.2" step="0.01" value="1">
+    <label>Brightness <span class="value" id="brightnessVal">0.00</span></label>
+    <input type="range" id="brightness" min="-0.35" max="0.35" step="0.01" value="0">
+  </div>
+
+  <h2>Pointcloud</h2>
+  <div class="ctrl">
+    <label>Render <select id="renderMode">
+      <option value="flat">Flat</option>
+      <option value="pointcloud">Pointcloud</option>
+      <option value="flatcloud">Flat Capture Cloud</option>
+      <option value="hybrid">Hybrid</option>
+    </select></label>
+    <label>Mouse Tool <select id="mouseTool">
+      <option value="orbit">3D Orbit</option>
+      <option value="brush">RD Brush</option>
+    </select></label>
+    <label>Depth Analysis <select id="depthMode">
+      <option value="chemical">Chemical V</option>
+      <option value="edge">Edge Gradient</option>
+      <option value="differential">U minus V</option>
+      <option value="media">Media Luminance</option>
+      <option value="radial">Radial Topology</option>
+      <option value="audio">Audio Lift</option>
+    </select></label>
+    <label>Motion Preset <select id="motionPreset">
+      <option value="still">Still</option>
+      <option value="orbit">Slow Orbit</option>
+      <option value="wave">Wave Scan</option>
+      <option value="tunnel">Tunnel Pull</option>
+      <option value="explode">Beat Burst</option>
+      <option value="drift">Audio Drift</option>
+    </select></label>
+    <label>Deform Pattern <select id="deformMode">
+      <option value="none">None</option>
+      <option value="ripple">Radial Ripple</option>
+      <option value="twist">Twist Field</option>
+      <option value="spiral">Spiral Fold</option>
+      <option value="terrain">Terrain Folds</option>
+      <option value="vortex">Vortex Pull</option>
+      <option value="sphere">Sphere Wrap</option>
+      <option value="scan">Scan Waves</option>
+      <option value="scatter">Particle Scatter</option>
+    </select></label>
+    <label>Color Source <select id="pcColorSource">
+      <option value="flat">Flat Capture</option>
+      <option value="depth">Depth</option>
+      <option value="edge">Edges</option>
+      <option value="media">Media</option>
+      <option value="audio">Audio Energy</option>
+    </select></label>
+    <label>Density <select id="pointDensity">
+      <option value="64">64 x 64</option>
+      <option value="96">96 x 96</option>
+      <option value="128" selected>128 x 128</option>
+      <option value="192">192 x 192</option>
+      <option value="256">256 x 256</option>
+      <option value="320">320 x 320</option>
+      <option value="384">384 x 384</option>
+    </select></label>
+    <label>Depth Scale <span class="value" id="pcDepthScaleVal">0.85</span></label>
+    <input type="range" id="pcDepthScale" min="0" max="2.5" step="0.01" value="0.85">
+    <label>Point Size <span class="value" id="pcPointSizeVal">2.20</span></label>
+    <input type="range" id="pcPointSize" min="0.4" max="8" step="0.1" value="2.2">
+    <label>Point Alpha <span class="value" id="pcPointAlphaVal">0.82</span></label>
+    <input type="range" id="pcPointAlpha" min="0.05" max="1" step="0.01" value="0.82">
+    <label>Spread <span class="value" id="pcSpreadVal">1.55</span></label>
+    <input type="range" id="pcSpread" min="0.5" max="3" step="0.01" value="1.55">
+    <label>Perspective <span class="value" id="pcPerspectiveVal">1.35</span></label>
+    <input type="range" id="pcPerspective" min="0.4" max="3" step="0.01" value="1.35">
+    <label>Motion Amount <span class="value" id="pcMotionAmountVal">0.45</span></label>
+    <input type="range" id="pcMotionAmount" min="0" max="2" step="0.01" value="0.45">
+    <label>Auto Rotate <span class="value" id="pcAutoRotateVal">0.18</span></label>
+    <input type="range" id="pcAutoRotate" min="-1" max="1" step="0.01" value="0.18">
+    <label>Camera Zoom <span class="value" id="pcZoomVal">2.25</span></label>
+    <input type="range" id="pcZoom" min="1.2" max="5" step="0.01" value="2.25">
+    <label>Deform Amount <span class="value" id="pcDeformAmountVal">0.45</span></label>
+    <input type="range" id="pcDeformAmount" min="0" max="2" step="0.01" value="0.45">
+    <label>Deform Frequency <span class="value" id="pcDeformFreqVal">8.00</span></label>
+    <input type="range" id="pcDeformFreq" min="1" max="32" step="0.1" value="8">
+    <label>Deform Speed <span class="value" id="pcDeformSpeedVal">0.75</span></label>
+    <input type="range" id="pcDeformSpeed" min="-3" max="3" step="0.01" value="0.75">
+    <label>Noise Scatter <span class="value" id="pcNoiseVal">0.04</span></label>
+    <input type="range" id="pcNoise" min="0" max="0.5" step="0.01" value="0.04">
+    <label>Point Roundness <span class="value" id="pcRoundnessVal">0.38</span></label>
+    <input type="range" id="pcRoundness" min="0.05" max="0.5" step="0.01" value="0.38">
+    <label>Audio Size <span class="value" id="pcSizeAudioVal">0.35</span></label>
+    <input type="range" id="pcSizeAudio" min="0" max="2" step="0.01" value="0.35">
+    <label>Visibility Cut <span class="value" id="pcVisibilityCutVal">0.00</span></label>
+    <input type="range" id="pcVisibilityCut" min="0" max="1" step="0.01" value="0">
+    <label>Performance Guard <select id="pcPerfGuard">
+      <option value="on" selected>On</option>
+      <option value="off">Off</option>
+    </select></label>
+    <label>Perf <span id="perfStatus">ok</span></label>
+  </div>
+
+  <h2>Pointcloud 2</h2>
+  <div class="ctrl">
+    <label>Layer <select id="p2Enabled"><option value="off">Off</option><option value="on">On</option></select></label>
+    <label>Source <select id="p2Source">
+      <option value="flat">Flat</option>
+      <option value="video">Video</option>
+      <option value="pattern">Pattern</option>
+    </select></label>
+    <label>Density <select id="p2Density">
+      <option value="48">48 x 48</option>
+      <option value="64">64 x 64</option>
+      <option value="96" selected>96 x 96</option>
+      <option value="128">128 x 128</option>
+      <option value="192">192 x 192</option>
+      <option value="256">256 x 256</option>
+      <option value="320">320 x 320</option>
+    </select></label>
+    <label>Deform <select id="p2DeformMode">
+      <option value="none">None</option>
+      <option value="ripple">Radial Ripple</option>
+      <option value="twist">Twist Field</option>
+      <option value="spiral">Spiral Fold</option>
+      <option value="terrain">Terrain Folds</option>
+      <option value="vortex">Vortex Pull</option>
+      <option value="sphere">Sphere Wrap</option>
+      <option value="scan">Scan Waves</option>
+      <option value="scatter">Particle Scatter</option>
+    </select></label>
+    <label>Motion <select id="p2MotionPreset">
+      <option value="still">Still</option>
+      <option value="orbit">Slow Orbit</option>
+      <option value="wave">Wave Scan</option>
+      <option value="tunnel">Tunnel Pull</option>
+      <option value="explode">Beat Burst</option>
+      <option value="drift">Audio Drift</option>
+    </select></label>
+    <label>Color Source <select id="p2ColorSource">
+      <option value="flat">Flat Capture</option>
+      <option value="depth">Depth</option>
+      <option value="edge">Edges</option>
+      <option value="media">Media</option>
+      <option value="audio">Audio Energy</option>
+    </select></label>
+    <label>Pos X <span class="value" id="p2XVal">0.00</span></label>
+    <input type="range" id="p2X" min="-2" max="2" step="0.01" value="0">
+    <label>Pos Y <span class="value" id="p2YVal">0.00</span></label>
+    <input type="range" id="p2Y" min="-2" max="2" step="0.01" value="0">
+    <label>Pos Z <span class="value" id="p2ZVal">0.20</span></label>
+    <input type="range" id="p2Z" min="-2" max="2" step="0.01" value="0.2">
+    <label>Rot X <span class="value" id="p2RotXVal">0.00</span></label>
+    <input type="range" id="p2RotX" min="-3.14" max="3.14" step="0.01" value="0">
+    <label>Rot Y <span class="value" id="p2RotYVal">0.00</span></label>
+    <input type="range" id="p2RotY" min="-3.14" max="3.14" step="0.01" value="0">
+    <label>Rot Z <span class="value" id="p2RotZVal">0.00</span></label>
+    <input type="range" id="p2RotZ" min="-3.14" max="3.14" step="0.01" value="0">
+    <label>Scale X <span class="value" id="p2ScaleXVal">1.00</span></label>
+    <input type="range" id="p2ScaleX" min="0.1" max="3" step="0.01" value="1">
+    <label>Scale Y <span class="value" id="p2ScaleYVal">1.00</span></label>
+    <input type="range" id="p2ScaleY" min="0.1" max="3" step="0.01" value="1">
+    <label>Scale Z <span class="value" id="p2ScaleZVal">1.00</span></label>
+    <input type="range" id="p2ScaleZ" min="0.1" max="3" step="0.01" value="1">
+    <label>Depth <span class="value" id="p2DepthScaleVal">0.70</span></label>
+    <input type="range" id="p2DepthScale" min="0" max="2.5" step="0.01" value="0.7">
+    <label>Point Size <span class="value" id="p2PointSizeVal">1.80</span></label>
+    <input type="range" id="p2PointSize" min="0.3" max="8" step="0.1" value="1.8">
+    <label>Alpha <span class="value" id="p2AlphaVal">0.65</span></label>
+    <input type="range" id="p2Alpha" min="0.03" max="1" step="0.01" value="0.65">
+    <label>Spread <span class="value" id="p2SpreadVal">1.25</span></label>
+    <input type="range" id="p2Spread" min="0.2" max="3" step="0.01" value="1.25">
+    <label>Perspective <span class="value" id="p2PerspectiveVal">1.20</span></label>
+    <input type="range" id="p2Perspective" min="0.3" max="3" step="0.01" value="1.2">
+    <label>Motion Amount <span class="value" id="p2MotionAmountVal">0.35</span></label>
+    <input type="range" id="p2MotionAmount" min="0" max="2" step="0.01" value="0.35">
+    <label>Deform Amount <span class="value" id="p2DeformAmountVal">0.45</span></label>
+    <input type="range" id="p2DeformAmount" min="0" max="2" step="0.01" value="0.45">
+    <label>Deform Frequency <span class="value" id="p2DeformFreqVal">9.00</span></label>
+    <input type="range" id="p2DeformFreq" min="1" max="32" step="0.1" value="9">
+    <label>Deform Speed <span class="value" id="p2DeformSpeedVal">0.60</span></label>
+    <input type="range" id="p2DeformSpeed" min="-3" max="3" step="0.01" value="0.6">
+    <label>Noise <span class="value" id="p2NoiseVal">0.03</span></label>
+    <input type="range" id="p2Noise" min="0" max="0.5" step="0.01" value="0.03">
+    <label>Roundness <span class="value" id="p2RoundnessVal">0.34</span></label>
+    <input type="range" id="p2Roundness" min="0.05" max="0.5" step="0.01" value="0.34">
+    <label>Visibility Cut <span class="value" id="p2VisibilityCutVal">0.00</span></label>
+    <input type="range" id="p2VisibilityCut" min="0" max="1" step="0.01" value="0">
+  </div>
+
+  <h2>Cloud Coupling</h2>
+  <div class="ctrl">
+    <label>Shared Video <select id="pcSharedVideo">
+      <option value="off">Off</option>
+      <option value="on">Both Use Video</option>
+    </select></label>
+    <label>Spatial Layout <select id="pcSpatialLayout">
+      <option value="manual">Manual</option>
+      <option value="p1front">Cloud 1 Front</option>
+      <option value="p2front">Cloud 2 Front</option>
+      <option value="sandwich">Front / Middle / Back</option>
+      <option value="cross">Cross Depth</option>
+      <option value="orbitstack">Orbit Stack</option>
+    </select></label>
+    <label>Partner Motion <select id="pcPartnerMotion">
+      <option value="none">None</option>
+      <option value="mirror">Mirror</option>
+      <option value="chase">Chase</option>
+      <option value="counter">Counter Orbit</option>
+      <option value="breathe">Breathe</option>
+      <option value="weave">Depth Weave</option>
+    </select></label>
+    <label>Partner Amount <span class="value" id="pcPartnerAmountVal">0.45</span></label>
+    <input type="range" id="pcPartnerAmount" min="0" max="2" step="0.01" value="0.45">
+    <label>Depth Separation <span class="value" id="pcDepthSeparationVal">0.75</span></label>
+    <input type="range" id="pcDepthSeparation" min="0" max="2.5" step="0.01" value="0.75">
+    <label>Center Bias <span class="value" id="pcCenterBiasVal">0.35</span></label>
+    <input type="range" id="pcCenterBias" min="0" max="1" step="0.01" value="0.35">
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById("glCanvas");
+const gl = canvas.getContext("webgl2", { preserveDrawingBuffer: true });
+
+if (!gl) {
+  alert("WebGL2 wird benötigt!");
+  throw new Error("WebGL2 not available");
+}
+
+const floatExt = gl.getExtension("EXT_color_buffer_float");
+if (!floatExt) {
+  alert("Float Framebuffers werden nicht unterstützt!");
+  throw new Error("EXT_color_buffer_float not available");
+}
+const linearFloatExt = gl.getExtension("OES_texture_float_linear");
+const stateFilter = linearFloatExt ? gl.LINEAR : gl.NEAREST;
+
+const vsSource = `#version 300 es
+in vec2 a_pos;
+out vec2 v_uv;
+void main() {
+    v_uv = a_pos * 0.5 + 0.5;
+    gl_Position = vec4(a_pos, 0.0, 1.0);
+}`;
+
+const fsSim = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 fragColor;
+
+uniform sampler2D u_state;
+uniform sampler2D u_media;
+uniform vec2 u_res;
+uniform float u_feed, u_kill, u_du, u_dv, u_dt;
+uniform float u_curl, u_bass, u_mid, u_high, u_beat, u_time, u_mode, u_growthDrive, u_pulseRate, u_mouseDown, u_mediaBias, u_mediaFlipX, u_mediaFlipY;
+uniform vec2 u_mouse;
+uniform float u_brushSize, u_brushInt;
+
+vec2 hash22(vec2 p) {
+    p = vec2(dot(p,vec2(127.1,311.7)), dot(p,vec2(269.5,183.3)));
+    return -1.0 + 2.0 * fract(sin(p) * 43758.5453123);
+}
+
+vec2 curl(vec2 p, float t) {
+    float e = 0.1;
+    float n = sin(p.x * 2.0 + t) * cos(p.y * 3.0 + t * 0.7) * 0.5;
+    float nR = sin((p.x + e) * 2.0 + t) * cos(p.y * 3.0 + t * 0.7) * 0.5;
+    float nU = sin(p.x * 2.0 + t) * cos((p.y + e) * 3.0 + t * 0.7) * 0.5;
+    return vec2(nU - n, nR - n) / e;
+}
+
+float edgeFactor(float v) {
+    return smoothstep(0.18, 0.82, abs(v - 0.5) * 2.0);
+}
+
+void main() {
+    vec2 tx = 1.0 / u_res;
+    vec4 c = texture(u_state, v_uv);
+    float U = c.r;
+    float V = c.g;
+
+    float lU = -U;
+    float lV = -V;
+    for (float y = -1.0; y <= 1.0; y += 1.0) {
+        for (float x = -1.0; x <= 1.0; x += 1.0) {
+            if (x == 0.0 && y == 0.0) continue;
+            vec2 nUv = v_uv + vec2(x, y) * tx;
+            vec4 n = texture(u_state, nUv);
+            float w = (abs(x) + abs(y) == 1.0) ? 0.2 : 0.05;
+            lU += n.r * w;
+            lV += n.g * w;
+        }
+    }
+
+    float mode = floor(u_mode + 0.5);
+    vec2 flow = curl(v_uv * 5.0, u_time * 0.35) * u_curl;
+    flow += curl(v_uv * 11.0 + u_mid, u_time * 0.7) * u_mid * 0.006;
+    flow += hash22(v_uv * 100.0 + u_time) * u_high * 0.015;
+    if (mode == 3.0) flow += curl(v_uv * 18.0, u_time * 1.8) * 0.004 * u_growthDrive;
+    if (mode == 4.0) flow += hash22(v_uv * 260.0 + u_time * 3.0) * 0.018 * u_growthDrive;
+    if (mode == 6.0) flow += vec2(sin(v_uv.y * 45.0 + u_time), cos(v_uv.x * 31.0 - u_time)) * 0.0025 * u_growthDrive;
+    if (mode == 7.0) flow += normalize(vec2(v_uv.x - 0.5, v_uv.y - 0.5) + vec2(0.001)) * 0.0015 * u_growthDrive;
+
+    vec2 advUv = v_uv - flow * tx;
+    vec4 adv = texture(u_state, advUv);
+    U = mix(U, adv.r, 0.8);
+    V = mix(V, adv.g, 0.8);
+
+    float v2 = V * V;
+    float reaction = U * v2;
+    float pulse = 0.5 + 0.5 * sin(u_time * 6.28318 * u_pulseRate + V * 8.0);
+    float feed = u_feed + u_bass * 0.008 + u_beat * 0.014;
+    float kill = u_kill + u_high * 0.004 - u_mid * 0.003;
+    if (mode == 0.0) { feed += (pulse - 0.5) * 0.001 * u_growthDrive; }
+    if (mode == 1.0) { feed -= edgeFactor(V) * 0.0015; kill -= 0.001 * u_growthDrive; }
+    if (mode == 2.0) { feed -= 0.002 * u_growthDrive; kill += 0.0015 * u_growthDrive; }
+    if (mode == 3.0) { feed += (pulse - 0.5) * 0.012 * u_growthDrive; kill += (0.5 - pulse) * 0.006 * u_growthDrive; }
+    if (mode == 4.0) { feed += hash22(v_uv * 95.0 + u_time).x * 0.004 * u_growthDrive; kill += hash22(v_uv * 121.0 - u_time).y * 0.004 * u_growthDrive; }
+    if (mode == 5.0) { feed += 0.004 * u_growthDrive; kill -= 0.002 * u_growthDrive; }
+    if (mode == 6.0) { feed += sin(v_uv.x * 24.0 + u_time) * 0.0015 * u_growthDrive; kill += cos(v_uv.y * 18.0 - u_time) * 0.001 * u_growthDrive; }
+    if (mode == 7.0) { feed -= 0.002 * u_growthDrive; kill -= edgeFactor(V) * 0.0025; }
+    U += (u_du * lU - reaction + feed * (1.0 - U)) * u_dt;
+    V += (u_dv * lV + reaction - (kill + feed) * V) * u_dt;
+
+    V += u_bass * 0.035 + u_beat * 0.08;
+    if (mode == 3.0) V += pulse * 0.018 * u_growthDrive;
+    if (mode == 4.0) V += hash22(v_uv * 300.0 + u_time * 4.0).x * 0.018 * u_growthDrive;
+    if (mode == 5.0) V = mix(V, 1.0 - V, 0.08 * u_growthDrive);
+    if (mode == 7.0) V += max(0.0, 0.55 - distance(v_uv, vec2(0.5))) * 0.002 * u_growthDrive;
+
+    if (u_mediaBias > 0.0) {
+        vec2 mediaUv = v_uv;
+        if (u_mediaFlipX > 0.5) mediaUv.x = 1.0 - mediaUv.x;
+        if (u_mediaFlipY > 0.5) mediaUv.y = 1.0 - mediaUv.y;
+        vec3 m = texture(u_media, mediaUv).rgb;
+        float lum = dot(m, vec3(0.299, 0.587, 0.114));
+        V += (lum - 0.5) * u_mediaBias;
+    }
+
+    if (u_mouseDown > 0.5) {
+        float d = distance(v_uv, u_mouse);
+        if (d < u_brushSize) {
+            float mask = 1.0 - (d / u_brushSize);
+            V += mask * u_brushInt;
+            U -= mask * u_brushInt * 0.5;
+        }
+    }
+
+    U = clamp(U, 0.0, 1.0);
+    V = clamp(V, 0.0, 1.0);
+    fragColor = vec4(U, V, 0.0, 1.0);
+}`;
+
+const fsRender = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 fragColor;
+
+uniform sampler2D u_state;
+uniform vec2 u_res;
+uniform float u_bass, u_mid, u_high, u_beat, u_mode, u_edgeGain;
+uniform float u_palette, u_hueShift, u_saturation, u_contrast, u_brightness;
+
+vec3 palette(float t, float p) {
+    if (p == 1.0) {
+        return vec3(0.08, 0.02, 0.0) + vec3(1.0, 0.28, 0.04) * smoothstep(0.0, 1.0, t);
+    }
+    if (p == 2.0) {
+        return 0.5 + 0.5 * cos(6.28318 * (vec3(1.0, 0.78, 0.42) * t + vec3(0.05, 0.42, 0.72)));
+    }
+    if (p == 3.0) {
+        return 0.5 + 0.5 * cos(6.28318 * (vec3(0.82, 1.0, 1.2) * t + vec3(0.58, 0.42, 0.22)));
+    }
+    if (p == 4.0) {
+        float g = smoothstep(0.0, 1.0, t);
+        return vec3(g);
+    }
+    vec3 a = vec3(0.5, 0.5, 0.5);
+    vec3 b = vec3(0.5, 0.5, 0.5);
+    vec3 c = vec3(1.0, 1.0, 1.0);
+    vec3 d = vec3(0.263, 0.416, 0.557);
+    return a + b * cos(6.28318 * (c * t + d));
+}
+
+vec3 colorGrade(vec3 col) {
+    float angle = u_hueShift * 3.14159265;
+    vec3 axis = normalize(vec3(1.0));
+    col = col * cos(angle) + cross(axis, col) * sin(angle) + axis * dot(axis, col) * (1.0 - cos(angle));
+    float luma = dot(col, vec3(0.299, 0.587, 0.114));
+    col = mix(vec3(luma), col, u_saturation);
+    col = (col - 0.5) * u_contrast + 0.5 + u_brightness;
+    return clamp(col, 0.0, 1.0);
+}
+
+void main() {
+    vec2 tx = 1.0 / u_res;
+    vec4 c = texture(u_state, v_uv);
+    float V = c.g;
+
+    float Vl = texture(u_state, v_uv - vec2(tx.x, 0.0)).g;
+    float Vr = texture(u_state, v_uv + vec2(tx.x, 0.0)).g;
+    float Vt = texture(u_state, v_uv + vec2(0.0, tx.y)).g;
+    float Vb = texture(u_state, v_uv - vec2(0.0, tx.y)).g;
+    float edge = length(vec2(Vr - Vl, Vt - Vb)) * u_edgeGain;
+
+    vec3 col = palette(V * 1.5 + 0.2, floor(u_palette + 0.5));
+    col += edge * vec3(0.8, 0.4, 0.1) * 3.0;
+    col += vec3(0.14, 0.04, 0.0) * u_bass;
+    col += vec3(0.0, 0.05, 0.12) * u_mid;
+    col += edge * vec3(0.1, 0.4, 0.6) * u_high;
+    col = mix(col, vec3(1.0, 0.72, 0.22), u_beat * 0.18);
+    float mode = floor(u_mode + 0.5);
+    if (mode == 2.0) col = mix(col, vec3(0.95, 0.72, 0.25), smoothstep(0.42, 0.72, V) * 0.35);
+    if (mode == 3.0) col += vec3(0.22, 0.08, 0.28) * sin(V * 18.0 + u_bass * 4.0);
+    if (mode == 4.0) col = mix(col, vec3(1.0, 0.15, 0.02), edge * 0.35);
+    if (mode == 5.0) col = vec3(1.0) - col * 0.82;
+    if (mode == 7.0) col = mix(col, vec3(0.72, 0.95, 1.0), edge * 0.28);
+
+    fragColor = vec4(colorGrade(col), 1.0);
+}`;
+
+const vsPoint = `#version 300 es
+precision highp float;
+in vec2 a_uv;
+uniform sampler2D u_state;
+uniform sampler2D u_media;
+uniform vec2 u_res;
+uniform float u_time, u_depthMode, u_motionPreset;
+uniform float u_deformMode, u_deformAmount, u_deformFreq, u_deformSpeed, u_noiseAmount;
+uniform float u_depthScale, u_spread, u_pointSize, u_perspective;
+uniform float u_motionAmount, u_autoRotate, u_zoom, u_sizeAudio, u_visibilityCut;
+uniform float u_layerSource;
+uniform float u_rotX, u_rotY, u_rotZ;
+uniform vec3 u_layerOffset, u_layerScale, u_layerRot;
+uniform float u_bass, u_mid, u_high, u_beat, u_mediaFlipX, u_mediaFlipY;
+out float v_value;
+out float v_u;
+out float v_edge;
+out float v_depth;
+out float v_media;
+out float v_radial;
+
+float hash(vec2 p) {
+    return fract(sin(dot(p, vec2(41.17, 289.23))) * 45758.5453);
+}
+
+vec3 rotateX(vec3 p, float a) {
+    float s = sin(a), c = cos(a);
+    return vec3(p.x, p.y * c - p.z * s, p.y * s + p.z * c);
+}
+
+vec3 rotateY(vec3 p, float a) {
+    float s = sin(a), c = cos(a);
+    return vec3(p.x * c + p.z * s, p.y, -p.x * s + p.z * c);
+}
+
+vec3 rotateZ(vec3 p, float a) {
+    float s = sin(a), c = cos(a);
+    return vec3(p.x * c - p.y * s, p.x * s + p.y * c, p.z);
+}
+
+void main() {
+    vec2 tx = 1.0 / u_res;
+    vec4 c = texture(u_state, a_uv);
+    float U = c.r;
+    float V = c.g;
+    float Vl = texture(u_state, a_uv - vec2(tx.x, 0.0)).g;
+    float Vr = texture(u_state, a_uv + vec2(tx.x, 0.0)).g;
+    float Vt = texture(u_state, a_uv + vec2(0.0, tx.y)).g;
+    float Vb = texture(u_state, a_uv - vec2(0.0, tx.y)).g;
+    float edge = length(vec2(Vr - Vl, Vt - Vb)) * 8.0;
+    vec2 mediaUv = a_uv;
+    if (u_mediaFlipX > 0.5) mediaUv.x = 1.0 - mediaUv.x;
+    if (u_mediaFlipY > 0.5) mediaUv.y = 1.0 - mediaUv.y;
+    vec3 m = texture(u_media, mediaUv).rgb;
+    float mediaLum = dot(m, vec3(0.299, 0.587, 0.114));
+    float radial = 1.0 - smoothstep(0.0, 0.72, distance(a_uv, vec2(0.5)));
+    float mode = floor(u_depthMode + 0.5);
+    float source = floor(u_layerSource + 0.5);
+    float depth = V;
+    if (mode == 1.0) depth = edge;
+    if (mode == 2.0) depth = clamp((U - V) * 0.9 + 0.5, 0.0, 1.0);
+    if (mode == 3.0) depth = mediaLum;
+    if (mode == 4.0) depth = radial * (0.35 + V);
+    if (mode == 5.0) depth = V + u_bass * 0.45 + u_beat * 0.75;
+    if (source == 1.0) depth = mediaLum;
+    if (source == 2.0) depth = mix(edge, V, 0.35);
+
+    vec2 p2 = (a_uv - 0.5) * u_spread;
+    float t = u_time;
+    float motion = floor(u_motionPreset + 0.5);
+    float deform = floor(u_deformMode + 0.5);
+    float jitter = hash(a_uv * 300.0) - 0.5;
+    if (motion == 2.0) depth += sin((p2.x + p2.y) * 10.0 + t * 2.2) * 0.12 * u_motionAmount;
+    if (motion == 3.0) p2 *= 1.0 + radial * sin(t * 1.4) * 0.22 * u_motionAmount;
+    if (motion == 4.0) p2 += normalize(p2 + vec2(0.001)) * u_beat * 0.32 * u_motionAmount;
+    if (motion == 5.0) p2 += vec2(sin(t + p2.y * 8.0), cos(t * 0.7 + p2.x * 9.0)) * u_mid * 0.16 * u_motionAmount;
+
+    float localTime = t * u_deformSpeed;
+    float angle = atan(p2.y, p2.x);
+    float radius = length(p2);
+    if (deform == 1.0) depth += sin(radius * u_deformFreq - localTime * 2.0) * 0.12 * u_deformAmount;
+    if (deform == 2.0) p2 = rotateZ(vec3(p2, 0.0), (depth - 0.5) * u_deformAmount * 2.8 + radius * 0.7).xy;
+    if (deform == 3.0) p2 = rotateZ(vec3(p2, 0.0), angle * 0.18 * u_deformAmount + radius * u_deformFreq * 0.08).xy;
+    if (deform == 4.0) depth += sin(p2.x * u_deformFreq + localTime) * cos(p2.y * u_deformFreq * 0.7 - localTime) * 0.14 * u_deformAmount;
+    if (deform == 5.0) p2 += vec2(-p2.y, p2.x) / max(radius, 0.08) * radial * 0.05 * u_deformAmount;
+    if (deform == 6.0) depth += sqrt(max(0.0, 1.0 - min(radius * radius, 1.0))) * 0.55 * u_deformAmount;
+    if (deform == 7.0) p2.y += sin(p2.x * u_deformFreq + localTime * 2.0) * 0.08 * u_deformAmount;
+    if (deform == 8.0) p2 += vec2(hash(a_uv * 500.0 + t), hash(a_uv * 700.0 - t)) * u_deformAmount * 0.08 - u_deformAmount * 0.04;
+
+    float scatter = jitter * (u_noiseAmount + u_high * 0.08);
+    vec3 p = vec3(p2 + scatter * 0.08, (depth - 0.5) * u_depthScale + scatter);
+    p = rotateX(p, u_layerRot.x);
+    p = rotateY(p, u_layerRot.y);
+    p = rotateZ(p, u_layerRot.z);
+    p = p * u_layerScale + u_layerOffset;
+    p = rotateX(p, u_rotX);
+    p = rotateY(p, u_rotY + t * u_autoRotate + (motion == 1.0 ? t * 0.18 * u_motionAmount : 0.0));
+    p = rotateZ(p, u_rotZ);
+
+    float z = max(0.2, u_zoom - p.z);
+    float persp = u_perspective / z;
+    gl_Position = vec4(p.x * persp, p.y * persp, (p.z + 1.0) / u_zoom, 1.0);
+    gl_PointSize = max(0.4, u_pointSize * persp * (1.0 + edge * 0.35 + u_beat * u_sizeAudio));
+    v_value = V;
+    v_u = U;
+    v_edge = edge;
+    v_depth = depth;
+    v_media = mediaLum;
+    v_radial = radial;
+    if (depth < u_visibilityCut) {
+        gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+        gl_PointSize = 0.0;
+    }
+}`;
+
+const fsPoint = `#version 300 es
+precision highp float;
+in float v_value;
+in float v_u;
+in float v_edge;
+in float v_depth;
+in float v_media;
+in float v_radial;
+out vec4 fragColor;
+uniform float u_palette, u_hueShift, u_saturation, u_contrast, u_brightness;
+uniform float u_alpha, u_bass, u_mid, u_high, u_beat, u_colorSource, u_roundness, u_layerSource;
+
+vec3 palette(float t, float p) {
+    if (p == 1.0) return vec3(0.08, 0.02, 0.0) + vec3(1.0, 0.28, 0.04) * smoothstep(0.0, 1.0, t);
+    if (p == 2.0) return 0.5 + 0.5 * cos(6.28318 * (vec3(1.0, 0.78, 0.42) * t + vec3(0.05, 0.42, 0.72)));
+    if (p == 3.0) return 0.5 + 0.5 * cos(6.28318 * (vec3(0.82, 1.0, 1.2) * t + vec3(0.58, 0.42, 0.22)));
+    if (p == 4.0) return vec3(smoothstep(0.0, 1.0, t));
+    return 0.5 + 0.5 * cos(6.28318 * (vec3(1.0) * t + vec3(0.263, 0.416, 0.557)));
+}
+
+vec3 colorGrade(vec3 col) {
+    float angle = u_hueShift * 3.14159265;
+    vec3 axis = normalize(vec3(1.0));
+    col = col * cos(angle) + cross(axis, col) * sin(angle) + axis * dot(axis, col) * (1.0 - cos(angle));
+    float luma = dot(col, vec3(0.299, 0.587, 0.114));
+    col = mix(vec3(luma), col, u_saturation);
+    col = (col - 0.5) * u_contrast + 0.5 + u_brightness;
+    return clamp(col, 0.0, 1.0);
+}
+
+void main() {
+    vec2 pc = gl_PointCoord - 0.5;
+    float disc = 1.0 - smoothstep(min(u_roundness, 0.49), 0.5, length(pc));
+    if (disc <= 0.01) discard;
+    float source = floor(u_colorSource + 0.5);
+    float layerSource = floor(u_layerSource + 0.5);
+    float t = v_depth * 1.25 + v_value * 0.45;
+    if (source == 0.0) t = v_value * 1.5 + 0.2 + v_edge * 0.25;
+    if (source == 1.0) t = v_depth;
+    if (source == 2.0) t = v_edge;
+    if (source == 3.0) t = v_media;
+    if (source == 4.0) t = v_value + u_bass * 0.5 + u_beat * 0.8;
+    if (layerSource == 1.0 && source == 0.0) t = v_media;
+    if (layerSource == 2.0 && source == 0.0) t = v_edge * 0.8 + v_value * 0.4;
+    vec3 col = palette(t, floor(u_palette + 0.5));
+    if (source == 0.0) col += v_edge * vec3(0.8, 0.4, 0.1) * 2.4;
+    col += vec3(0.12, 0.03, 0.0) * u_bass + vec3(0.0, 0.04, 0.1) * u_mid + vec3(0.08, 0.22, 0.35) * v_edge * u_high;
+    col = mix(col, vec3(1.0, 0.76, 0.28), u_beat * 0.2);
+    fragColor = vec4(colorGrade(col), disc * u_alpha);
+}`;
+
+const fsInit = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 fragColor;
+uniform float u_seed;
+
+float hash(vec2 p) {
+    return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+}
+
+void main() {
+    float U = 1.0;
+    float V = 0.0;
+    if (hash(v_uv * 100.0 + u_seed) > 0.97) {
+        U = 0.5;
+        V = 0.25;
+    }
+    fragColor = vec4(U, V, 0.0, 1.0);
+}`;
+
+function compileShader(type, source) {
+  const shader = gl.createShader(type);
+  gl.shaderSource(shader, source);
+  gl.compileShader(shader);
+  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+    const message = gl.getShaderInfoLog(shader);
+    console.error("Shader compile error:", message);
+    gl.deleteShader(shader);
+    throw new Error(message || "Shader compile failed");
+  }
+  return shader;
+}
+
+function createProgram(vs, fs) {
+  const program = gl.createProgram();
+  gl.attachShader(program, vs);
+  gl.attachShader(program, fs);
+  gl.linkProgram(program);
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    const message = gl.getProgramInfoLog(program);
+    console.error("Program link error:", message);
+    gl.deleteProgram(program);
+    throw new Error(message || "Program link failed");
+  }
+  return program;
+}
+
+const vs = compileShader(gl.VERTEX_SHADER, vsSource);
+const progSim = createProgram(vs, compileShader(gl.FRAGMENT_SHADER, fsSim));
+const progRender = createProgram(vs, compileShader(gl.FRAGMENT_SHADER, fsRender));
+const progPoint = createProgram(compileShader(gl.VERTEX_SHADER, vsPoint), compileShader(gl.FRAGMENT_SHADER, fsPoint));
+const progInit = createProgram(vs, compileShader(gl.FRAGMENT_SHADER, fsInit));
+
+const loc = { sim: {}, ren: {}, init: {} };
+[
+  "u_state",
+  "u_media",
+  "u_res",
+  "u_feed",
+  "u_kill",
+  "u_du",
+  "u_dv",
+  "u_dt",
+  "u_curl",
+  "u_bass",
+  "u_mid",
+  "u_high",
+  "u_beat",
+  "u_time",
+  "u_mode",
+  "u_growthDrive",
+  "u_pulseRate",
+  "u_mouseDown",
+  "u_mouse",
+  "u_brushSize",
+  "u_brushInt",
+  "u_mediaBias",
+  "u_mediaFlipX",
+  "u_mediaFlipY"
+].forEach((u) => {
+  loc.sim[u] = gl.getUniformLocation(progSim, u);
+});
+[
+  "u_state",
+  "u_res",
+  "u_bass",
+  "u_mid",
+  "u_high",
+  "u_beat",
+  "u_mode",
+  "u_edgeGain",
+  "u_palette",
+  "u_hueShift",
+  "u_saturation",
+  "u_contrast",
+  "u_brightness"
+].forEach((u) => {
+  loc.ren[u] = gl.getUniformLocation(progRender, u);
+});
+["u_seed"].forEach((u) => {
+  loc.init[u] = gl.getUniformLocation(progInit, u);
+});
+[
+  "u_state",
+  "u_media",
+  "u_res",
+  "u_time",
+  "u_depthMode",
+  "u_motionPreset",
+  "u_deformMode",
+  "u_deformAmount",
+  "u_deformFreq",
+  "u_deformSpeed",
+  "u_noiseAmount",
+  "u_depthScale",
+  "u_spread",
+  "u_pointSize",
+  "u_perspective",
+  "u_motionAmount",
+  "u_autoRotate",
+  "u_zoom",
+  "u_sizeAudio",
+  "u_visibilityCut",
+  "u_layerSource",
+  "u_rotX",
+  "u_rotY",
+  "u_rotZ",
+  "u_layerOffset",
+  "u_layerScale",
+  "u_layerRot",
+  "u_bass",
+  "u_mid",
+  "u_high",
+  "u_beat",
+  "u_mediaFlipX",
+  "u_mediaFlipY",
+  "u_palette",
+  "u_hueShift",
+  "u_saturation",
+  "u_contrast",
+  "u_brightness",
+  "u_alpha",
+  "u_colorSource",
+  "u_roundness",
+  "u_layerSource"
+].forEach((u) => {
+  loc.point = loc.point || {};
+  loc.point[u] = gl.getUniformLocation(progPoint, u);
+});
+
+const vao = gl.createVertexArray();
+gl.bindVertexArray(vao);
+const vb = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, vb);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+
+const posAttrSim = gl.getAttribLocation(progSim, "a_pos");
+const posAttrRen = gl.getAttribLocation(progRender, "a_pos");
+const posAttrInit = gl.getAttribLocation(progInit, "a_pos");
+const pointUvAttr = gl.getAttribLocation(progPoint, "a_uv");
+const pointBuffer = gl.createBuffer();
+const point2Buffer = gl.createBuffer();
+let pointDensity = 128;
+let pointCount = 0;
+let point2Density = 96;
+let point2Count = 0;
+
+let fbo = [null, null];
+let tex = [null, null];
+let simW = 512;
+let simH = 512;
+let mediaTex = null;
+let mediaElement = null;
+let mediaRaf = 0;
+let emptyMediaTex = null;
+let mediaObjectUrl = "";
+const mediaStatus = document.getElementById("mediaStatus");
+const mediaPlayBtn = document.getElementById("mediaPlayBtn");
+const mediaRestartBtn = document.getElementById("mediaRestartBtn");
+const flipXBtn = document.getElementById("flipXBtn");
+const flipYBtn = document.getElementById("flipYBtn");
+const perfStatus = document.getElementById("perfStatus");
+
+function createEmptyMediaTexture() {
+  emptyMediaTex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, emptyMediaTex);
+  gl.texImage2D(
+    gl.TEXTURE_2D,
+    0,
+    gl.RGBA,
+    1,
+    1,
+    0,
+    gl.RGBA,
+    gl.UNSIGNED_BYTE,
+    new Uint8Array([128, 128, 128, 255])
+  );
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+}
+
+function initFBOs() {
+  for (let i = 0; i < 2; i += 1) {
+    if (tex[i]) gl.deleteTexture(tex[i]);
+    if (fbo[i]) gl.deleteFramebuffer(fbo[i]);
+
+    tex[i] = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex[i]);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, simW, simH, 0, gl.RGBA, gl.HALF_FLOAT, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, stateFilter);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, stateFilter);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+
+    fbo[i] = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo[i]);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex[i], 0);
+    const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+    if (status !== gl.FRAMEBUFFER_COMPLETE) {
+      throw new Error(`Framebuffer incomplete: ${status}`);
+    }
+  }
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+}
+
+function bindQuad(program, attr) {
+  gl.useProgram(program);
+  gl.bindBuffer(gl.ARRAY_BUFFER, vb);
+  gl.enableVertexAttribArray(attr);
+  gl.vertexAttribPointer(attr, 2, gl.FLOAT, false, 0, 0);
+}
+
+function buildPointCloudBuffer(density, buffer) {
+  const data = new Float32Array(density * density * 2);
+  let index = 0;
+  for (let y = 0; y < density; y += 1) {
+    for (let x = 0; x < density; x += 1) {
+      data[index++] = density === 1 ? 0.5 : x / (density - 1);
+      data[index++] = density === 1 ? 0.5 : y / (density - 1);
+    }
+  }
+  gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+  gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+  return density * density;
+}
+
+function rebuildPointCloud() {
+  pointCount = buildPointCloudBuffer(pointDensity, pointBuffer);
+}
+
+function rebuildPointCloud2() {
+  point2Count = buildPointCloudBuffer(point2Density, point2Buffer);
+}
+
+function bindPointCloud(buffer = pointBuffer) {
+  gl.useProgram(progPoint);
+  gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+  gl.enableVertexAttribArray(pointUvAttr);
+  gl.vertexAttribPointer(pointUvAttr, 2, gl.FLOAT, false, 0, 0);
+}
+
+function resetSim() {
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo[0]);
+  gl.viewport(0, 0, simW, simH);
+  bindQuad(progInit, posAttrInit);
+  gl.uniform1f(loc.init.u_seed, Math.random() * 100.0);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo[1]);
+  gl.viewport(0, 0, simW, simH);
+  bindQuad(progInit, posAttrInit);
+  gl.uniform1f(loc.init.u_seed, Math.random() * 100.0);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+  current = 0;
+}
+
+const params = {
+  feed: 0.055,
+  kill: 0.062,
+  du: 1.0,
+  dv: 0.5,
+  patternMode: "classic",
+  growthDrive: 0.5,
+  pulseRate: 0.35,
+  edgeGain: 1.0,
+  curl: 0.01,
+  brushSize: 0.015,
+  brushInt: 0.5,
+  bassInf: 0.65,
+  midInf: 0.35,
+  highInf: 0.55,
+  beatInf: 0.85,
+  smoothing: 0.82,
+  mediaBias: 0.01,
+  videoSpeed: 1.0,
+  flipX: false,
+  flipY: true,
+  palette: "aurora",
+  hueShift: 0.0,
+  saturation: 1.0,
+  contrast: 1.0,
+  brightness: 0.0,
+  renderMode: "pointcloud",
+  mouseTool: "orbit",
+  depthMode: "media",
+  motionPreset: "orbit",
+  deformMode: "ripple",
+  pcColorSource: "media",
+  pointDensity: "96",
+  pcDepthScale: 1.1,
+  pcPointSize: 1.75,
+  pcPointAlpha: 0.72,
+  pcSpread: 1.55,
+  pcPerspective: 1.35,
+  pcMotionAmount: 0.45,
+  pcAutoRotate: 0.18,
+  pcZoom: 2.25,
+  pcDeformAmount: 0.45,
+  pcDeformFreq: 8.0,
+  pcDeformSpeed: 0.75,
+  pcNoise: 0.04,
+  pcRoundness: 0.38,
+  pcSizeAudio: 0.35,
+  pcVisibilityCut: 0.0,
+  pcPerfGuard: "on",
+  p2Enabled: "on",
+  p2Source: "pattern",
+  p2Density: "64",
+  p2DeformMode: "ripple",
+  p2MotionPreset: "orbit",
+  p2ColorSource: "media",
+  p2X: 0.0,
+  p2Y: 0.0,
+  p2Z: 0.2,
+  p2RotX: 0.0,
+  p2RotY: 0.0,
+  p2RotZ: 0.0,
+  p2ScaleX: 1.0,
+  p2ScaleY: 1.0,
+  p2ScaleZ: 1.0,
+  p2DepthScale: 0.7,
+  p2PointSize: 1.35,
+  p2Alpha: 0.55,
+  p2Spread: 1.25,
+  p2Perspective: 1.2,
+  p2MotionAmount: 0.35,
+  p2DeformAmount: 0.45,
+  p2DeformFreq: 9.0,
+  p2DeformSpeed: 0.6,
+  p2Noise: 0.03,
+  p2Roundness: 0.34,
+  p2VisibilityCut: 0.0,
+  pcSharedVideo: "off",
+  pcSpatialLayout: "manual",
+  pcPartnerMotion: "none",
+  pcPartnerAmount: 0.45,
+  pcDepthSeparation: 0.75,
+  pcCenterBias: 0.35
+};
+
+const mouse = { x: 0, y: 0, down: false };
+const orbit = { rotX: -0.55, rotY: 0.35, rotZ: 0, zoom: params.pcZoom, active: false, lastX: 0, lastY: 0 };
+const audioData = { bass: 0, mid: 0, high: 0, beat: 0, energy: 0, slowEnergy: 0 };
+const paramKeys = [
+  "feed",
+  "kill",
+  "du",
+  "dv",
+  "patternMode",
+  "growthDrive",
+  "pulseRate",
+  "edgeGain",
+  "curl",
+  "brushSize",
+  "brushInt",
+  "bassInf",
+  "midInf",
+  "highInf",
+  "beatInf",
+  "smoothing",
+  "mediaBias",
+  "videoSpeed",
+  "flipX",
+  "flipY",
+  "palette",
+  "hueShift",
+  "saturation",
+  "contrast",
+  "brightness",
+  "renderMode",
+  "mouseTool",
+  "depthMode",
+  "motionPreset",
+  "deformMode",
+  "pcColorSource",
+  "pointDensity",
+  "pcDepthScale",
+  "pcPointSize",
+  "pcPointAlpha",
+  "pcSpread",
+  "pcPerspective",
+  "pcMotionAmount",
+  "pcAutoRotate",
+  "pcZoom",
+  "pcDeformAmount",
+  "pcDeformFreq",
+  "pcDeformSpeed",
+  "pcNoise",
+  "pcRoundness",
+  "pcSizeAudio",
+  "pcVisibilityCut",
+  "pcPerfGuard",
+  "p2Enabled",
+  "p2Source",
+  "p2Density",
+  "p2DeformMode",
+  "p2MotionPreset",
+  "p2ColorSource",
+  "p2X",
+  "p2Y",
+  "p2Z",
+  "p2RotX",
+  "p2RotY",
+  "p2RotZ",
+  "p2ScaleX",
+  "p2ScaleY",
+  "p2ScaleZ",
+  "p2DepthScale",
+  "p2PointSize",
+  "p2Alpha",
+  "p2Spread",
+  "p2Perspective",
+  "p2MotionAmount",
+  "p2DeformAmount",
+  "p2DeformFreq",
+  "p2DeformSpeed",
+  "p2Noise",
+  "p2Roundness",
+  "p2VisibilityCut",
+  "pcSharedVideo",
+  "pcSpatialLayout",
+  "pcPartnerMotion",
+  "pcPartnerAmount",
+  "pcDepthSeparation",
+  "pcCenterBias"
+];
+const valueDecimals = {
+  feed: 3,
+  kill: 3,
+  du: 2,
+  dv: 2,
+  growthDrive: 2,
+  pulseRate: 2,
+  edgeGain: 2,
+  curl: 3,
+  brushSize: 3,
+  brushInt: 2,
+  bassInf: 2,
+  midInf: 2,
+  highInf: 2,
+  beatInf: 2,
+  smoothing: 2,
+  mediaBias: 3,
+  videoSpeed: 2,
+  hueShift: 2,
+  saturation: 2,
+  contrast: 2,
+  brightness: 2,
+  pcDepthScale: 2,
+  pcPointSize: 2,
+  pcPointAlpha: 2,
+  pcSpread: 2,
+  pcPerspective: 2,
+  pcMotionAmount: 2,
+  pcAutoRotate: 2,
+  pcZoom: 2,
+  pcDeformAmount: 2,
+  pcDeformFreq: 2,
+  pcDeformSpeed: 2,
+  pcNoise: 2,
+  pcRoundness: 2,
+  pcSizeAudio: 2,
+  pcVisibilityCut: 2,
+  p2X: 2,
+  p2Y: 2,
+  p2Z: 2,
+  p2RotX: 2,
+  p2RotY: 2,
+  p2RotZ: 2,
+  p2ScaleX: 2,
+  p2ScaleY: 2,
+  p2ScaleZ: 2,
+  p2DepthScale: 2,
+  p2PointSize: 2,
+  p2Alpha: 2,
+  p2Spread: 2,
+  p2Perspective: 2,
+  p2MotionAmount: 2,
+  p2DeformAmount: 2,
+  p2DeformFreq: 2,
+  p2DeformSpeed: 2,
+  p2Noise: 2,
+  p2Roundness: 2,
+  p2VisibilityCut: 2,
+  pcPartnerAmount: 2,
+  pcDepthSeparation: 2,
+  pcCenterBias: 2
+};
+const presetStorageKey = "rd-audio-synth-presets-v2";
+const modeIds = ["classic", "labyrinth", "spots", "soliton", "chaos", "inverted", "worms", "crystal"];
+const paletteIds = ["aurora", "ember", "acid", "ocean", "mono"];
+const renderModeIds = ["flat", "pointcloud", "flatcloud", "hybrid"];
+const depthModeIds = ["chemical", "edge", "differential", "media", "radial", "audio"];
+const motionPresetIds = ["still", "orbit", "wave", "tunnel", "explode", "drift"];
+const deformModeIds = ["none", "ripple", "twist", "spiral", "terrain", "vortex", "sphere", "scan", "scatter"];
+const colorSourceIds = ["flat", "depth", "edge", "media", "audio"];
+const layerSourceIds = ["flat", "video", "pattern"];
+const spatialLayoutIds = ["manual", "p1front", "p2front", "sandwich", "cross", "orbitstack"];
+const partnerMotionIds = ["none", "mirror", "chase", "counter", "breathe", "weave"];
+const stringParamKeys = ["patternMode", "palette", "renderMode", "mouseTool", "depthMode", "motionPreset", "deformMode", "pcColorSource", "pointDensity", "pcPerfGuard", "p2Enabled", "p2Source", "p2Density", "p2DeformMode", "p2MotionPreset", "p2ColorSource", "pcSharedVideo", "pcSpatialLayout", "pcPartnerMotion"];
+const boolParamKeys = ["flipX", "flipY"];
+const defaultParams = Object.freeze({ ...params });
+
+const presets = {
+  "Korallen & Labyrinthe": { patternMode: "labyrinth", feed: 0.029, kill: 0.057, du: 1.0, dv: 0.5, curl: 0.024, growthDrive: 0.72, pulseRate: 0.18, edgeGain: 1.35, bassInf: 0.55, midInf: 0.42, highInf: 0.36, beatInf: 0.55, mediaBias: 0.008 },
+  "Zellteilung": { patternMode: "classic", feed: 0.036, kill: 0.065, du: 1.0, dv: 0.5, curl: 0.008, growthDrive: 0.58, pulseRate: 0.42, edgeGain: 1.1, bassInf: 0.7, midInf: 0.38, highInf: 0.24, beatInf: 0.8, mediaBias: 0.004 },
+  "Gepardenflecken": { patternMode: "spots", feed: 0.024, kill: 0.061, du: 0.92, dv: 0.42, curl: 0.003, growthDrive: 0.45, pulseRate: 0.08, edgeGain: 1.65, bassInf: 0.35, midInf: 0.22, highInf: 0.2, beatInf: 0.25, mediaBias: 0.002 },
+  "Pulsierende Solitonen": { patternMode: "soliton", feed: 0.062, kill: 0.061, du: 0.88, dv: 0.48, curl: 0.02, growthDrive: 0.88, pulseRate: 0.95, edgeGain: 1.25, bassInf: 0.95, midInf: 0.65, highInf: 0.48, beatInf: 1.25, mediaBias: 0.006 },
+  "Kochendes Chaos": { patternMode: "chaos", feed: 0.026, kill: 0.051, du: 1.0, dv: 0.58, curl: 0.046, growthDrive: 0.95, pulseRate: 1.35, edgeGain: 1.75, bassInf: 1.1, midInf: 0.8, highInf: 1.05, beatInf: 1.1, mediaBias: 0.015 },
+  "Invertierte Flecken": { patternMode: "inverted", feed: 0.039, kill: 0.058, du: 0.96, dv: 0.36, curl: 0.006, growthDrive: 0.7, pulseRate: 0.22, edgeGain: 1.45, bassInf: 0.45, midInf: 0.32, highInf: 0.28, beatInf: 0.45, mediaBias: 0.006 },
+  "Würmer & Schlaufen": { patternMode: "worms", feed: 0.046, kill: 0.065, du: 1.0, dv: 0.5, curl: 0.036, growthDrive: 0.8, pulseRate: 0.28, edgeGain: 1.25, bassInf: 0.62, midInf: 0.55, highInf: 0.4, beatInf: 0.7, mediaBias: 0.01 },
+  "Kristallisation": { patternMode: "crystal", feed: 0.030, kill: 0.055, du: 0.84, dv: 0.28, curl: 0.002, growthDrive: 0.78, pulseRate: 0.04, edgeGain: 2.25, bassInf: 0.22, midInf: 0.18, highInf: 0.3, beatInf: 0.18, mediaBias: 0.004 },
+  Coral: { patternMode: "classic", feed: 0.055, kill: 0.062, du: 1.0, dv: 0.5, curl: 0.01, growthDrive: 0.5, pulseRate: 0.35, edgeGain: 1.0, mediaBias: 0.01 },
+  Mitosis: { patternMode: "classic", feed: 0.0367, kill: 0.0649, du: 1.0, dv: 0.5, curl: 0.005, growthDrive: 0.58, pulseRate: 0.42, edgeGain: 1.1, mediaBias: 0.006 },
+  Worms: { patternMode: "worms", feed: 0.078, kill: 0.061, du: 1.0, dv: 0.5, curl: 0.04, growthDrive: 0.78, pulseRate: 0.3, edgeGain: 1.25, mediaBias: 0.012 },
+  Maze: { patternMode: "labyrinth", feed: 0.029, kill: 0.057, du: 1.0, dv: 0.5, curl: 0.02, growthDrive: 0.72, pulseRate: 0.18, edgeGain: 1.35, mediaBias: 0.008 }
+};
+
+const sweetPresets = {
+  "Sweet Coral Scanner": { patternMode: "labyrinth", feed: 0.029, kill: 0.057, du: 0.96, dv: 0.48, curl: 0.018, growthDrive: 0.68, pulseRate: 0.16, edgeGain: 1.55, brushSize: 0.018, brushInt: 0.42, bassInf: 0.42, midInf: 0.36, highInf: 0.28, beatInf: 0.45, smoothing: 0.86, mediaBias: 0.012, videoSpeed: 0.65, flipX: false, flipY: true, palette: "ocean", hueShift: -0.08, saturation: 1.18, contrast: 1.18, brightness: 0.02, renderMode: "hybrid", depthMode: "edge", motionPreset: "orbit", pointDensity: "128", pcDepthScale: 0.9, pcPointSize: 2.1, pcPointAlpha: 0.68, pcSpread: 1.65, pcPerspective: 1.35, pcMotionAmount: 0.32, pcAutoRotate: 0.14, pcZoom: 2.35 },
+  "Sweet Cell Bloom": { patternMode: "classic", feed: 0.036, kill: 0.065, du: 1.0, dv: 0.47, curl: 0.006, growthDrive: 0.62, pulseRate: 0.52, edgeGain: 1.18, brushSize: 0.021, brushInt: 0.5, bassInf: 0.78, midInf: 0.42, highInf: 0.22, beatInf: 0.95, smoothing: 0.8, mediaBias: 0.004, videoSpeed: 1.0, flipX: false, flipY: true, palette: "aurora", hueShift: 0.06, saturation: 1.28, contrast: 1.08, brightness: 0.0 },
+  "Sweet Cheetah Skin": { patternMode: "spots", feed: 0.024, kill: 0.061, du: 0.9, dv: 0.39, curl: 0.002, growthDrive: 0.38, pulseRate: 0.04, edgeGain: 1.85, brushSize: 0.012, brushInt: 0.36, bassInf: 0.25, midInf: 0.16, highInf: 0.14, beatInf: 0.18, smoothing: 0.9, mediaBias: 0.002, videoSpeed: 0.5, flipX: false, flipY: true, palette: "ember", hueShift: -0.02, saturation: 1.05, contrast: 1.32, brightness: -0.03 },
+  "Sweet Soliton Pulse": { patternMode: "soliton", feed: 0.062, kill: 0.061, du: 0.86, dv: 0.5, curl: 0.024, growthDrive: 0.92, pulseRate: 1.05, edgeGain: 1.35, brushSize: 0.02, brushInt: 0.62, bassInf: 1.15, midInf: 0.7, highInf: 0.42, beatInf: 1.35, smoothing: 0.72, mediaBias: 0.007, videoSpeed: 1.25, flipX: false, flipY: true, palette: "acid", hueShift: 0.13, saturation: 1.55, contrast: 1.2, brightness: 0.02 },
+  "Sweet Boiling Reactor": { patternMode: "chaos", feed: 0.026, kill: 0.051, du: 1.0, dv: 0.6, curl: 0.05, growthDrive: 0.98, pulseRate: 1.5, edgeGain: 1.95, brushSize: 0.027, brushInt: 0.72, bassInf: 1.25, midInf: 0.9, highInf: 1.18, beatInf: 1.2, smoothing: 0.64, mediaBias: 0.018, videoSpeed: 1.45, flipX: false, flipY: true, palette: "acid", hueShift: -0.18, saturation: 1.7, contrast: 1.38, brightness: -0.04 },
+  "Sweet Inverted Pores": { patternMode: "inverted", feed: 0.039, kill: 0.058, du: 0.94, dv: 0.34, curl: 0.004, growthDrive: 0.74, pulseRate: 0.18, edgeGain: 1.62, brushSize: 0.015, brushInt: 0.4, bassInf: 0.35, midInf: 0.3, highInf: 0.24, beatInf: 0.32, smoothing: 0.88, mediaBias: 0.006, videoSpeed: 0.75, flipX: false, flipY: true, palette: "mono", hueShift: 0.0, saturation: 0.45, contrast: 1.55, brightness: 0.05 },
+  "Sweet Worm Loops": { patternMode: "worms", feed: 0.046, kill: 0.065, du: 1.0, dv: 0.5, curl: 0.04, growthDrive: 0.84, pulseRate: 0.32, edgeGain: 1.38, brushSize: 0.018, brushInt: 0.52, bassInf: 0.68, midInf: 0.6, highInf: 0.36, beatInf: 0.74, smoothing: 0.82, mediaBias: 0.012, videoSpeed: 0.9, flipX: false, flipY: true, palette: "aurora", hueShift: -0.22, saturation: 1.35, contrast: 1.24, brightness: -0.01 },
+  "Sweet Crystal Frost": { patternMode: "crystal", feed: 0.030, kill: 0.055, du: 0.82, dv: 0.26, curl: 0.001, growthDrive: 0.82, pulseRate: 0.02, edgeGain: 2.45, brushSize: 0.011, brushInt: 0.34, bassInf: 0.18, midInf: 0.14, highInf: 0.32, beatInf: 0.12, smoothing: 0.92, mediaBias: 0.003, videoSpeed: 0.35, flipX: false, flipY: true, palette: "ocean", hueShift: 0.12, saturation: 0.92, contrast: 1.5, brightness: 0.04 }
+};
+
+const pointcloudPresets = {
+  "iPad Dual Pointcloud": { renderMode: "pointcloud", mouseTool: "orbit", depthMode: "media", motionPreset: "orbit", deformMode: "ripple", pcColorSource: "media", pointDensity: "96", pcDepthScale: 1.1, pcPointSize: 1.75, pcPointAlpha: 0.72, pcSpread: 1.55, pcPerspective: 1.35, pcMotionAmount: 0.38, pcAutoRotate: 0.12, pcZoom: 2.35, pcDeformAmount: 0.38, pcDeformFreq: 6.8, pcDeformSpeed: 0.42, pcNoise: 0.025, pcRoundness: 0.34, pcSizeAudio: 0.22, pcVisibilityCut: 0.02, p2Enabled: "on", p2Source: "pattern", p2Density: "64", p2DeformMode: "spiral", p2MotionPreset: "wave", p2ColorSource: "depth", pcSharedVideo: "off", pcSpatialLayout: "cross", pcPartnerMotion: "mirror", pcPartnerAmount: 0.58, pcDepthSeparation: 0.9, pcCenterBias: 0.42, p2RotY: 0.48, p2DepthScale: 0.9, p2PointSize: 1.35, p2Alpha: 0.55, p2DeformAmount: 0.36, p2DeformFreq: 6.4, p2DeformSpeed: 0.36, p2Noise: 0.02, p2Roundness: 0.32, palette: "aurora", saturation: 1.25, contrast: 1.12, brightness: 0.01, mediaBias: 0.018, bassInf: 0.55, midInf: 0.32, highInf: 0.45, beatInf: 0.7, smoothing: 0.86 },
+  "Pointcloud Flat Capture": { renderMode: "flatcloud", mouseTool: "orbit", depthMode: "chemical", motionPreset: "still", deformMode: "none", pcColorSource: "flat", pointDensity: "320", pcDepthScale: 0.55, pcPointSize: 1.15, pcPointAlpha: 0.9, pcSpread: 1.82, pcPerspective: 1.1, pcMotionAmount: 0.15, pcAutoRotate: 0.0, pcZoom: 2.55, pcDeformAmount: 0.15, pcDeformFreq: 8.0, pcDeformSpeed: 0.4, pcNoise: 0.01, pcRoundness: 0.28, pcSizeAudio: 0.1, pcVisibilityCut: 0.0, palette: "aurora", saturation: 1.2, contrast: 1.18, brightness: 0.02 },
+  "Pointcloud Nebula": { renderMode: "pointcloud", mouseTool: "orbit", depthMode: "chemical", motionPreset: "drift", deformMode: "ripple", pcColorSource: "depth", pointDensity: "192", pcDepthScale: 1.35, pcPointSize: 1.7, pcPointAlpha: 0.7, pcSpread: 1.9, pcPerspective: 1.45, pcMotionAmount: 0.9, pcAutoRotate: 0.18, pcZoom: 2.45, pcDeformAmount: 0.65, pcDeformFreq: 7.5, pcDeformSpeed: 0.8, pcNoise: 0.06, pcRoundness: 0.36, pcSizeAudio: 0.45, pcVisibilityCut: 0.0, palette: "aurora", saturation: 1.45, contrast: 1.2, brightness: 0.02 },
+  "Pointcloud Edge Terrain": { renderMode: "hybrid", mouseTool: "orbit", depthMode: "edge", motionPreset: "wave", deformMode: "terrain", pcColorSource: "edge", pointDensity: "192", pcDepthScale: 1.1, pcPointSize: 1.45, pcPointAlpha: 0.62, pcSpread: 1.75, pcPerspective: 1.35, pcMotionAmount: 0.55, pcAutoRotate: 0.08, pcZoom: 2.3, pcDeformAmount: 0.55, pcDeformFreq: 11.0, pcDeformSpeed: 0.7, pcNoise: 0.04, pcRoundness: 0.32, pcSizeAudio: 0.25, pcVisibilityCut: 0.08, palette: "ocean", saturation: 1.15, contrast: 1.34, brightness: 0.0 },
+  "Pointcloud Audio Burst": { renderMode: "pointcloud", mouseTool: "orbit", depthMode: "audio", motionPreset: "explode", deformMode: "scatter", pcColorSource: "audio", pointDensity: "128", pcDepthScale: 1.55, pcPointSize: 2.6, pcPointAlpha: 0.78, pcSpread: 1.6, pcPerspective: 1.55, pcMotionAmount: 1.25, pcAutoRotate: 0.22, pcZoom: 2.15, pcDeformAmount: 0.95, pcDeformFreq: 14.0, pcDeformSpeed: 1.35, pcNoise: 0.16, pcRoundness: 0.42, pcSizeAudio: 1.25, pcVisibilityCut: 0.0, palette: "acid", saturation: 1.7, contrast: 1.28, brightness: -0.02, bassInf: 1.2, beatInf: 1.45 },
+  "Pointcloud Media Relief": { renderMode: "hybrid", mouseTool: "orbit", depthMode: "media", motionPreset: "still", deformMode: "twist", pcColorSource: "media", pointDensity: "192", pcDepthScale: 1.25, pcPointSize: 1.55, pcPointAlpha: 0.72, pcSpread: 1.7, pcPerspective: 1.2, pcMotionAmount: 0.25, pcAutoRotate: 0.0, pcZoom: 2.4, pcDeformAmount: 0.32, pcDeformFreq: 6.0, pcDeformSpeed: 0.2, pcNoise: 0.02, pcRoundness: 0.3, pcSizeAudio: 0.08, pcVisibilityCut: 0.0, mediaBias: 0.02, palette: "mono", saturation: 0.75, contrast: 1.55, brightness: 0.03 },
+  "Pointcloud Crystal Tunnel": { renderMode: "pointcloud", mouseTool: "orbit", depthMode: "radial", motionPreset: "tunnel", deformMode: "sphere", pcColorSource: "depth", pointDensity: "256", pcDepthScale: 1.75, pcPointSize: 1.15, pcPointAlpha: 0.58, pcSpread: 2.15, pcPerspective: 1.65, pcMotionAmount: 0.85, pcAutoRotate: -0.12, pcZoom: 2.65, pcDeformAmount: 0.8, pcDeformFreq: 5.5, pcDeformSpeed: 0.35, pcNoise: 0.02, pcRoundness: 0.35, pcSizeAudio: 0.2, pcVisibilityCut: 0.0, palette: "ocean", saturation: 0.95, contrast: 1.6, brightness: 0.04 },
+  "Shared Video Sandwich": { renderMode: "hybrid", mouseTool: "orbit", pointDensity: "192", p2Enabled: "on", p2Density: "128", p2Source: "video", pcSharedVideo: "on", pcSpatialLayout: "sandwich", pcPartnerMotion: "breathe", pcPartnerAmount: 0.7, pcDepthSeparation: 0.9, pcCenterBias: 0.55, p2Z: 0.0, p2ScaleX: 0.92, p2ScaleY: 0.92, p2DepthScale: 0.9, p2PointSize: 1.45, p2Alpha: 0.62, p2DeformMode: "twist", p2MotionPreset: "still", p2ColorSource: "media", palette: "ocean", saturation: 1.25, contrast: 1.18 },
+  "Mirror Front Back": { renderMode: "pointcloud", mouseTool: "orbit", pointDensity: "192", p2Enabled: "on", p2Density: "192", p2Source: "pattern", pcSharedVideo: "off", pcSpatialLayout: "cross", pcPartnerMotion: "mirror", pcPartnerAmount: 0.82, pcDepthSeparation: 1.15, pcCenterBias: 0.35, p2RotY: 0.55, p2DepthScale: 1.1, p2PointSize: 1.25, p2Alpha: 0.58, p2DeformMode: "spiral", p2MotionPreset: "wave", p2ColorSource: "edge", palette: "aurora", hueShift: -0.1, saturation: 1.4, contrast: 1.25 },
+  "Counter Orbit Dual": { renderMode: "pointcloud", mouseTool: "orbit", pointDensity: "128", p2Enabled: "on", p2Density: "128", p2Source: "flat", pcSharedVideo: "off", pcSpatialLayout: "orbitstack", pcPartnerMotion: "counter", pcPartnerAmount: 1.15, pcDepthSeparation: 1.0, pcCenterBias: 0.25, pcAutoRotate: 0.28, p2RotX: 0.35, p2RotZ: -0.2, p2DepthScale: 1.25, p2PointSize: 1.8, p2Alpha: 0.7, p2DeformMode: "vortex", p2MotionPreset: "orbit", p2ColorSource: "depth", palette: "acid", saturation: 1.55, contrast: 1.22 },
+  "Video Pattern Weave": { renderMode: "hybrid", mouseTool: "orbit", pointDensity: "192", p2Enabled: "on", p2Density: "128", p2Source: "video", pcSharedVideo: "on", pcSpatialLayout: "p2front", pcPartnerMotion: "weave", pcPartnerAmount: 0.9, pcDepthSeparation: 0.8, pcCenterBias: 0.45, p2X: 0.0, p2Y: 0.0, p2Z: 0.25, p2DepthScale: 0.75, p2PointSize: 1.35, p2Alpha: 0.55, p2DeformMode: "scan", p2MotionPreset: "drift", p2ColorSource: "media", mediaBias: 0.018, palette: "ember", saturation: 1.3, contrast: 1.18 },
+  "Depth Stage Trio": { renderMode: "hybrid", mouseTool: "orbit", pointDensity: "128", p2Enabled: "on", p2Density: "96", p2Source: "pattern", pcSharedVideo: "off", pcSpatialLayout: "sandwich", pcPartnerMotion: "chase", pcPartnerAmount: 0.6, pcDepthSeparation: 1.35, pcCenterBias: 0.65, p2ScaleX: 0.72, p2ScaleY: 0.72, p2ScaleZ: 1.3, p2DepthScale: 1.4, p2PointSize: 1.7, p2Alpha: 0.5, p2DeformMode: "sphere", p2MotionPreset: "tunnel", p2ColorSource: "depth", palette: "mono", saturation: 0.75, contrast: 1.65, brightness: 0.04 }
+};
+
+const presetSel = document.getElementById("preset");
+let customPresets = {};
+let perfGuardBusy = false;
+let lowFpsHits = 0;
+
+function readCustomPresets() {
+  try {
+    customPresets = JSON.parse(localStorage.getItem(presetStorageKey) || "{}");
+  } catch (error) {
+    console.warn("Could not read custom presets:", error);
+    customPresets = {};
+  }
+}
+
+function writeCustomPresets() {
+  try {
+    localStorage.setItem(presetStorageKey, JSON.stringify(customPresets));
+  } catch (error) {
+    console.warn("Could not save custom presets:", error);
+  }
+}
+
+function formatParam(id, value) {
+  return Number(value).toFixed(valueDecimals[id] ?? 2);
+}
+
+function updateValueLabel(id) {
+  const label = document.getElementById(`${id}Val`);
+  if (label) label.textContent = formatParam(id, params[id]);
+}
+
+function setParam(id, value) {
+  if (!(id in params)) return;
+  if (stringParamKeys.includes(id)) {
+    params[id] = value;
+  } else if (boolParamKeys.includes(id)) {
+    params[id] = value === true || value === "true" || value === 1;
+  } else {
+    params[id] = parseFloat(value);
+  }
+  const el = document.getElementById(id);
+  if (el) el.value = params[id];
+  updateValueLabel(id);
+  syncPresetUi(id);
+}
+
+function syncPresetUi(id) {
+  if (id === "flipX" || id === "flipY") {
+    flipXBtn.classList.toggle("active", params.flipX);
+    flipYBtn.classList.toggle("active", params.flipY);
+  }
+  if (id === "videoSpeed" && mediaElement && mediaElement.tagName === "VIDEO") {
+    mediaElement.playbackRate = params.videoSpeed;
+  }
+  if (id === "pointDensity") {
+    pointDensity = parseInt(params.pointDensity, 10);
+    rebuildPointCloud();
+  }
+  if (id === "p2Density") {
+    point2Density = parseInt(params.p2Density, 10);
+    rebuildPointCloud2();
+  }
+  if (id === "pcZoom") {
+    orbit.zoom = params.pcZoom;
+  }
+  if (["pointDensity", "p2Density", "renderMode", "p2Enabled", "pcPerfGuard"].includes(id)) {
+    enforcePointBudget("settings");
+  }
+}
+
+function activePointTotal() {
+  const first = params.renderMode !== "flat" ? pointDensity * pointDensity : 0;
+  const second = params.p2Enabled === "on" ? point2Density * point2Density : 0;
+  return first + second;
+}
+
+function previousDensity(value, minValue) {
+  const steps = ["48", "64", "96", "128", "192", "256", "320", "384"];
+  const index = steps.indexOf(String(value));
+  const minIndex = steps.indexOf(String(minValue));
+  return index > minIndex ? steps[index - 1] : String(value);
+}
+
+function enforcePointBudget(reason = "budget") {
+  if (!perfStatus) return;
+  if (params.pcPerfGuard !== "on") {
+    perfStatus.textContent = `${Math.round(activePointTotal() / 1000)}k guard off`;
+    return;
+  }
+  if (perfGuardBusy) return;
+
+  perfGuardBusy = true;
+  const maxPoints = reason === "fps" ? 120000 : 180000;
+  let changed = false;
+
+  while (activePointTotal() > maxPoints) {
+    if (params.p2Enabled === "on" && parseInt(params.p2Density, 10) > 96) {
+      const next = previousDensity(params.p2Density, 96);
+      if (next === params.p2Density) break;
+      setParam("p2Density", next);
+      changed = true;
+      continue;
+    }
+    if (params.renderMode !== "flat" && parseInt(params.pointDensity, 10) > 128) {
+      const next = previousDensity(params.pointDensity, 128);
+      if (next === params.pointDensity) break;
+      setParam("pointDensity", next);
+      changed = true;
+      continue;
+    }
+    break;
+  }
+
+  const totalK = Math.round(activePointTotal() / 1000);
+  perfStatus.textContent = changed ? `${totalK}k guarded ${reason}` : `${totalK}k ok`;
+  perfGuardBusy = false;
+}
+
+function applyPreset(preset, shouldReset = true, includeDefaults = true) {
+  const mergedPreset = includeDefaults ? { ...defaultParams, ...preset } : preset;
+  Object.keys(mergedPreset).forEach((key) => {
+    setParam(key, mergedPreset[key]);
+  });
+  if (shouldReset) resetSim();
+}
+
+function snapshotPreset() {
+  return paramKeys.reduce((preset, key) => {
+    preset[key] = params[key];
+    return preset;
+  }, {});
+}
+
+function rebuildPresetSelect(selectedValue = "sweet:iPad Dual Pointcloud") {
+  presetSel.textContent = "";
+
+  const sweetGroup = document.createElement("optgroup");
+  sweetGroup.label = "Sweet Spots";
+  Object.keys({ ...sweetPresets, ...pointcloudPresets }).forEach((name) => {
+    const opt = document.createElement("option");
+    opt.value = `sweet:${name}`;
+    opt.textContent = name;
+    sweetGroup.appendChild(opt);
+  });
+  presetSel.appendChild(sweetGroup);
+
+  const builtinGroup = document.createElement("optgroup");
+  builtinGroup.label = "Factory";
+  Object.keys(presets).forEach((name) => {
+    const opt = document.createElement("option");
+    opt.value = `factory:${name}`;
+    opt.textContent = name;
+    builtinGroup.appendChild(opt);
+  });
+  presetSel.appendChild(builtinGroup);
+
+  const customNames = Object.keys(customPresets).sort((a, b) => a.localeCompare(b));
+  if (customNames.length) {
+    const customGroup = document.createElement("optgroup");
+    customGroup.label = "Custom";
+    customNames.forEach((name) => {
+      const opt = document.createElement("option");
+      opt.value = `custom:${name}`;
+      opt.textContent = name;
+      customGroup.appendChild(opt);
+    });
+    presetSel.appendChild(customGroup);
+  }
+
+  presetSel.value = selectedValue;
+}
+
+readCustomPresets();
+rebuildPresetSelect();
+
+presetSel.onchange = (event) => {
+  const [type, name] = event.target.value.split(":");
+  const preset = type === "custom" ? customPresets[name] : type === "sweet" ? (sweetPresets[name] || pointcloudPresets[name]) : presets[name];
+  if (preset) applyPreset(preset);
+};
+
+document.getElementById("savePresetBtn").onclick = () => {
+  const name = prompt("Preset name?", "My RD Preset");
+  if (!name || !name.trim()) return;
+  const cleanName = name.trim().slice(0, 40);
+  customPresets[cleanName] = snapshotPreset();
+  writeCustomPresets();
+  rebuildPresetSelect(`custom:${cleanName}`);
+};
+
+document.getElementById("deletePresetBtn").onclick = () => {
+  const [type, name] = presetSel.value.split(":");
+  if (type !== "custom" || !customPresets[name]) return;
+  delete customPresets[name];
+  writeCustomPresets();
+  rebuildPresetSelect();
+};
+
+document.getElementById("randomizeBtn").onclick = () => {
+  const randomRange = (min, max, digits) => Number((min + Math.random() * (max - min)).toFixed(digits));
+  applyPreset({
+    feed: randomRange(0.018, 0.078, 3),
+    kill: randomRange(0.045, 0.068, 3),
+    du: randomRange(0.72, 1.0, 2),
+    dv: randomRange(0.28, 0.72, 2),
+    patternMode: modeIds[Math.floor(Math.random() * modeIds.length)],
+    growthDrive: randomRange(0.25, 0.95, 2),
+    pulseRate: randomRange(0.02, 1.5, 2),
+    edgeGain: randomRange(0.8, 2.4, 2),
+    curl: randomRange(0.0, 0.05, 3),
+    brushSize: params.brushSize,
+    brushInt: params.brushInt,
+    mediaBias: randomRange(0.0, 0.035, 3),
+    videoSpeed: randomRange(0.35, 1.8, 2),
+    flipX: false,
+    flipY: true,
+    palette: paletteIds[Math.floor(Math.random() * paletteIds.length)],
+    hueShift: randomRange(-0.35, 0.35, 2),
+    saturation: randomRange(0.7, 1.7, 2),
+    contrast: randomRange(0.8, 1.65, 2),
+    brightness: randomRange(-0.12, 0.12, 2),
+    renderMode: ["pointcloud", "flatcloud", "hybrid"][Math.floor(Math.random() * 3)],
+    mouseTool: "orbit",
+    depthMode: depthModeIds[Math.floor(Math.random() * depthModeIds.length)],
+    motionPreset: motionPresetIds[Math.floor(Math.random() * motionPresetIds.length)],
+    deformMode: deformModeIds[Math.floor(Math.random() * deformModeIds.length)],
+    pcColorSource: colorSourceIds[Math.floor(Math.random() * colorSourceIds.length)],
+    pointDensity: ["96", "128", "192", "256"][Math.floor(Math.random() * 4)],
+    pcDepthScale: randomRange(0.45, 1.8, 2),
+    pcPointSize: randomRange(1.0, 3.8, 2),
+    pcPointAlpha: randomRange(0.45, 0.9, 2),
+    pcSpread: randomRange(1.2, 2.25, 2),
+    pcPerspective: randomRange(0.95, 1.8, 2),
+    pcMotionAmount: randomRange(0.1, 1.2, 2),
+    pcAutoRotate: randomRange(-0.35, 0.35, 2),
+    pcZoom: randomRange(1.9, 3.1, 2),
+    pcDeformAmount: randomRange(0.0, 1.2, 2),
+    pcDeformFreq: randomRange(3.0, 18.0, 2),
+    pcDeformSpeed: randomRange(-1.5, 1.8, 2),
+    pcNoise: randomRange(0.0, 0.18, 2),
+    pcRoundness: randomRange(0.18, 0.46, 2),
+    pcSizeAudio: randomRange(0.0, 1.0, 2),
+    pcVisibilityCut: randomRange(0.0, 0.25, 2)
+  });
+};
+
+document.getElementById("ipadModeBtn").onclick = () => {
+  applyPreset(pointcloudPresets["iPad Dual Pointcloud"]);
+  simSteps = 2;
+  dprLimit = 1.5;
+  document.getElementById("simSteps").value = simSteps;
+  document.getElementById("simStepsVal").textContent = simSteps;
+  document.getElementById("dprLimit").value = String(dprLimit);
+  document.getElementById("res").value = "256";
+  simW = simH = 256;
+  initFBOs();
+  resetSim();
+  resizeCanvas();
+};
+
+paramKeys.forEach((id) => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const updateParam = () => {
+    params[id] = stringParamKeys.includes(id) ? el.value : parseFloat(el.value);
+    updateValueLabel(id);
+    syncPresetUi(id);
+  };
+  el.oninput = updateParam;
+  el.onchange = updateParam;
+  updateValueLabel(id);
+});
+applyPreset(pointcloudPresets["iPad Dual Pointcloud"], false);
+syncPresetUi("flipX");
+syncPresetUi("flipY");
+
+mediaPlayBtn.onclick = async () => {
+  if (!mediaElement || mediaElement.tagName !== "VIDEO") return;
+  if (mediaElement.paused) {
+    try {
+      await mediaElement.play();
+      mediaStatus.textContent = "video playing";
+    } catch (error) {
+      console.warn("Video playback could not start:", error);
+      mediaStatus.textContent = "play blocked";
+    }
+  } else {
+    mediaElement.pause();
+    mediaStatus.textContent = "video paused";
+  }
+};
+
+mediaRestartBtn.onclick = async () => {
+  if (!mediaElement || mediaElement.tagName !== "VIDEO") return;
+  mediaElement.currentTime = 0;
+  try {
+    await mediaElement.play();
+    mediaStatus.textContent = "video restarted";
+  } catch (error) {
+    console.warn("Video restart could not start playback:", error);
+    mediaStatus.textContent = "restart ready";
+  }
+};
+
+flipXBtn.onclick = () => {
+  setParam("flipX", !params.flipX);
+};
+
+flipYBtn.onclick = () => {
+  setParam("flipY", !params.flipY);
+};
+
+document.getElementById("res").onchange = (event) => {
+  simW = simH = parseInt(event.target.value, 10);
+  initFBOs();
+  resetSim();
+};
+
+document.getElementById("resetBtn").onclick = () => {
+  resetSim();
+};
+
+function getMouseUV(event) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: (event.clientX - rect.left) / rect.width,
+    y: 1.0 - (event.clientY - rect.top) / rect.height
+  };
+}
+
+function shouldOrbit(event) {
+  return params.mouseTool === "orbit" && params.renderMode !== "flat" && !event.shiftKey;
+}
+
+canvas.addEventListener("pointerdown", (event) => {
+  canvas.setPointerCapture?.(event.pointerId);
+  if (shouldOrbit(event)) {
+    orbit.active = true;
+    orbit.lastX = event.clientX;
+    orbit.lastY = event.clientY;
+  } else {
+    mouse.down = true;
+    Object.assign(mouse, getMouseUV(event));
+  }
+  event.preventDefault();
+}, { passive: false });
+
+canvas.addEventListener("pointermove", (event) => {
+  if (orbit.active) {
+    const dx = event.clientX - orbit.lastX;
+    const dy = event.clientY - orbit.lastY;
+    orbit.rotY += dx * 0.006;
+    orbit.rotX = Math.max(-1.45, Math.min(1.45, orbit.rotX + dy * 0.006));
+    orbit.lastX = event.clientX;
+    orbit.lastY = event.clientY;
+  } else {
+    Object.assign(mouse, getMouseUV(event));
+  }
+  if (mouse.down || orbit.active) event.preventDefault();
+}, { passive: false });
+
+const endPointerInput = (event) => {
+  mouse.down = false;
+  orbit.active = false;
+  if (event && typeof event.pointerId !== "undefined") {
+    canvas.releasePointerCapture?.(event.pointerId);
+  }
+};
+window.addEventListener("pointerup", endPointerInput);
+canvas.addEventListener("pointercancel", endPointerInput);
+canvas.addEventListener("pointerleave", endPointerInput);
+
+canvas.onwheel = (event) => {
+  if (params.renderMode === "flat") return;
+  event.preventDefault();
+  const nextZoom = Math.max(1.2, Math.min(5, params.pcZoom + event.deltaY * 0.002));
+  setParam("pcZoom", nextZoom);
+};
+
+let audioCtx;
+let analyser;
+let audioSource;
+let recordDestination;
+let audioObjectUrl = "";
+const audioPlayer = document.getElementById("audioPlayer");
+audioPlayer.preload = "metadata";
+const meters = {
+  bass: document.getElementById("bassMeter"),
+  mid: document.getElementById("midMeter"),
+  high: document.getElementById("highMeter")
+};
+
+document.getElementById("audioFile").onchange = async (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+  const looksAudio = file.type.startsWith("audio/") || /\.(mp3|m4a|aac|wav)$/i.test(file.name);
+  if (!looksAudio) {
+    console.warn("Unsupported audio file:", file.name);
+    return;
+  }
+
+  if (audioObjectUrl) URL.revokeObjectURL(audioObjectUrl);
+  audioObjectUrl = URL.createObjectURL(file);
+  audioPlayer.src = audioObjectUrl;
+  audioPlayer.style.display = "block";
+
+  if (!audioCtx) {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) {
+      console.warn("Web Audio is not supported in this browser.");
+      return;
+    }
+    audioCtx = new AudioCtx();
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 512;
+    analyser.smoothingTimeConstant = params.smoothing;
+    recordDestination = audioCtx.createMediaStreamDestination();
+    audioSource = audioCtx.createMediaElementSource(audioPlayer);
+    audioSource.connect(analyser);
+    analyser.connect(audioCtx.destination);
+    analyser.connect(recordDestination);
+  }
+
+  if (audioCtx.state === "suspended") {
+    await audioCtx.resume();
+  }
+
+  try {
+    await audioPlayer.play();
+  } catch (error) {
+    console.warn("Audio playback requires user gesture:", error);
+  }
+};
+
+function processAudio() {
+  if (!analyser) return;
+
+  analyser.smoothingTimeConstant = params.smoothing;
+  const data = new Uint8Array(analyser.frequencyBinCount);
+  analyser.getByteFrequencyData(data);
+
+  const averageBand = (from, to) => {
+    let sum = 0;
+    const end = Math.min(to, data.length);
+    for (let i = from; i < end; i += 1) sum += data[i];
+    return sum / Math.max(end - from, 1) / 255;
+  };
+
+  const bass = averageBand(1, 10);
+  const mid = averageBand(10, 45);
+  const high = averageBand(45, data.length);
+  const energy = bass * 0.55 + mid * 0.3 + high * 0.15;
+  const follow = 1.0 - params.smoothing;
+
+  audioData.bass += (bass - audioData.bass) * follow;
+  audioData.mid += (mid - audioData.mid) * follow;
+  audioData.high += (high - audioData.high) * follow;
+  audioData.slowEnergy += (energy - audioData.slowEnergy) * 0.025;
+  const beatTarget = energy > audioData.slowEnergy * 1.28 && energy > 0.12 ? Math.min((energy - audioData.slowEnergy) * 3.0, 1.0) : 0;
+  audioData.beat = Math.max(beatTarget, audioData.beat * 0.88);
+  audioData.energy = energy;
+
+  meters.bass.style.width = `${Math.min(audioData.bass * 100, 100)}%`;
+  meters.mid.style.width = `${Math.min(audioData.mid * 100, 100)}%`;
+  meters.high.style.width = `${Math.min(audioData.high * 100, 100)}%`;
+}
+
+function stopMediaUpdates() {
+  if (mediaRaf) {
+    cancelAnimationFrame(mediaRaf);
+    mediaRaf = 0;
+  }
+  if (mediaElement && mediaElement.tagName === "VIDEO") {
+    mediaElement.pause();
+  }
+  if (mediaObjectUrl) {
+    URL.revokeObjectURL(mediaObjectUrl);
+    mediaObjectUrl = "";
+  }
+  mediaElement = null;
+  mediaStatus.textContent = "none";
+}
+
+function startVideoUpdates(video) {
+  const update = () => {
+    if (video.readyState >= 2 && !video.paused && !video.ended) {
+      gl.bindTexture(gl.TEXTURE_2D, mediaTex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+    }
+    mediaRaf = requestAnimationFrame(update);
+  };
+  update();
+}
+
+document.getElementById("mediaFile").onchange = (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+  const isVideoFile = file.type.startsWith("video") || /\.(mp4|mov|m4v|webm)$/i.test(file.name);
+  const isImageFile = file.type.startsWith("image");
+  if (!isVideoFile && !isImageFile) {
+    mediaStatus.textContent = "unsupported";
+    return;
+  }
+
+  stopMediaUpdates();
+
+  if (mediaTex) gl.deleteTexture(mediaTex);
+  mediaTex = gl.createTexture();
+
+  const isVideo = isVideoFile;
+  mediaObjectUrl = URL.createObjectURL(file);
+  const el = isVideo ? document.createElement("video") : new Image();
+  mediaElement = el;
+
+  if (isVideo) {
+    el.muted = true;
+    el.loop = true;
+    el.playsInline = true;
+    el.setAttribute("playsinline", "");
+    el.setAttribute("webkit-playsinline", "");
+    el.preload = "auto";
+    el.playbackRate = params.videoSpeed;
+    el.src = mediaObjectUrl;
+    mediaStatus.textContent = "video loading";
+  } else {
+    el.src = mediaObjectUrl;
+    mediaStatus.textContent = "image loading";
+  }
+
+  const uploadFrame = () => {
+    gl.bindTexture(gl.TEXTURE_2D, mediaTex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, el);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  };
+
+  if (isVideo) {
+    el.onloadeddata = async () => {
+      try {
+        await el.play();
+      } catch (error) {
+        console.warn("Video playback could not start automatically:", error);
+      }
+      uploadFrame();
+      startVideoUpdates(el);
+      mediaStatus.textContent = el.paused ? "video ready" : "video playing";
+    };
+  } else {
+    el.onload = () => {
+      uploadFrame();
+      mediaStatus.textContent = "image ready";
+    };
+  }
+};
+
+let mediaRecorder;
+let recordedChunks = [];
+const recordBtn = document.getElementById("recordBtn");
+const recordStatus = document.getElementById("recordStatus");
+
+function timestampName(prefix, ext) {
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  return `${prefix}-${stamp}.${ext}`;
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+document.getElementById("screenshotBtn").onclick = () => {
+  canvas.toBlob((blob) => {
+    if (!blob) return;
+    downloadBlob(blob, timestampName("rd-audio-synth", "png"));
+  }, "image/png");
+};
+
+function isAppleTouchDevice() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
+function bestRecorderMime(hasAudio) {
+  const safariFirst = hasAudio
+    ? ["video/mp4;codecs=avc1.42E01E,mp4a.40.2", "video/mp4", "video/webm;codecs=vp8,opus", "video/webm"]
+    : ["video/mp4;codecs=avc1.42E01E", "video/mp4", "video/webm;codecs=vp8", "video/webm"];
+  const chromeFirst = hasAudio
+    ? ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm", "video/mp4"]
+    : ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm", "video/mp4"];
+  const options = isAppleTouchDevice() ? safariFirst : chromeFirst;
+  return options.find((type) => MediaRecorder.isTypeSupported(type)) || "";
+}
+
+function startRecording() {
+  if (!canvas.captureStream || typeof MediaRecorder === "undefined") {
+    recordStatus.textContent = "unsupported";
+    return;
+  }
+
+  const stream = canvas.captureStream(isAppleTouchDevice() ? 30 : 60);
+  const hasAudio = Boolean(recordDestination);
+  if (recordDestination) {
+    recordDestination.stream.getAudioTracks().forEach((track) => stream.addTrack(track));
+  }
+
+  recordedChunks = [];
+  const mimeType = bestRecorderMime(hasAudio);
+  mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+  mediaRecorder.ondataavailable = (event) => {
+    if (event.data.size > 0) recordedChunks.push(event.data);
+  };
+  mediaRecorder.onstop = () => {
+    stream.getVideoTracks().forEach((track) => track.stop());
+    const type = mimeType || "video/webm";
+    const ext = type.includes("mp4") ? "mp4" : "webm";
+    const blob = new Blob(recordedChunks, { type });
+    downloadBlob(blob, timestampName("rd-dual-pointcloud-recording", ext));
+    recordStatus.textContent = "saved";
+  };
+  mediaRecorder.start();
+  recordBtn.textContent = "Stop Recording";
+  recordBtn.classList.add("recording");
+  recordStatus.textContent = recordDestination ? "recording A/V" : "recording video";
+}
+
+function stopRecording() {
+  if (mediaRecorder && mediaRecorder.state !== "inactive") {
+    mediaRecorder.stop();
+  }
+  recordBtn.textContent = "Start Recording";
+  recordBtn.classList.remove("recording");
+}
+
+recordBtn.onclick = () => {
+  if (mediaRecorder && mediaRecorder.state === "recording") {
+    stopRecording();
+  } else {
+    startRecording();
+  }
+};
+
+let current = 0;
+const dt = 1.0;
+const startTime = performance.now();
+let simSteps = 2;
+let dprLimit = 1.5;
+let fpsFrames = 0;
+let fpsLast = performance.now();
+const fpsEl = document.getElementById("fps");
+
+function resizeCanvas() {
+  const ratio = Math.min(window.devicePixelRatio || 1, dprLimit);
+  canvas.width = Math.floor(canvas.clientWidth * ratio);
+  canvas.height = Math.floor(canvas.clientHeight * ratio);
+}
+
+document.getElementById("simSteps").oninput = (event) => {
+  simSteps = parseInt(event.target.value, 10);
+  document.getElementById("simStepsVal").textContent = simSteps;
+};
+
+document.getElementById("dprLimit").onchange = (event) => {
+  dprLimit = parseFloat(event.target.value);
+  resizeCanvas();
+};
+
+function setSimUniforms() {
+  gl.uniform2f(loc.sim.u_res, simW, simH);
+  gl.uniform1f(loc.sim.u_feed, params.feed);
+  gl.uniform1f(loc.sim.u_kill, params.kill);
+  gl.uniform1f(loc.sim.u_du, params.du);
+  gl.uniform1f(loc.sim.u_dv, params.dv);
+  gl.uniform1f(loc.sim.u_dt, dt);
+  gl.uniform1f(loc.sim.u_curl, params.curl);
+  gl.uniform1f(loc.sim.u_bass, audioData.bass * params.bassInf);
+  gl.uniform1f(loc.sim.u_mid, audioData.mid * params.midInf);
+  gl.uniform1f(loc.sim.u_high, audioData.high * params.highInf);
+  gl.uniform1f(loc.sim.u_beat, audioData.beat * params.beatInf);
+  gl.uniform1f(loc.sim.u_time, (performance.now() - startTime) * 0.001);
+  gl.uniform1f(loc.sim.u_mode, Math.max(modeIds.indexOf(params.patternMode), 0));
+  gl.uniform1f(loc.sim.u_growthDrive, params.growthDrive);
+  gl.uniform1f(loc.sim.u_pulseRate, params.pulseRate);
+  gl.uniform1f(loc.sim.u_mouseDown, mouse.down ? 1.0 : 0.0);
+  gl.uniform2f(loc.sim.u_mouse, mouse.x, mouse.y);
+  gl.uniform1f(loc.sim.u_brushSize, params.brushSize);
+  gl.uniform1f(loc.sim.u_brushInt, params.brushInt);
+  gl.uniform1f(loc.sim.u_mediaBias, params.mediaBias);
+  gl.uniform1f(loc.sim.u_mediaFlipX, params.flipX ? 1.0 : 0.0);
+  gl.uniform1f(loc.sim.u_mediaFlipY, params.flipY ? 1.0 : 0.0);
+}
+
+function simulationStep() {
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo[1 - current]);
+  gl.viewport(0, 0, simW, simH);
+  bindQuad(progSim, posAttrSim);
+
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, tex[current]);
+  gl.uniform1i(loc.sim.u_state, 0);
+
+  gl.activeTexture(gl.TEXTURE1);
+  gl.bindTexture(gl.TEXTURE_2D, mediaTex || emptyMediaTex);
+  gl.uniform1i(loc.sim.u_media, 1);
+
+  setSimUniforms();
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  current = 1 - current;
+}
+
+canvas.addEventListener("webglcontextlost", (event) => {
+  event.preventDefault();
+  recordStatus.textContent = "webgl lost";
+});
+
+canvas.addEventListener("webglcontextrestored", () => {
+  location.reload();
+});
+
+window.addEventListener("beforeunload", () => {
+  if (audioObjectUrl) URL.revokeObjectURL(audioObjectUrl);
+  stopMediaUpdates();
+  if (mediaRecorder && mediaRecorder.state === "recording") {
+    mediaRecorder.stop();
+  }
+});
+
+window.onresize = resizeCanvas;
+resizeCanvas();
+createEmptyMediaTexture();
+rebuildPointCloud();
+rebuildPointCloud2();
+initFBOs();
+resetSim();
+
+function makePointLayerConfig(overrides = {}) {
+  return {
+    depthMode: params.depthMode,
+    motionPreset: params.motionPreset,
+    deformMode: params.deformMode,
+    colorSource: params.pcColorSource,
+    source: "flat",
+    depthScale: params.pcDepthScale,
+    spread: params.pcSpread,
+    pointSize: params.pcPointSize,
+    perspective: params.pcPerspective,
+    motionAmount: params.pcMotionAmount,
+    autoRotate: params.pcAutoRotate,
+    zoom: params.pcZoom,
+    sizeAudio: params.pcSizeAudio,
+    visibilityCut: params.pcVisibilityCut,
+    deformAmount: params.pcDeformAmount,
+    deformFreq: params.pcDeformFreq,
+    deformSpeed: params.pcDeformSpeed,
+    noise: params.pcNoise,
+    alpha: params.pcPointAlpha,
+    roundness: params.pcRoundness,
+    offset: [0, 0, 0],
+    scale: [1, 1, 1],
+    layerRot: [0, 0, 0],
+    orbit,
+    ...overrides
+  };
+}
+
+function addVec3(a, b) {
+  return [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+}
+
+function mixVec3(a, b, amount) {
+  return [
+    a[0] * (1 - amount) + b[0] * amount,
+    a[1] * (1 - amount) + b[1] * amount,
+    a[2] * (1 - amount) + b[2] * amount
+  ];
+}
+
+function getCoupledPointConfigs() {
+  const time = (performance.now() - startTime) * 0.001;
+  const sep = params.pcDepthSeparation;
+  const center = params.pcCenterBias;
+  const amount = params.pcPartnerAmount;
+
+  const p1 = makePointLayerConfig();
+  const p2 = makePointLayerConfig({
+    source: params.p2Source,
+    depthMode: params.p2Source === "video" ? "media" : params.p2Source === "pattern" ? "edge" : "chemical",
+    motionPreset: params.p2MotionPreset,
+    deformMode: params.p2DeformMode,
+    colorSource: params.p2ColorSource,
+    depthScale: params.p2DepthScale,
+    spread: params.p2Spread,
+    pointSize: params.p2PointSize,
+    perspective: params.p2Perspective,
+    motionAmount: params.p2MotionAmount,
+    autoRotate: params.pcAutoRotate * 0.5,
+    zoom: params.pcZoom,
+    sizeAudio: params.pcSizeAudio,
+    visibilityCut: params.p2VisibilityCut,
+    deformAmount: params.p2DeformAmount,
+    deformFreq: params.p2DeformFreq,
+    deformSpeed: params.p2DeformSpeed,
+    noise: params.p2Noise,
+    alpha: params.p2Alpha,
+    roundness: params.p2Roundness,
+    offset: [params.p2X, params.p2Y, params.p2Z],
+    scale: [params.p2ScaleX, params.p2ScaleY, params.p2ScaleZ],
+    layerRot: [params.p2RotX, params.p2RotY, params.p2RotZ]
+  });
+
+  if (params.pcSharedVideo === "on") {
+    p1.source = "video";
+    p1.depthMode = "media";
+    p1.colorSource = "media";
+    p2.source = "video";
+    p2.depthMode = "media";
+    p2.colorSource = "media";
+  }
+
+  if (params.pcSpatialLayout === "p1front") {
+    p1.offset = addVec3(p1.offset, [0, 0, sep]);
+    p2.offset = addVec3(p2.offset, [0, 0, -sep]);
+  } else if (params.pcSpatialLayout === "p2front") {
+    p1.offset = addVec3(p1.offset, [0, 0, -sep]);
+    p2.offset = addVec3(p2.offset, [0, 0, sep]);
+  } else if (params.pcSpatialLayout === "sandwich") {
+    p1.offset = addVec3(mixVec3(p1.offset, [0, 0, sep], center), [0, 0, sep * 0.35]);
+    p2.offset = addVec3(mixVec3(p2.offset, [0, 0, -sep], center), [0, 0, -sep * 0.35]);
+  } else if (params.pcSpatialLayout === "cross") {
+    p1.offset = addVec3(p1.offset, [-sep * 0.38, 0, sep * 0.45]);
+    p2.offset = addVec3(p2.offset, [sep * 0.38, 0, -sep * 0.45]);
+    p1.layerRot = addVec3(p1.layerRot, [0, 0.18, -0.12]);
+    p2.layerRot = addVec3(p2.layerRot, [0, -0.18, 0.12]);
+  } else if (params.pcSpatialLayout === "orbitstack") {
+    p1.offset = addVec3(p1.offset, [Math.sin(time * 0.35) * sep * 0.45, 0, Math.cos(time * 0.35) * sep]);
+    p2.offset = addVec3(p2.offset, [Math.sin(time * 0.35 + Math.PI) * sep * 0.45, 0, Math.cos(time * 0.35 + Math.PI) * sep]);
+  }
+
+  if (params.pcPartnerMotion === "mirror") {
+    p2.layerRot = [-p1.layerRot[0] + params.p2RotX, -p1.layerRot[1] + params.p2RotY, p1.layerRot[2] + params.p2RotZ];
+    p2.offset = addVec3(p2.offset, [-p1.offset[0] * amount, p1.offset[1] * amount, -p1.offset[2] * amount]);
+  } else if (params.pcPartnerMotion === "chase") {
+    const chase = [Math.sin(time * 0.8) * amount * 0.25, Math.cos(time * 0.55) * amount * 0.18, Math.sin(time * 0.4) * amount * 0.35];
+    p2.offset = addVec3(p2.offset, chase);
+    p2.layerRot = addVec3(p2.layerRot, [chase[1], chase[0], time * 0.08 * amount]);
+  } else if (params.pcPartnerMotion === "counter") {
+    p1.autoRotate += amount * 0.18;
+    p2.autoRotate -= amount * 0.18;
+    p2.layerRot = addVec3(p2.layerRot, [0, time * -0.25 * amount, time * 0.08 * amount]);
+  } else if (params.pcPartnerMotion === "breathe") {
+    const breath = 1 + Math.sin(time * 1.2) * amount * 0.12;
+    p1.scale = p1.scale.map((v) => v * breath);
+    p2.scale = p2.scale.map((v) => v * (2 - breath));
+    p1.offset = addVec3(p1.offset, [0, 0, Math.sin(time * 1.2) * sep * 0.18]);
+    p2.offset = addVec3(p2.offset, [0, 0, -Math.sin(time * 1.2) * sep * 0.18]);
+  } else if (params.pcPartnerMotion === "weave") {
+    p1.offset = addVec3(p1.offset, [Math.sin(time) * amount * 0.2, Math.cos(time * 0.7) * amount * 0.14, Math.sin(time * 0.9) * sep * 0.35]);
+    p2.offset = addVec3(p2.offset, [Math.sin(time + Math.PI) * amount * 0.2, Math.cos(time * 0.7 + Math.PI) * amount * 0.14, Math.sin(time * 0.9 + Math.PI) * sep * 0.35]);
+  }
+
+  return { p1, p2 };
+}
+
+function setPointUniforms(config = makePointLayerConfig()) {
+  const time = (performance.now() - startTime) * 0.001;
+  gl.uniform2f(loc.point.u_res, simW, simH);
+  gl.uniform1f(loc.point.u_time, time);
+  gl.uniform1f(loc.point.u_depthMode, Math.max(depthModeIds.indexOf(config.depthMode), 0));
+  gl.uniform1f(loc.point.u_motionPreset, Math.max(motionPresetIds.indexOf(config.motionPreset), 0));
+  gl.uniform1f(loc.point.u_deformMode, Math.max(deformModeIds.indexOf(config.deformMode), 0));
+  gl.uniform1f(loc.point.u_deformAmount, config.deformAmount);
+  gl.uniform1f(loc.point.u_deformFreq, config.deformFreq);
+  gl.uniform1f(loc.point.u_deformSpeed, config.deformSpeed);
+  gl.uniform1f(loc.point.u_noiseAmount, config.noise);
+  gl.uniform1f(loc.point.u_depthScale, config.depthScale);
+  gl.uniform1f(loc.point.u_spread, config.spread);
+  gl.uniform1f(loc.point.u_pointSize, config.pointSize);
+  gl.uniform1f(loc.point.u_perspective, config.perspective);
+  gl.uniform1f(loc.point.u_motionAmount, config.motionAmount);
+  gl.uniform1f(loc.point.u_autoRotate, config.autoRotate);
+  gl.uniform1f(loc.point.u_zoom, config.zoom);
+  gl.uniform1f(loc.point.u_sizeAudio, config.sizeAudio);
+  gl.uniform1f(loc.point.u_visibilityCut, config.visibilityCut);
+  gl.uniform1f(loc.point.u_layerSource, Math.max(layerSourceIds.indexOf(config.source), 0));
+  gl.uniform1f(loc.point.u_rotX, config.orbit.rotX);
+  gl.uniform1f(loc.point.u_rotY, config.orbit.rotY);
+  gl.uniform1f(loc.point.u_rotZ, config.orbit.rotZ);
+  gl.uniform3f(loc.point.u_layerOffset, config.offset[0], config.offset[1], config.offset[2]);
+  gl.uniform3f(loc.point.u_layerScale, config.scale[0], config.scale[1], config.scale[2]);
+  gl.uniform3f(loc.point.u_layerRot, config.layerRot[0], config.layerRot[1], config.layerRot[2]);
+  gl.uniform1f(loc.point.u_bass, audioData.bass * params.bassInf);
+  gl.uniform1f(loc.point.u_mid, audioData.mid * params.midInf);
+  gl.uniform1f(loc.point.u_high, audioData.high * params.highInf);
+  gl.uniform1f(loc.point.u_beat, audioData.beat * params.beatInf);
+  gl.uniform1f(loc.point.u_mediaFlipX, params.flipX ? 1.0 : 0.0);
+  gl.uniform1f(loc.point.u_mediaFlipY, params.flipY ? 1.0 : 0.0);
+  gl.uniform1f(loc.point.u_palette, Math.max(paletteIds.indexOf(params.palette), 0));
+  gl.uniform1f(loc.point.u_hueShift, params.hueShift);
+  gl.uniform1f(loc.point.u_saturation, params.saturation);
+  gl.uniform1f(loc.point.u_contrast, params.contrast);
+  gl.uniform1f(loc.point.u_brightness, params.brightness);
+  gl.uniform1f(loc.point.u_alpha, config.alpha);
+  gl.uniform1f(loc.point.u_colorSource, Math.max(colorSourceIds.indexOf(config.colorSource), 0));
+  gl.uniform1f(loc.point.u_roundness, config.roundness);
+}
+
+function renderPointCloud(buffer = pointBuffer, count = pointCount, config = makePointLayerConfig()) {
+  bindPointCloud(buffer);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, tex[current]);
+  gl.uniform1i(loc.point.u_state, 0);
+
+  gl.activeTexture(gl.TEXTURE1);
+  gl.bindTexture(gl.TEXTURE_2D, mediaTex || emptyMediaTex);
+  gl.uniform1i(loc.point.u_media, 1);
+
+  setPointUniforms(config);
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  gl.enable(gl.DEPTH_TEST);
+  gl.depthMask(false);
+  gl.drawArrays(gl.POINTS, 0, count);
+  gl.depthMask(true);
+  gl.disable(gl.DEPTH_TEST);
+  gl.disable(gl.BLEND);
+}
+
+function render() {
+  processAudio();
+
+  for (let i = 0; i < simSteps; i += 1) {
+    simulationStep();
+  }
+
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.viewport(0, 0, canvas.width, canvas.height);
+  gl.clearColor(0, 0, 0, 1);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+  const coupledConfigs = getCoupledPointConfigs();
+
+  if (params.renderMode !== "pointcloud" && params.renderMode !== "flatcloud") {
+    bindQuad(progRender, posAttrRen);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, tex[current]);
+    gl.uniform1i(loc.ren.u_state, 0);
+    gl.uniform2f(loc.ren.u_res, simW, simH);
+    gl.uniform1f(loc.ren.u_bass, audioData.bass * params.bassInf);
+    gl.uniform1f(loc.ren.u_mid, audioData.mid * params.midInf);
+    gl.uniform1f(loc.ren.u_high, audioData.high * params.highInf);
+    gl.uniform1f(loc.ren.u_beat, audioData.beat * params.beatInf);
+    gl.uniform1f(loc.ren.u_mode, Math.max(modeIds.indexOf(params.patternMode), 0));
+    gl.uniform1f(loc.ren.u_edgeGain, params.edgeGain);
+    gl.uniform1f(loc.ren.u_palette, Math.max(paletteIds.indexOf(params.palette), 0));
+    gl.uniform1f(loc.ren.u_hueShift, params.hueShift);
+    gl.uniform1f(loc.ren.u_saturation, params.saturation);
+    gl.uniform1f(loc.ren.u_contrast, params.contrast);
+    gl.uniform1f(loc.ren.u_brightness, params.brightness);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+
+  if (params.renderMode !== "flat") {
+    renderPointCloud(pointBuffer, pointCount, coupledConfigs.p1);
+  }
+
+  if (params.p2Enabled === "on") {
+    renderPointCloud(point2Buffer, point2Count, coupledConfigs.p2);
+  }
+
+  fpsFrames += 1;
+  const now = performance.now();
+  if (now - fpsLast > 500) {
+    const fps = Math.round((fpsFrames * 1000) / (now - fpsLast));
+    fpsEl.textContent = fps;
+    if (params.pcPerfGuard === "on" && activePointTotal() > 120000) {
+      lowFpsHits = fps < 28 ? lowFpsHits + 1 : 0;
+      if (lowFpsHits >= 3) {
+        enforcePointBudget("fps");
+        lowFpsHits = 0;
+      }
+    }
+    fpsFrames = 0;
+    fpsLast = now;
+  }
+
+  requestAnimationFrame(render);
+}
+
+render();
+</script>
+</body>
+</html>
