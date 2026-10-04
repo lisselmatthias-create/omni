@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="OMNI Hub: Übersicht, Review und Launcher für alle browserbasierten HTML-Instrumente (VJ, Pointcloud, Audio Lab, Op-Art) von lisselmatthias-create.">
+<meta name="theme-color" content="#101113">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="OMNI Hub">
+<title>OMNI Hub · Alle Tools</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #101113;
+    --panel: #191b1f;
+    --panel-2: #202329;
+    --text: #f2f4ee;
+    --muted: #aeb6aa;
+    --line: rgba(255,255,255,.12);
+    --acc: #75d4b5;
+    --acc-ink: #06110d;
+    --warn: #ffd166;
+    --danger: #ff7a7a;
+    --ok: #75d4b5;
+    --shadow: 0 18px 60px rgba(0,0,0,.35);
+    --radius: 10px;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --bg: #f4f5f1; --panel: #ffffff; --panel-2: #eceee8; --text: #141614; --muted: #5a615a;
+    --line: rgba(0,0,0,.12); --acc: #1f8f6c; --acc-ink: #ffffff; --warn: #a66b00; --danger: #c43b3b; --ok: #1f8f6c;
+    --shadow: 0 10px 30px rgba(0,0,0,.08);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); }
+  body { overflow-x: hidden; line-height: 1.45; }
+  a { color: var(--acc); }
+  button { font: inherit; cursor: pointer; }
+
+  header {
+    position: sticky; top: 0; z-index: 20;
+    display: grid; gap: 12px;
+    padding: max(14px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 12px max(16px, env(safe-area-inset-left));
+    background: color-mix(in srgb, var(--bg) 92%, transparent);
+    border-bottom: 1px solid var(--line);
+    backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+  }
+  .topline { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  h1 { margin: 0; font-size: clamp(1.3rem, 3vw, 2rem); font-weight: 760; line-height: 1.05; }
+  h1 small { display: block; font-size: .8rem; font-weight: 500; color: var(--muted); margin-top: 6px; }
+  .toplinks { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .ghost {
+    min-height: 36px; padding: 0 12px; border-radius: 999px;
+    border: 1px solid var(--line); background: var(--panel); color: var(--text); text-decoration: none;
+    display: inline-flex; align-items: center; gap: 6px; font-size: .85rem;
+  }
+  .ghost:hover { border-color: var(--acc); }
+  nav.sections { display: flex; gap: 6px; flex-wrap: wrap; }
+  nav.sections a { color: var(--muted); text-decoration: none; font-size: .85rem; padding: 4px 10px; border-radius: 999px; border: 1px solid transparent; }
+  nav.sections a:hover { color: var(--text); border-color: var(--line); }
+
+  main { width: min(1240px, 100%); margin: 0 auto; padding: 18px max(16px, env(safe-area-inset-right)) calc(48px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); display: grid; gap: 34px; }
+  main > section, main > footer { min-width: 0; }
+  section > h2 { margin: 0 0 12px; font-size: 1.15rem; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  section > h2 .sub { color: var(--muted); font-size: .85rem; font-weight: 400; }
+
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+  .stat b { display: block; font-size: 1.5rem; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .stat span { color: var(--muted); font-size: .8rem; }
+
+  .controls { display: grid; gap: 10px; }
+  .searchrow { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; }
+  input[type="search"], select.sort {
+    width: 100%; min-height: 42px; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--panel); color: var(--text); padding: 0 12px; font: inherit; outline: none;
+  }
+  input[type="search"]:focus { border-color: var(--acc); box-shadow: 0 0 0 3px color-mix(in srgb, var(--acc) 20%, transparent); }
+  .filtergroups { display: grid; gap: 6px; }
+  .fgroup { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .fgroup .lbl { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; min-width: 62px; }
+  .chip {
+    border: 1px solid var(--line); border-radius: 999px; background: var(--panel); color: var(--muted);
+    min-height: 32px; padding: 0 11px; font-size: .82rem;
+  }
+  .chip.active { color: var(--acc-ink); background: var(--acc); border-color: var(--acc); }
+  .count { color: var(--muted); font-size: .85rem; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); gap: 14px; }
+  .card {
+    display: grid; grid-template-rows: auto 1fr auto; gap: 10px;
+    padding: 16px; border: 1px solid var(--line); border-radius: var(--radius);
+    background: var(--panel); box-shadow: var(--shadow); min-width: 0;
+  }
+  .card .meta { display: flex; justify-content: space-between; gap: 8px; color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .03em; }
+  .card h3 { margin: 4px 0 0; font-size: 1.02rem; line-height: 1.25; }
+  .card .file { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .72rem; color: var(--muted); word-break: break-all; }
+  .card p { margin: 6px 0 0; color: var(--muted); font-size: .9rem; }
+  .tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+  .tag { display: inline-flex; align-items: center; min-height: 22px; border: 1px solid var(--line); border-radius: 999px; padding: 0 8px; font-size: .72rem; white-space: nowrap; color: var(--text); background: color-mix(in srgb, var(--text) 4%, transparent); }
+  .tag.in { border-color: color-mix(in srgb, var(--acc) 55%, transparent); color: var(--acc); }
+  .tag.out { border-color: color-mix(in srgb, var(--warn) 55%, transparent); color: var(--warn); }
+  .badge { display: inline-flex; align-items: center; gap: 5px; font-size: .72rem; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); }
+  .badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+  .badge.fertig::before { background: var(--ok); }
+  .badge.prototyp::before { background: var(--warn); }
+  .badge.experiment::before { background: var(--danger); }
+  .ipad { font-size: .75rem; color: var(--muted); margin-top: 6px; }
+  .ipad b { color: var(--text); font-weight: 600; }
+  details.review { margin-top: 8px; border-top: 1px dashed var(--line); padding-top: 8px; }
+  details.review summary { cursor: pointer; font-size: .82rem; color: var(--muted); }
+  details.review summary::marker { color: var(--acc); }
+  details.review ul { margin: 6px 0 0; padding-left: 18px; font-size: .82rem; color: var(--muted); }
+  details.review li { margin: 3px 0; }
+  details.review li.ok { color: var(--ok); }
+  details.review li.warn { color: var(--warn); }
+  details.review li.bug { color: var(--danger); }
+  .actions { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; }
+  .btn { min-height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid transparent; border-radius: 8px; padding: 0 12px; color: var(--acc-ink); background: var(--acc); font-weight: 700; text-decoration: none; }
+  .btn.secondary { color: var(--text); background: var(--panel-2); border-color: var(--line); font-weight: 500; }
+  .btn.icon { width: 40px; padding: 0; }
+  .empty { display: none; padding: 40px 16px; color: var(--muted); text-align: center; border: 1px dashed var(--line); border-radius: var(--radius); }
+
+  /* Preview drawer */
+  #preview { position: fixed; inset: 0; z-index: 50; display: none; background: rgba(0,0,0,.72); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+  #preview.open { display: grid; grid-template-rows: auto 1fr; }
+  #preview .bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: max(10px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 10px max(12px, env(safe-area-inset-left)); background: var(--panel); border-bottom: 1px solid var(--line); }
+  #preview .bar .title { flex: 1 1 200px; min-width: 0; font-weight: 600; font-size: .95rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #preview .frame { display: grid; place-items: center; padding: 10px; overflow: auto; }
+  #preview iframe { width: 100%; height: 100%; max-width: 100%; border: 1px solid var(--line); border-radius: 8px; background: #000; }
+  #preview.ipad iframe { width: min(1024px, 100%); height: min(768px, 100%); }
+  #preview.phone iframe { width: min(430px, 100%); height: min(932px, 100%); }
+  .hint { font-size: .8rem; color: var(--muted); }
+
+  /* Matrix */
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+  table { border-collapse: collapse; width: 100%; font-size: .8rem; min-width: 760px; }
+  th, td { padding: 7px 8px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+  th { position: sticky; top: 0; background: var(--panel-2); font-weight: 600; z-index: 1; }
+  th.rot { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; padding: 10px 6px; text-align: left; font-weight: 500; }
+  td.y { color: var(--ok); text-align: center; }
+  td.n { color: var(--line); text-align: center; }
+  td.name { font-weight: 600; white-space: normal; min-width: 180px; }
+  td.name small { display: block; color: var(--muted); font-weight: 400; }
+  tr:hover td { background: color-mix(in srgb, var(--text) 3%, transparent); }
+
+  /* Repos & notes */
+  .repos { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 12px; }
+  .repo { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; }
+  .repo h3 { margin: 0 0 4px; font-size: .98rem; display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+  .repo h3 a { text-decoration: none; }
+  .repo p { margin: 4px 0; color: var(--muted); font-size: .85rem; }
+  .repo .state { font-size: .72rem; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+  .repo .state.dup { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 50%, transparent); }
+  .repo .state.empty { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 50%, transparent); }
+  .repo .state.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 50%, transparent); }
+  .notes { display: grid; gap: 10px; }
+  .note { background: var(--panel); border-left: 3px solid var(--acc); border-radius: 8px; padding: 12px 14px; font-size: .9rem; }
+  .note.warn { border-left-color: var(--warn); }
+  .note.bug { border-left-color: var(--danger); }
+  .note b { display: block; margin-bottom: 2px; }
+  .note ul { margin: 6px 0 0; padding-left: 18px; color: var(--muted); }
+  footer { color: var(--muted); font-size: .8rem; text-align: center; padding: 10px 0 0; }
+
+  @media (max-width: 720px) {
+    .searchrow { grid-template-columns: 1fr; }
+    .fgroup { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 2px; }
+    .fgroup .lbl { flex: 0 0 auto; }
+    .chip { flex: 0 0 auto; }
+    .actions { grid-template-columns: 1fr auto; }
+    .actions .btn.icon.src { display: none; }
+    nav.sections { overflow-x: auto; flex-wrap: nowrap; }
+    nav.sections a { flex: 0 0 auto; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="topline">
+    <h1>OMNI Hub<small id="subtitle">Übersicht, Review und Launcher für alle HTML-Instrumente</small></h1>
+    <div class="toplinks">
+      <button class="ghost" id="themeBtn" type="button" title="Hell/Dunkel umschalten">◐ Theme</button>
+      <a class="ghost" id="baseLink" href="#" target="_blank" rel="noopener">GitHub ↗</a>
+    </div>
+  </div>
+  <nav class="sections">
+    <a href="#tools">Tools</a>
+    <a href="#matrix">Fähigkeiten-Matrix</a>
+    <a href="#repos">Repos</a>
+    <a href="#review">Review-Ergebnis</a>
+  </nav>
+</header>
+
+<main>
+  <section id="overview" aria-label="Kennzahlen">
+    <div class="stats" id="stats"></div>
+  </section>
+
+  <section id="tools">
+    <h2>Alle Tools <span class="sub" id="count"></span></h2>
+    <div class="controls">
+      <div class="searchrow">
+        <input id="search" type="search" autocomplete="off" placeholder="Tool, Datei, Funktion oder Technik suchen …">
+        <select class="sort" id="sort" aria-label="Sortierung">
+          <option value="family">Nach Familie</option>
+          <option value="name">Nach Name</option>
+          <option value="size">Nach Größe</option>
+          <option value="maturity">Nach Reifegrad</option>
+        </select>
+      </div>
+      <div class="filtergroups" id="filters"></div>
+    </div>
+    <div style="height:12px"></div>
+    <div class="grid" id="grid" aria-live="polite"></div>
+    <div class="empty" id="empty">Kein Tool passt zu dieser Auswahl.</div>
+  </section>
+
+  <section id="matrix">
+    <h2>Fähigkeiten-Matrix <span class="sub">Was welches Tool kann – aus dem Quellcode ermittelt</span></h2>
+    <div class="tablewrap"><table id="matrixTable"></table></div>
+  </section>
+
+  <section id="repos">
+    <h2>Repositories <span class="sub">Wo welche Datei liegt</span></h2>
+    <div class="repos" id="repoGrid"></div>
+  </section>
+
+  <section id="review">
+    <h2>Review-Ergebnis <span class="sub">Übergreifende Befunde</span></h2>
+    <div class="notes" id="notes"></div>
+  </section>
+
+  <footer id="footer"></footer>
+</main>
+
+<div id="preview" role="dialog" aria-modal="true" aria-label="Vorschau">
+  <div class="bar">
+    <span class="title" id="pvTitle"></span>
+    <button class="chip" data-size="full" type="button">Voll</button>
+    <button class="chip" data-size="ipad" type="button">iPad 1024×768</button>
+    <button class="chip" data-size="phone" type="button">Phone</button>
+    <a class="ghost" id="pvOpen" href="#" target="_blank" rel="noopener">Neuer Tab ↗</a>
+    <button class="ghost" id="pvClose" type="button">Schließen ✕</button>
+  </div>
+  <div class="frame"><iframe id="pvFrame" title="Tool-Vorschau" allow="camera; microphone; fullscreen; autoplay; midi; display-capture" allowfullscreen></iframe></div>
+</div>
+
+<script>
+const DATA = {
+  owner: "lisselmatthias-create",
+  hubRepo: "omni",
+  date: "2026-10-04",
+  inputs: ["Audio-Datei", "Video-Datei", "Bild", "Webcam", "Mikrofon", "MIDI", "Drag & Drop", "JSON-Import"],
+  outputs: ["PNG", "Recording", "WAV", "JSON-Export", "Presets (localStorage)", "Output-Fenster"],
+  tech: ["WebGL2", "WebGL1", "WebGPU", "Canvas2D", "Web Audio", "Web Worker", "MediaRecorder", "Raymarching/SDF", "Reaction-Diffusion", "Pointcloud", "Shader (GLSL)"],
+  matrixColumns: ["Audio-Datei", "Video-Datei", "Bild", "Webcam", "Mikrofon", "MIDI", "Drag & Drop", "PNG", "Recording", "WAV", "JSON-Export", "Presets (localStorage)", "WebGL2", "WebGL1", "WebGPU", "Canvas2D", "Web Worker", "iPad"],
+  tools: [
+    {
+      id: "rd-dual-pointcloud", name: "RD Dual Pointcloud · iPad", repo: "omni", file: "index.html", bytes: 97908, lines: 2455,
+      family: "Pointcloud / Reaction-Diffusion",
+      desc: "Audio- und videoreaktives Gray-Scott-Reaction-Diffusion-Instrument. Das Muster läuft flach oder als zwei gekoppelte 3D-Punktwolken, die man orbitet, mit dem Brush bemalt und als PNG oder Video exportiert.",
+      features: ["Engine: Presets (Sweet/Factory/Custom), Randomize, iPad-Modus, Auflösung 256/512/1024, Sim-Steps, DPR-Limit, FPS", "Pattern: 8 Growth-Modi (Classic, Labyrinth, Spots, Soliton, Chaos, Inverted, Worms, Crystal) mit F/K/Du/Dv", "Flow & Injection: Brush-Tools, Curl", "Audio Reactivity: Bass/Mid/High/Beat-Einfluss mit Metern", "Media Influence: Bild oder Video als Bias, Flip X/Y", "Color: 5 Paletten plus Grading", "Pointcloud 1 + 2: Depth, Motion, Deform, Farbquelle, Transformationen, Cloud Coupling", "Perf-Guard senkt Punktdichte automatisch; Recording bevorzugt MP4 auf Apple"],
+      inputs: ["Audio-Datei", "Video-Datei", "Bild"], outputs: ["PNG", "Recording", "Presets (localStorage)"],
+      tech: ["WebGL2", "Web Audio", "MediaRecorder", "Reaction-Diffusion", "Pointcloud", "Shader (GLSL)"],
+      ipad: "ja", ipadNote: "safe-area, 100dvh, Pointer-Capture, Layout-Wechsel unter 900px. Panel fest 280px, Buttons unter 44pt, kein Pinch-Zoom.",
+      maturity: "prototyp",
+      review: [
+        { kind: "bug", text: "Z. 1882: audioCtx.resume() nur im Datei-Change-Handler. Start über die nativen Audio-Controls bleibt auf iOS womöglich stumm." },
+        { kind: "bug", text: "Z. 1635/1650: Preset-Namen mit Doppelpunkt lassen sich weder laden noch löschen (split(':'))." },
+        { kind: "warn", text: "Z. 534: Ohne EXT_color_buffer_float harter Abbruch per alert, kein Half-Float-Fallback." },
+        { kind: "warn", text: "Z. 1998: Race bei schnellem Medienwechsel, alter onloadeddata startet zweiten Upload-Loop." },
+        { kind: "warn", text: "Z. 2034: Blob-URL nach 1 s revoked, große Video-Downloads auf iOS können scheitern." },
+        { kind: "warn", text: "Z. 2073: new MediaRecorder ohne try/catch. Z. 2175: Context-Loss nur per Reload, State geht verloren." },
+        { kind: "warn", text: "Z. 2384: Depth-Test an, aber depthMask(false) und Depth nie gecleart, Test wirkungslos." },
+        { kind: "ok", text: "MIME-Fallback-Liste fürs Recording, ObjectURL-Revoke beim Medienwechsel, Perf-Guard vorhanden." },
+      ]
+    },
+    {
+      id: "jellyfish-lab", name: "Jellyfish Lab V7", repo: "jellyfish-lab-v7", file: "index.html", bytes: 76033, lines: 1505,
+      family: "Pointcloud / Reaction-Diffusion",
+      desc: "Prozedurale Bewegungsstudie einer Qualle als 3D-Punktwolke: Glocke, orale Arme, Tentakel, biomechanischer Pulsschlag und ein Verhaltens-Zustandsautomat (rest, cruise, alert, turn, recovery).",
+      features: ["3 Presets: Classic, Veil, Abyss", "Form (4 Slider), Appendages (4 Slider)", "Motion: 6 Bewegungsmodi, ca. 20 biomechanische Slider", "Behavior: Auto/Manual mit Energy, Alertness, Fatigue", "Look: Punktgröße, Glow/Bloom, chromatische Aberration, Hue", "Kamera: Zoom, Rotation, Tilt per Drag/Wheel", "Scene-FBO, 2-Pass-Bloom bei halber Auflösung, ACES-Composite"],
+      inputs: [], outputs: ["PNG"],
+      tech: ["WebGL2", "Pointcloud", "Shader (GLSL)"],
+      ipad: "ja", ipadNote: "safe-area, dvh, Bottom-Sheet-Panel mit FAB unter 980px, Pointer-Capture, DPR auf 2 gedeckelt. Kein Pinch-Zoom.",
+      maturity: "experiment",
+      review: [
+        { kind: "warn", text: "Identische Datei liegt zusätzlich im Repo rd-dual-pointcloud, dessen Name nicht zum Inhalt passt." },
+        { kind: "warn", text: "Kein webglcontextlost-Handler. Z. 1253: getUniformLocation ca. 15x pro Frame." },
+        { kind: "warn", text: "Z. 1249: Additives Blending mit aktivem Depth-Write kann Punkte verdecken." },
+        { kind: "warn", text: "Z. 1358: syncUI überschreibt alle 4 Frames die Slider und kämpft im Auto-Modus gegen den Nutzer." },
+        { kind: "warn", text: "Z. 1394: Nur Ein-Finger-Logik, zweiter Finger erzeugt Sprünge." },
+        { kind: "warn", text: "Z. 81: Entwicklungshinweis sichtbar in der UI. README nennt eine fehlende .nojekyll." },
+        { kind: "ok", text: "Sauber gekapselt (IIFE, strict), Error-Box für fehlendes WebGL2 und Shader-Fehler." },
+      ]
+    },
+    {
+      id: "auraflux", name: "GMUHOOOX 11 · AuraFlux SDF Raymarch Engine (Agentic VJ V2.5)", repo: "gmu-media-launcher", file: "GMUHOOOX11_AURAFLUX_SDF_RAYMARCH_ENGINE_AGENTIC_VJ_OFFLINE_V2_5.html", bytes: 411578, lines: 6989,
+      family: "GMUHOOOX VJ-Engines",
+      desc: "Größter audioreaktiver VJ-Visualizer: 3D-Formen per Raymarching (Signed Distance Functions). Regelbasierte 'Agenten' (Neural Director, Mode Conductor, Hypnosis/Arc Agent, Clarity Guardian) steuern Parameter nach Build/Drop/Break aus einer Offline-STFT-Analyse.",
+      features: ["Layer-Tabs Perform / Audio-AI / Flow / Optics / Engine", "Live Control mit 8 Makros (Organic, Arch, Cosmic, Audio), Macro Pad, Smart Defaults", "AI/Akteure/Guards, Offline Analyse Director, Hypnosis Flow Agent, Narrative Arc Agent", "Optics, Light & Motion, Color Reactor, Director Parameters, Globale Limits", "Presets: Soft Organism, Crystal Drop, Temple Pulse, Tunnel Flight u. a.; 5 Snapshots (1–5 / Ctrl+1–5)", "Performance Auto: DPR und Qualität nach FPS; Shader-LRU-Cache (12 Programme), asynchrone Kompilierung", "Tasten: H UI aus, S PNG"],
+      inputs: ["Audio-Datei", "Mikrofon", "Webcam", "MIDI"], outputs: ["PNG", "Recording", "Presets (localStorage)"],
+      tech: ["WebGL2", "WebGL1", "Web Audio", "Web Worker", "MediaRecorder", "Raymarching/SDF", "Shader (GLSL)"],
+      ipad: "teils", ipadNote: "Overlay 'WebGL nicht verfügbar', touch-action none, DPR-Limit 1.45. Kein safe-area, keine Media-Queries, Panel fest 340px. Querformat okay, Phone kaum nutzbar.",
+      maturity: "prototyp",
+      review: [
+        { kind: "bug", text: "Z. 5056: Recording nur WebM/VP9, kein MP4-Fallback, new MediaRecorder ohne try/catch. Auf Safari wirft das ungefangen." },
+        { kind: "warn", text: "Z. 5195: Pro MP3-Wechsel neuer STFT-Worker, alter läuft weiter. Worker-Blob-URLs (Z. 4732, 4920) werden nie freigegeben." },
+        { kind: "warn", text: "Kein webglcontextlost-Handler. preserveDrawingBuffer:true (Z. 2492) kostet Leistung." },
+        { kind: "warn", text: "Ca. 70–75 % Code identisch mit Fluid Morpho. Jeder Bugfix muss zweimal gemacht werden." },
+        { kind: "warn", text: "412 KB mit ca. 1500 Zeilen Shader inline: spürbare Erstkompilierung auf Mobile." },
+        { kind: "ok", text: "Autoplay sauber gelöst: resume()/play() in try/catch mit Hinweis 'Play blockiert' (Z. 5107, 5269)." },
+        { kind: "ok", text: "WebGL2 mit WebGL1-Rückfall, Shader-Cache und Performance-Governor." },
+      ]
+    },
+    {
+      id: "fluid-morpho", name: "GMUHOOOX 11 · Fluid Morpho Engine (Orbital PDE Multipass)", repo: "gmu-media-launcher", file: "GMUHOOOX11_FLUID_MORPHO_ENGINE_ORBITAL_PDE_MULTIPASS.html", bytes: 373642, lines: 6357,
+      family: "GMUHOOOX VJ-Engines",
+      desc: "Seitenzweig der AuraFlux-Engine ('SDF Performance Auto Edition'): derselbe SDF-Kern plus Oberflächenwellen-Simulation (Reaction-Diffusion, Welle, Lorenz) in eigenem Pass und eine Random-Mutation-Engine.",
+      features: ["Random Mutation Engine: Audio Oracle, Subtle Drift, Hard Mutation, Optical Accident, Organic Growth, Geometry Ritual, SDF Summoner, Seeded DNA, Auto Mutate", "Auto Fluid Performance: Target FPS, Quality Floor (fluidGovernor)", "SDF Raymarch Controls, SDF Audio Agent", "PDE Surface Lab, Orbital PDE Multipass (Solver Preset, Sim Mix, Lorenz Chaos, Beat Inject)", "Mode Director, Hypnosis-/Arc-Agenten, PostFX wie AuraFlux", "Keine Live-Control-Sektion und keine benannten Presets wie in AuraFlux"],
+      inputs: ["Audio-Datei", "Mikrofon", "Webcam", "MIDI"], outputs: ["PNG", "Recording", "Presets (localStorage)"],
+      tech: ["WebGL1", "Web Audio", "Web Worker", "MediaRecorder", "Raymarching/SDF", "Reaction-Diffusion", "Shader (GLSL)"],
+      ipad: "teils", ipadNote: "Wie AuraFlux, aber DPR-Limit 2 statt 1.45 (teurer auf dem iPad). Kein safe-area, festes Panel.",
+      maturity: "experiment",
+      review: [
+        { kind: "bug", text: "Z. 6216: updateDynamicShader kompiliert synchron im Render-Loop ohne Cache, bei jedem Moduswechsel neu. Sichtbare Ruckler auf Mobile." },
+        { kind: "warn", text: "Nur WebGL1 (Z. 2512). PDE-Simulation in RGBA8 (Z. 2726): Höhe/Geschwindigkeit auf 8 Bit quantisiert, Treppen und Drift." },
+        { kind: "warn", text: "Dieselben Recording-, Worker-URL- und Context-Loss-Probleme wie AuraFlux (Z. 4674, 4354, 4542)." },
+        { kind: "warn", text: "Weniger Modi im Drop-Set als AuraFlux (Z. 5304). Code ist auseinandergelaufen." },
+        { kind: "ok", text: "fluidGovernor regelt Render-Scale und Shader-Qualität nach Ziel-FPS (Z. 2958)." },
+      ]
+    },
+    {
+      id: "gmu9", name: "GMUHOOOX 9 · Layered Performance UI (Audio Seek Repaired)", repo: "gmu-media-launcher", file: "GMUHOOOX9_LAYERED_PERFORMANCE_UI_AUDIO_SEEK_REPAIRED.html", bytes: 240905, lines: 4386,
+      family: "GMUHOOOX VJ-Engines",
+      desc: "Audioreaktiver Shader-Visualizer mit 'AI Audio Director': wählt aus ca. 76 Fragment-Shader-Modi automatisch Modi und Paletten nach Musikstruktur, Mood, BPM und Sections (build, drop, break).",
+      features: ["'Layered' = 5 UI-Tabs (Perform, Audio/AI, Flow, Optics, Engine), aktiver Tab wird gespeichert", "MP3 laden/Play/Loop/Stop mit Seek-Slider; 'Audio Seek Repaired' = Cues und Annotationen werden nach Seek zurückgesetzt", "12-Band-EQ-Meter, Pitch/Key/Spectrum/Structure-Anzeige, Timeline", "XY-Macro-Pad, Smart Defaults Ambient/Glitch/Cinematic", "Mode Conductor, Hypnosis Flow Agent, Narrative Arc Agent", "Offline-Voranalyse (STFT im Worker, 'Foresight')", "Optics, Color Reactor, Director-Parameter; Taste S für PNG"],
+      inputs: ["Audio-Datei", "Mikrofon"], outputs: ["PNG", "Presets (localStorage)"],
+      tech: ["WebGL1", "Canvas2D", "Web Audio", "Web Worker", "Shader (GLSL)"],
+      ipad: "teils", ipadNote: "Touch/Pointer am Pad, ein Breakpoint. Kein safe-area, Schriften 8–9px in der Sidebar.",
+      maturity: "fertig",
+      review: [
+        { kind: "bug", text: "Z. 2931: Datei vor erstem Play laden erzeugt pro Ladevorgang einen neuen AudioContext, der nie geschlossen wird (Safari-Limit)." },
+        { kind: "warn", text: "Z. 2932: arrayBuffer + slice + decodeAudioData verdreifacht den Speicher. Bis 500 MB erlaubt, iPad-Absturz wahrscheinlich." },
+        { kind: "warn", text: "Z. 4325: onBlur pausiert das Rendering. Klick in anderes Fenster (Beamer/OBS) friert die Visuals ein." },
+        { kind: "warn", text: "Z. 4340: Bei Render-Fehler stoppt der Loop dauerhaft. Kein webglcontextlost. Z. 2704: Worker-URL nie freigegeben." },
+        { kind: "warn", text: "Z. 2867: Mikrofon ohne Abschalten von echoCancellation/AGC verfälscht die Analyse." },
+        { kind: "ok", text: "Saubere try/catch-Behandlung der Autoplay-Policy (Z. 3048), MP3-URL wird revoked (Z. 3015, 4381)." },
+      ]
+    },
+    {
+      id: "omnimix", name: "OMNIMIX VJ v8.0 · Folder Engine Maxfusion", repo: "gmu-media-launcher", file: "OMNIMIX_VJ_v8_folder_engine_maxfusion.html", bytes: 332937, lines: 6748,
+      family: "GMUHOOOX VJ-Engines",
+      desc: "VJ-Mixer mit zwei Decks und Crossfader. Jedes Deck spielt eine von ca. 69 generativen Szenen (Lenia, Reaction-Diffusion, Particle Life, Clusters, Fluid) oder ein Video; darüber eine Master-FX-Kette. Musikanalyse aus einer MP3-Playlist.",
+      features: ["Topbar: Play/Next/Seek/Vol, Beat-Lampe, BPM, TAP, Autopilot, 8 Preset-Slots, Export/Import, MIDI-Learn, OUTPUT, FULLSCREEN", "Deck A/B: Szenenraster, Quelle, Mutation Sanft/Mittel/Mutig, Parameter", "Mixer: Crossfader, CUT A/B, Auto-Fade, 12 Blend-Modes; Master FX", "Audio-Bin und Video-Bin (nur per Drag & Drop befüllbar)", "'Folder Engine' = eingebettete Engines aus Quellcode-Ordnern (z. B. Clusters nach Ventrella, ca. 4000 Zeilen Daten), KEIN Ordner-Import", "Output-Popup per canvas.captureStream(60), Hotkeys 1–9, Q–O, X, H, F, Space, B"],
+      inputs: ["Audio-Datei", "Video-Datei", "MIDI", "Drag & Drop", "JSON-Import"], outputs: ["JSON-Export", "Presets (localStorage)", "Output-Fenster"],
+      tech: ["WebGL2", "Canvas2D", "Web Audio", "Reaction-Diffusion", "Shader (GLSL)"],
+      ipad: "nein", ipadNote: "Medien nur per Drop, kein File-Input. Kein Media-Query, kein safe-area, Panels fest 228px, Bedienung auf Tastatur ausgelegt.",
+      maturity: "prototyp",
+      review: [
+        { kind: "bug", text: "Z. 6384, 6424, 6607: Kein einziges revokeObjectURL. Videos und Tracks bleiben dauerhaft im Speicher, kein Entfernen aus den Bins." },
+        { kind: "bug", text: "Z. 6359, 6373: Dateinamen ungefiltert in innerHTML (Markup-Bruch / XSS)." },
+        { kind: "warn", text: "Z. 6614: JSON.parse im Import ohne catch; Z. 6600: localStorage-Parse ohne try." },
+        { kind: "warn", text: "Z. 6416, 6433, 6627: play() ohne catch, Play-Icon zeigt bei blockiertem Autoplay trotzdem Pause." },
+        { kind: "warn", text: "Kein Context-Loss-Handling, kein PNG, kein Recording. Datei zu ca. 60 % eingebettete Daten." },
+        { kind: "ok", text: "MIDI-Learn mit localStorage, Preset-JSON-Export, Live-Output-Fenster." },
+      ]
+    },
+    {
+      id: "eca", name: "ECA WebGL2 VJ Monolith · 3D Cellular Automata", repo: "gmu-media-launcher", file: "ECA_WEBGL2_VJ_MONOLITH.html", bytes: 65268, lines: 1850,
+      family: "GMUHOOOX VJ-Engines",
+      desc: "3D-Zellularautomat (Life-Regel mit 26 Nachbarn, B/S-Ranges) als Voxel-Punktwolke. GPU-Ping-Pong über 3D-Texturen, Sculpt-Pinsel, Audio- und MIDI-Modulation.",
+      features: ["TRANSPORT: Play, Reset, Clear, Grid 32³/64³, Steps, Speed", "RULES: B-/S-Range, Rule-Editor, Pattern-Stempel", "SCULPT: single, sphere, line, pattern, erase; Größe; Orbit", "VISUAL: Palette, Punktgröße, Emission, Bloom, Wire-Grid", "AUDIO + MIDI: Mic-FFT steuert Speed/Color; CC-Learn für Speed, Bloom, Palette", "PRESETS + EXPORT: 30 Slots, JSON mit Voxel-State als Base64, PNG"],
+      inputs: ["Mikrofon", "MIDI", "JSON-Import"], outputs: ["PNG", "JSON-Export", "Presets (localStorage)"],
+      tech: ["WebGL2", "Web Audio", "Pointcloud", "Shader (GLSL)"],
+      ipad: "nein", ipadNote: "Nur Maus-Events (Z. 1718), kein Pointer/Touch, kein touch-action. Orbit und Sculpt gehen per Touch nicht. UI nicht ausblendbar.",
+      maturity: "experiment",
+      review: [
+        { kind: "bug", text: "Z. 1343: Alle 0,35 s bis zu 64 synchrone readPixels für die Statistik, bremst besonders bei 64³." },
+        { kind: "warn", text: "Z. 1556: revokeObjectURL direkt nach click(), Download kann in Safari/Firefox abbrechen." },
+        { kind: "warn", text: "30 Slots mit 64³-State (ca. 350 KB/Slot) sprengen das localStorage-Quota, nur Statustext als Reaktion (Z. 1460)." },
+        { kind: "warn", text: "Z. 1359: Jedes Enable Mic erzeugt neuen AudioContext, kein Stop, keine Stream-Freigabe. Kein Context-Loss-Handling." },
+        { kind: "ok", text: "TEXTURE_3D mit framebufferTextureLayer und Float-Fallback (Z. 812); Import und MIDI sauber abgefangen." },
+      ]
+    },
+    {
+      id: "audio-lab", name: "Offline Audio Lab · Sampler / Chopper / Loop Machine", repo: "gmu-media-launcher", file: "offline-audio-lab-spectrogram-pitch-tempo-harmony.html", bytes: 130584, lines: 1368,
+      family: "Audio",
+      desc: "Offline-Sampler, -Chopper und Loop-Sequencer in einer Datei mit Signalanalyse: Spektrogramm, Pitch, Tempo, Tonart, Struktur. 16 Pads, Step-Sequencer, Arrangement und Performance-FX.",
+      features: ["Analyse: Waveform, Spektrogramm (eigene FFT), Pitch (Autokorrelation), Tempo (Onset-AKF), Tonart (Chroma), Struktur-Segmente", "Schneiden: Auto Slice, Slice @ Playhead, Zero-Crossing-Snap; Clips normalisieren, umkehren, Fades, Trim", "16 Pads, Step-Sequencer, Arrangement, Loop-Vorschlag, Resample, Undo/Redo", "Performance-FX: Stutter, Tape Stop, Beat Repeat, Delay/Reverb, XY-Pad", "'Intelligent Chop Agent' = Heuristik: Pads 1–4 Rhythmus, 5–8 tonal, 9–12 Textur, 13–16 Akzente", "Video-Input: Tonspur direkt dekodiert oder per MediaRecorder mitgeschnitten; Demo-Synthese; Autosave"],
+      inputs: ["Audio-Datei", "Video-Datei", "Mikrofon", "Drag & Drop", "JSON-Import"], outputs: ["WAV", "PNG", "JSON-Export", "Presets (localStorage)"],
+      tech: ["Canvas2D", "Web Audio", "MediaRecorder"],
+      ipad: "teils", ipadNote: "Pointer Events funktionieren. Bei 861–1180px Breite (iPad hochkant, iPad Air quer) ist das gesamte rechte Panel ausgeblendet. Shortcuts brauchen Tastatur.",
+      maturity: "fertig",
+      review: [
+        { kind: "bug", text: "Z. 474: Video wird muted an createMediaElementSource gehängt. In Chrome/Firefox liefert das nur Stille, die Extraktion nimmt nichts auf." },
+        { kind: "warn", text: "Z. 1014: Autosave wird geschrieben, aber nie geladen (toter Code). Quota-Fehler werden stumm verschluckt." },
+        { kind: "warn", text: "Z. 1017: Projekt-JSON mit WAV als Base64 wird bei 3 min Stereo ca. 40 MB groß." },
+        { kind: "warn", text: "Z. 1323/1359: Autokorrelation O(N·lag) 25x pro Sekunde Audio auf dem Main-Thread, lange Dateien legen die UI lahm." },
+        { kind: "ok", text: "fetch() lädt nur data:-URLs aus dem eigenen Projekt-JSON, keine externen Ressourcen, voll offline." },
+        { kind: "ok", text: "Eigener 16-bit-WAV-Encoder, OfflineAudioContext für Resampling." },
+      ]
+    },
+    {
+      id: "opart-extended", name: "Op-Art Moiré Visualizer · Video Extended", repo: "gmu-media-launcher", file: "op-art-moire-visualizer-video-extended.html", bytes: 40688, lines: 1247,
+      family: "Op-Art Moiré-Serie",
+      desc: "Basis der Serie: generativer Moiré-Linien-Visualizer mit 8 stillen LFOs, variabler Linienbreite und Modulation durch Audio, Video oder Webcam.",
+      features: ["11 Makro-Regler, Variable Width Controls", "Themes Paper/Night, Fokuspunkt per Drag, Curated Random", "Tasten: H UI aus, F Vollbild, R Random"],
+      inputs: ["Audio-Datei", "Video-Datei", "Webcam"], outputs: ["Presets (localStorage)"],
+      tech: ["Canvas2D", "Web Audio"],
+      ipad: "teils", ipadNote: "UI aus, Vollbild und Random nur per Tastatur, keine Buttons dafür. Viele stroke()-Aufrufe bei DPR 2.",
+      maturity: "prototyp",
+      review: [
+        { kind: "warn", text: "Kein Export, keine Aufnahme." },
+        { kind: "warn", text: "Z. 157: Text 'Mic needs HTTPS', aber es gibt keine Mikrofon-Funktion." },
+        { kind: "warn", text: "Z. 1048: getComputedStyle in jedem Frame." },
+        { kind: "ok", text: "Stabil und schlank (40 KB)." },
+      ]
+    },
+    {
+      id: "opart-color-voxel", name: "Op-Art Moiré · Color Voxel Final", repo: "gmu-media-launcher", file: "op-art-moire-visualizer-video-color-voxel-final.html", bytes: 49422, lines: 1459,
+      family: "Op-Art Moiré-Serie",
+      desc: "Erweiterung (+214 Zeilen): Linienfarbe aus dem Video (Ø-HSL) und eine farbige 'Point Cloud' aus Videopixeln als 2D-fillRect-Punkte mit Pseudo-Perspektive.",
+      features: ["Alles aus Video Extended", "Video-Farbe färbt die Linien", "Point Cloud: PC Density, Depth, Size"],
+      inputs: ["Audio-Datei", "Video-Datei", "Webcam"], outputs: ["Presets (localStorage)"],
+      tech: ["Canvas2D", "Web Audio", "Pointcloud"],
+      ipad: "ja", ipadNote: "Im Launcher als iPad-Fallback ohne WebGPU empfohlen. Gleiche Tastatur-Abhängigkeit wie Extended.",
+      maturity: "prototyp",
+      review: [
+        { kind: "bug", text: "Z. 1311: clamp01() auf HSL-Prozentwerte (0–100): Sättigung/Helligkeit max. 1 %. Ab COLOR > 0.001 (Standard 0.06) werden Linien praktisch schwarz, im Night-Theme unsichtbar. Bug vererbt an alle späteren Versionen." },
+        { kind: "warn", text: "Z. 1227: 1/(1+z+detune) kann negativ oder unendlich werden, Punkte springen weg." },
+      ]
+    },
+    {
+      id: "opart-voxel-pc", name: "Op-Art Moiré · Voxel Pointcloud Final", repo: "gmu-media-launcher", file: "op-art-moire-visualizer-video-voxel-pointcloud-final.html", bytes: 67919, lines: 1879,
+      family: "Op-Art Moiré-Serie",
+      desc: "Erweiterung (+473 Zeilen): Tiefenquelle Motion/Luma/WebGL-Depth, Object Mode (alles, Haut, Hintergrund), Pointcloud-Ebenen mit Nachleuchten und Cross-Modulation Audio↔Video.",
+      features: ["Depth Source: Motion, Luma, WebGL-Depth (GLSL aus Kanten und Bewegung)", "Object Mode: alles, nur Haut, nur Hintergrund", "Bis 8 Nachleucht-Ebenen, Motion Sens, Persistence", "Cross-Modulation: Audio→Density/Taper, Video→Twist/Detune"],
+      inputs: ["Audio-Datei", "Video-Datei", "Webcam"], outputs: ["Presets (localStorage)"],
+      tech: ["Canvas2D", "WebGL1", "Web Audio", "Pointcloud", "Shader (GLSL)"],
+      ipad: "teils", ipadNote: "Läuft ohne WebGPU. Pro Punkt eigener fillStyle-String über bis zu 8 Ebenen, schwer fürs iPad.",
+      maturity: "experiment",
+      review: [
+        { kind: "bug", text: "Z. 839: RGBA-Pixel werden als gl.RGB hochgeladen, Pixel-Schrittweite falsch, WebGL-Tiefe verzerrt." },
+        { kind: "warn", text: "Z. 822/875: RGB-Framebuffer ist in WebGL1 nicht garantiert vollständig." },
+        { kind: "warn", text: "Z. 1831: Cross-Mod-Summe nicht auf 0–1 begrenzt. HSL-clamp01-Bug aus Color Voxel enthalten (Z. 1712)." },
+      ]
+    },
+    {
+      id: "opart-webgpu", name: "Op-Art Moiré · Real Depth WebGPU + Interference Shader Final", repo: "gmu-media-launcher", file: "op-art-moire-visualizer-video-voxel-pointcloud-real-depth-webgpu-moire-interference-shader-final.html", bytes: 105468, lines: 2840,
+      family: "Op-Art Moiré-Serie",
+      desc: "Letzte Stufe (+1082 Zeilen): WebGPU-Tiefenschätzung (WGSL mit CPU-Readback), Moiré-/Interferenz-Bereich mit 6 Reglern, 3 Presets und dritter Linienebene, dazu ein WebGL1-Shader-Layer mit 4 Modi.",
+      features: ["WebGPU Depth (WGSL), Fallback auf WebGL-Depth bzw. CPU-Motion", "Moiré + Interferenz: 6 Regler, 3 Presets, dritte Linienebene", "Shader Layer (WebGL1, 4 Modi) per screen-Blend", "Neuer localStorage-Key opart_gallery_v5_moire_interf"],
+      inputs: ["Audio-Datei", "Video-Datei", "Webcam"], outputs: ["Presets (localStorage)"],
+      tech: ["Canvas2D", "WebGL1", "WebGPU", "Web Audio", "Pointcloud", "Shader (GLSL)"],
+      ipad: "teils", ipadNote: "Fallback ohne navigator.gpu vorhanden (Z. 1444). Voreinstellung ist 'motion', erst Reset stellt 'webgpu' ein. WebGL-Canvas in voller Auflösung wird pro Frame per drawImage kopiert.",
+      maturity: "experiment",
+      review: [
+        { kind: "bug", text: "Z. 1691/1425: RGB-Upload-Bug aus Voxel Pointcloud übernommen. HSL-clamp01-Bug enthalten (Z. 2688)." },
+        { kind: "bug", text: "Z. 1714: Fällt WebGPU aus, wird WebGL-Depth nie neu initialisiert, nur CPU-Motion bleibt." },
+        { kind: "warn", text: "Z. 817/833: Point-Shader pVS/pFS werden nie benutzt. Z. 996: Modus motion_volume fehlt im Dropdown." },
+        { kind: "warn", text: "Z. 2475: Interferenz-Ebene nutzt den Amplituden-Cache von Ebene 1." },
+        { kind: "warn", text: "Keine Outputs (kein PNG, kein Recording)." },
+      ]
+    },
+    {
+      id: "gmu-launcher", name: "GMU Media Instrument Launcher", repo: "gmu-media-launcher", file: "index.html", bytes: 12829, lines: 399,
+      family: "Launcher",
+      desc: "Bisherige Startseite des gmu-media-launcher-Repos: Kartenübersicht mit Suche und Filtern (Webcam, Musik, Video, Recording, iPad) für die 10 Instrumente desselben Repos.",
+      features: ["Suche und 6 Filter-Chips", "Kacheln mit Größe, Priorität, Tags, iPad-Kandidat", "Links nur innerhalb desselben Repos"],
+      inputs: [], outputs: [],
+      tech: [],
+      ipad: "ja", ipadNote: "Responsiv mit safe-area. Kennt die Tools aus omni, pointcloud3, jellyfish-lab-v7 und rd-dual-pointcloud nicht.",
+      maturity: "fertig",
+      review: [
+        { kind: "warn", text: "Größenangaben sind handgepflegt (z. B. '402 KB' statt 412 KB) und veralten." },
+        { kind: "warn", text: "Beschreibt OMNIMIX mit 'webgpu'-Tag, der Code nutzt aber nur WebGL2." },
+        { kind: "ok", text: "Dieser OMNI Hub ersetzt und erweitert den Launcher repoübergreifend." },
+      ]
+    },
+  ],
+  repos: [
+    { name: "omni", state: "ok", note: "Dieses Repo. Enthält RD Dual Pointcloud (identisch mit pointcloud3) und jetzt den OMNI Hub. GitHub-Pages-Workflow deployt bei Push auf main.", files: ["index.html (RD Dual Pointcloud)", "omni-hub.html (diese Seite)", ".github/workflows/pages.yml"] },
+    { name: "gmu-media-launcher", state: "ok", note: "Hauptsammlung: 11 Instrumente plus Launcher-Startseite. Größtes Repo (ca. 1,8 MB HTML).", files: ["index.html (Launcher)", "GMUHOOOX11_AURAFLUX_…V2_5.html", "GMUHOOOX11_FLUID_MORPHO_…MULTIPASS.html", "GMUHOOOX9_LAYERED_…REPAIRED.html", "OMNIMIX_VJ_v8_folder_engine_maxfusion.html", "ECA_WEBGL2_VJ_MONOLITH.html", "offline-audio-lab-….html", "op-art-moire-visualizer-… (4 Versionen)"] },
+    { name: "pointcloud3", state: "dup", note: "index.html ist byteidentisch mit omni/index.html (RD Dual Pointcloud). README beschreibt die iPad-Optimierungen.", files: ["index.html (= omni/index.html)", "README.md"] },
+    { name: "jellyfish-lab-v7", state: "ok", note: "Jellyfish Lab V7. README besteht nur aus 'JELLYTEST'.", files: ["index.html (Jellyfish Lab V7)", ".nojekyll"] },
+    { name: "rd-dual-pointcloud", state: "dup", note: "Name passt nicht zum Inhalt: enthält byteidentisch die Jellyfish-Datei, nicht die RD-Pointcloud. README beschreibt Jellyfish und nennt eine .nojekyll, die fehlt.", files: ["index.html (= jellyfish-lab-v7/index.html)", "README.md"] },
+    { name: "pointcloud", state: "empty", note: "Nur README mit dem Inhalt '3'. Kein Tool." },
+    { name: "vj-tools-collection", state: "empty", note: "Leeres Repository ohne Commit." },
+    { name: "new", state: "empty", note: "Leeres Repository ohne Commit." },
+    { name: "desktop-tutorial", state: "misc", note: "Privates GitHub-Desktop-Tutorial-Repo, nur die Standard-README. Kein Tool." },
+  ],
+  notes: [
+    { kind: "info", title: "Bestand", text: "13 eindeutige HTML-Tools (plus der alte Launcher) in 4 Repos, insgesamt rund 2 MB Code. Alle sind Single-File-Apps ohne externe Bibliotheken, ohne CDN und ohne Server: sie laufen offline und von GitHub Pages. Kein Tool hat JavaScript-Syntaxfehler (geprüft mit Node 22)." },
+    { kind: "warn", title: "Duplikate und falsch benannte Repos", text: "Zwei Dateien liegen doppelt vor:", items: ["omni/index.html = pointcloud3/index.html (RD Dual Pointcloud)", "rd-dual-pointcloud/index.html = jellyfish-lab-v7/index.html (Jellyfish). Das Repo rd-dual-pointcloud enthält also die Qualle, nicht die Pointcloud.", "Drei Repos sind leer oder ohne Tool: pointcloud, vj-tools-collection, new.", "Empfehlung: ein Repo pro Tool oder alles in gmu-media-launcher sammeln und die Duplikate archivieren."] },
+    { kind: "bug", title: "Befunde, die in mehreren Tools stecken", text: "Diese Punkte lohnen sich zuerst, weil sie an mehreren Stellen gleichzeitig wirken:", items: ["Kein Tool behandelt webglcontextlost sinnvoll (RD Pointcloud lädt nur neu). Auf dem iPad führt ein GPU-Reset zum schwarzen Bild.", "Op-Art-Serie ab Color Voxel: clamp01() auf HSL-Prozentwerten macht Video-Farbe praktisch schwarz (3 Dateien). Zusätzlich RGBA-als-RGB-Upload in den beiden Pointcloud-Versionen.", "AuraFlux und Fluid Morpho teilen ca. 70–75 % Code (State, MIDI, Recording, STFT-Worker, Agenten). Fixes müssen doppelt eingepflegt werden.", "Recording: nur RD Pointcloud hat eine MIME-Fallback-Liste mit MP4 für Safari. AuraFlux und Fluid Morpho nehmen fest WebM/VP9 auf, ohne try/catch.", "ObjectURLs: OMNIMIX gibt nie frei, AuraFlux/Fluid Morpho/GMU9 geben Worker-URLs nicht frei. Lange Sessions wachsen im Speicher.", "AudioContext-Lecks: GMU9 (pro Dateiladen) und ECA (pro Mic-Enable) erzeugen neue Kontexte ohne close().", "preserveDrawingBuffer:true in RD Pointcloud, Jellyfish, AuraFlux, GMU9 und ECA kostet auf Mobile Leistung und wird nur fürs PNG gebraucht."] },
+    { kind: "warn", title: "iPad-Tauglichkeit", text: "Wirklich iPad-fertig sind nur RD Dual Pointcloud, Jellyfish Lab und der Launcher (safe-area, dvh, Pointer-Capture). Die GMUHOOOX-Engines laufen im Querformat, haben aber feste Panelbreiten und kein safe-area. OMNIMIX (nur Drag & Drop) und ECA (nur Maus-Events) sind auf dem iPad nicht bedienbar. Webcam und Mikrofon brauchen überall HTTPS und eine Nutzergeste." },
+    { kind: "info", title: "Reifegrad", text: "Fertig im Sinne von performance-tauglich: GMUHOOOX 9 und das Offline Audio Lab. Fortgeschrittene Prototypen: RD Dual Pointcloud, AuraFlux, OMNIMIX, Op-Art Extended und Color Voxel. Experimente: Fluid Morpho, Jellyfish Lab, ECA, Op-Art Voxel Pointcloud und WebGPU." },
+    { kind: "info", title: "So nutzt du diesen Hub", text: "'Öffnen' startet ein Tool in neuem Tab (lokal im omni-Repo direkt, sonst über GitHub Pages des jeweiligen Repos). Die Vorschau lädt das Tool hier im Hub, auch in iPad- oder Phone-Größe, Kamera und Mikrofon sind dafür freigegeben. Liegt der Hub selbst auf GitHub Pages, erreicht er alle Repos desselben Accounts. Die Pages-Links funktionieren nur, wenn Pages im jeweiligen Repo aktiviert ist." },
+  ],
+};
+
+</script>
+<script>
+(() => {
+  const $ = (s, r = document) => r.querySelector(s);
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const kb = n => n >= 1024 * 1024 ? (n / 1048576).toFixed(2) + " MB" : Math.round(n / 1024) + " KB";
+
+  const OWNER = DATA.owner;
+  const pagesUrl = t => `https://${OWNER}.github.io/${t.repo}/${t.file === "index.html" ? "" : encodeURI(t.file)}`;
+  const srcUrl = t => `https://github.com/${OWNER}/${t.repo}/blob/main/${encodeURI(t.file)}`;
+  const localUrl = t => t.repo === DATA.hubRepo ? encodeURI(t.file) : null;
+  // Wenn der Hub selbst von GitHub Pages läuft, sind alle Repos desselben Owners unter derselben Origin erreichbar.
+  const onPages = location.hostname.endsWith("github.io");
+  const openUrl = t => (localUrl(t) && !onPages) ? localUrl(t) : pagesUrl(t);
+
+  $("#baseLink").href = `https://github.com/${OWNER}`;
+
+  /* ---------- Theme ---------- */
+  const root = document.documentElement;
+  const applyTheme = t => { if (t) root.dataset.theme = t; else delete root.dataset.theme; };
+  try { applyTheme(localStorage.getItem("omniHubTheme")); } catch (e) {}
+  $("#themeBtn").addEventListener("click", () => {
+    const next = root.dataset.theme === "light" ? "" : "light";
+    applyTheme(next);
+    try { localStorage.setItem("omniHubTheme", next); } catch (e) {}
+  });
+
+  /* ---------- Stats ---------- */
+  const tools = DATA.tools;
+  const totalBytes = tools.reduce((a, t) => a + t.bytes, 0);
+  const totalLines = tools.reduce((a, t) => a + t.lines, 0);
+  const reposWithTools = new Set(tools.map(t => t.repo)).size;
+  const dupCount = DATA.repos.filter(r => r.state === "dup").length;
+  const emptyCount = DATA.repos.filter(r => r.state === "empty").length;
+  const maturity = { fertig: 0, prototyp: 0, experiment: 0 };
+  tools.forEach(t => maturity[t.maturity]++);
+  $("#stats").innerHTML = [
+    [tools.length, "eindeutige HTML-Tools"],
+    [reposWithTools + " / " + DATA.repos.length, "Repos mit Tools / gesamt"],
+    [kb(totalBytes), "Code insgesamt (" + totalLines.toLocaleString("de-DE") + " Zeilen)"],
+    [maturity.fertig + " · " + maturity.prototyp + " · " + maturity.experiment, "fertig · Prototyp · Experiment"],
+    [dupCount, "doppelte Dateien"],
+    [emptyCount, "leere Repos"],
+  ].map(([v, l]) => `<div class="stat"><b>${esc(v)}</b><span>${esc(l)}</span></div>`).join("");
+  $("#subtitle").textContent = `${tools.length} Tools in ${reposWithTools} Repositories · Stand ${DATA.date}`;
+  $("#footer").textContent = `OMNI Hub · Quellcode-Analyse vom ${DATA.date} · Alle Tools laufen offline in einer einzigen HTML-Datei ohne externe Bibliotheken.`;
+
+  /* ---------- Filter ---------- */
+  const groups = [
+    { key: "inputs", label: "Input", values: DATA.inputs },
+    { key: "outputs", label: "Output", values: DATA.outputs },
+    { key: "tech", label: "Technik", values: DATA.tech },
+    { key: "ipad", label: "iPad", values: ["ja", "teils", "nein"] },
+    { key: "maturity", label: "Reife", values: ["fertig", "prototyp", "experiment"] },
+  ];
+  const active = {}; // key -> Set
+  const fWrap = $("#filters");
+  fWrap.innerHTML = groups.map(g => `<div class="fgroup"><span class="lbl">${esc(g.label)}</span>${g.values.map(v =>
+    `<button class="chip" type="button" data-group="${g.key}" data-value="${esc(v)}">${esc(v)}</button>`).join("")}</div>`).join("") +
+    `<div class="fgroup"><span class="lbl"></span><button class="chip" type="button" id="clearFilters">Filter zurücksetzen</button></div>`;
+  fWrap.addEventListener("click", e => {
+    const b = e.target.closest(".chip"); if (!b) return;
+    if (b.id === "clearFilters") { Object.keys(active).forEach(k => active[k].clear()); fWrap.querySelectorAll(".chip.active").forEach(c => c.classList.remove("active")); render(); return; }
+    const g = b.dataset.group, v = b.dataset.value;
+    active[g] ??= new Set();
+    if (active[g].has(v)) { active[g].delete(v); b.classList.remove("active"); } else { active[g].add(v); b.classList.add("active"); }
+    render();
+  });
+
+  const matchesFilters = t => groups.every(g => {
+    const set = active[g.key]; if (!set || !set.size) return true;
+    const val = t[g.key];
+    return Array.isArray(val) ? [...set].every(v => val.includes(v)) : set.has(val);
+  });
+  const haystack = t => [t.name, t.file, t.repo, t.family, t.desc, ...t.features, ...t.inputs, ...t.outputs, ...t.tech, t.ipadNote, ...(t.review || []).map(r => r.text)].join(" ").toLowerCase();
+
+  const matOrder = { fertig: 0, prototyp: 1, experiment: 2 };
+  const sorters = {
+    family: (a, b) => a.family.localeCompare(b.family, "de") || a.name.localeCompare(b.name, "de"),
+    name: (a, b) => a.name.localeCompare(b.name, "de"),
+    size: (a, b) => b.bytes - a.bytes,
+    maturity: (a, b) => matOrder[a.maturity] - matOrder[b.maturity] || a.name.localeCompare(b.name, "de"),
+  };
+
+  /* ---------- Cards ---------- */
+  const ipadLabel = { ja: "iPad: gut", teils: "iPad: eingeschränkt", nein: "iPad: nicht geeignet" };
+  const card = t => `
+    <article class="card" data-id="${esc(t.id)}">
+      <div>
+        <div class="meta"><span>${esc(t.family)}</span><span>${kb(t.bytes)} · ${t.lines.toLocaleString("de-DE")} Z.</span></div>
+        <h3>${esc(t.name)}</h3>
+        <div class="file">${esc(t.repo)} / ${esc(t.file)}</div>
+        <p>${esc(t.desc)}</p>
+        <div class="tags">
+          ${t.inputs.map(v => `<span class="tag in" title="Input">⇥ ${esc(v)}</span>`).join("")}
+          ${t.outputs.map(v => `<span class="tag out" title="Output">⇤ ${esc(v)}</span>`).join("")}
+          ${t.tech.map(v => `<span class="tag" title="Technik">${esc(v)}</span>`).join("")}
+        </div>
+        <div class="ipad"><span class="badge ${esc(t.maturity)}">${esc(t.maturity)}</span> &nbsp; <b>${ipadLabel[t.ipad]}</b> – ${esc(t.ipadNote)}</div>
+        <details class="review">
+          <summary>Funktionen &amp; Review (${t.review.length} Befunde)</summary>
+          <ul>${t.features.map(f => `<li>${esc(f)}</li>`).join("")}</ul>
+          <ul>${t.review.map(r => `<li class="${esc(r.kind)}">${esc(r.text)}</li>`).join("")}</ul>
+        </details>
+      </div>
+      <div></div>
+      <div class="actions">
+        <a class="btn" href="${esc(openUrl(t))}" target="_blank" rel="noopener">Öffnen ↗</a>
+        <button class="btn secondary icon" type="button" data-preview="${esc(t.id)}" title="Vorschau hier im Hub" aria-label="Vorschau ${esc(t.name)}">▣</button>
+        <a class="btn secondary icon src" href="${esc(srcUrl(t))}" target="_blank" rel="noopener" title="Quellcode auf GitHub" aria-label="Quellcode ${esc(t.name)}">&lt;/&gt;</a>
+      </div>
+    </article>`;
+
+  const grid = $("#grid"), empty = $("#empty"), search = $("#search"), sortSel = $("#sort"), count = $("#count");
+  function render() {
+    const term = search.value.trim().toLowerCase();
+    const list = tools.filter(t => matchesFilters(t) && (!term || haystack(t).includes(term))).sort(sorters[sortSel.value]);
+    grid.innerHTML = list.map(card).join("");
+    empty.style.display = list.length ? "none" : "block";
+    count.textContent = `${list.length} von ${tools.length}`;
+  }
+  search.addEventListener("input", render);
+  sortSel.addEventListener("change", render);
+  render();
+
+  /* ---------- Preview ---------- */
+  const pv = $("#preview"), frame = $("#pvFrame");
+  const openPreview = t => {
+    $("#pvTitle").textContent = `${t.name} · ${t.repo}/${t.file}`;
+    $("#pvOpen").href = openUrl(t);
+    frame.src = openUrl(t);
+    pv.classList.add("open");
+    document.body.style.overflow = "hidden";
+  };
+  const closePreview = () => { pv.classList.remove("open"); frame.src = "about:blank"; document.body.style.overflow = ""; };
+  grid.addEventListener("click", e => {
+    const b = e.target.closest("[data-preview]"); if (!b) return;
+    const t = tools.find(x => x.id === b.dataset.preview); if (t) openPreview(t);
+  });
+  $("#pvClose").addEventListener("click", closePreview);
+  pv.addEventListener("click", e => { if (e.target === pv) closePreview(); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && pv.classList.contains("open")) closePreview(); });
+  pv.querySelectorAll("[data-size]").forEach(b => b.addEventListener("click", () => {
+    pv.classList.remove("ipad", "phone");
+    if (b.dataset.size !== "full") pv.classList.add(b.dataset.size);
+    pv.querySelectorAll("[data-size]").forEach(x => x.classList.toggle("active", x === b));
+  }));
+  pv.querySelector('[data-size="full"]').classList.add("active");
+
+  /* ---------- Matrix ---------- */
+  const cols = DATA.matrixColumns;
+  const has = (t, c) => t.inputs.includes(c) || t.outputs.includes(c) || t.tech.includes(c) || (c === "iPad" && t.ipad === "ja");
+  $("#matrixTable").innerHTML = `<thead><tr><th>Tool</th>${cols.map(c => `<th class="rot">${esc(c.replace(" (localStorage)", ""))}</th>`).join("")}</tr></thead><tbody>` +
+    tools.slice().sort(sorters.family).map(t => `<tr><td class="name">${esc(t.name)}<small>${esc(t.repo)}</small></td>${cols.map(c => has(t, c) ? '<td class="y">●</td>' : '<td class="n">·</td>').join("")}</tr>`).join("") +
+    `</tbody>`;
+
+  /* ---------- Repos ---------- */
+  const stateLabel = { ok: "aktiv", dup: "Duplikat", empty: "leer", misc: "kein Tool" };
+  $("#repoGrid").innerHTML = DATA.repos.map(r => `
+    <div class="repo">
+      <h3><a href="https://github.com/${OWNER}/${esc(r.name)}" target="_blank" rel="noopener">${esc(r.name)}</a><span class="state ${esc(r.state)}">${stateLabel[r.state]}</span></h3>
+      <p>${esc(r.note)}</p>
+      ${r.files ? `<p class="file" style="font-family:ui-monospace,monospace;font-size:.72rem">${r.files.map(esc).join("<br>")}</p>` : ""}
+    </div>`).join("");
+
+  /* ---------- Notes ---------- */
+  $("#notes").innerHTML = DATA.notes.map(n => `<div class="note ${esc(n.kind)}"><b>${esc(n.title)}</b>${esc(n.text)}${n.items ? `<ul>${n.items.map(i => `<li>${esc(i)}</li>`).join("")}</ul>` : ""}</div>`).join("");
+})();
+
+</script>
+</body>
+</html>
