@@ -21,3 +21,12 @@ Drei Modi, alle in Echtzeit im Fragment-Shader berechnet:
 
 Dazu Presets (eigene werden lokal gespeichert), Zufallsgenerator, Messwerte (k, T, Spaltabstand in λ, berechnete Moiré-Periode),
 PNG-Export und teilbarer Link mit dem kompletten Zustand im URL-Hash.
+
+### Einführung und Bedienung (Version 2)
+
+- **Einführung** in sechs Schritten mit Live-Beispielen hinter der Karte (Bedienung, Wellen, Interferenz, Phase, Moiré, Kombination);
+  startet beim ersten Besuch automatisch, jederzeit über `?` erreichbar. Unter *Info → Experimente* liegen Aufgaben mit fertigem Aufbau.
+- **Touch:** Bottom-Sheet mit Griff (drei Rastpunkte), Tabs statt langer Liste, 46-px-Zielflächen, große Reglerknöpfe mit −/+ Steppern
+  (gedrückt halten wiederholt), Werte antippen zur Direkteingabe, Long-Press-Kontextmenü, Pinch-Zoom, Zwei-Finger-Drehen der Moiré-Ebene.
+- **Desktop:** Seitenleiste (☰ ausblendbar), Hover-Hervorhebung der Quellen mit Greif-Cursor, Rechtsklick-Menü, Mausrad-Zoom zum Zeiger,
+  Alt+Rad dreht die Ebene, Tastaturkürzel (Leertaste, 1/2/3, N, Entf, Tab, Pfeile, [ ], + − 0, P, R, H, F, ?).
