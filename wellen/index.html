@@ -1,0 +1,1482 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Wellenlabor - interaktives Werkzeug zur Erforschung von Wellen, Interferenz und Moiré-Mustern.">
+<meta name="theme-color" content="#111111">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Wellenlabor">
+<title>Wellenlabor · Interferenz & Moiré</title>
+<style>
+  :root {
+    --bg: #111;
+    --panel: #1a1a1a;
+    --txt: #ddd;
+    --dim: #888;
+    --acc: #ffaa00;
+    --brd: #333;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html {
+    height: 100%;
+    height: 100dvh;
+    overflow: hidden;
+    overscroll-behavior: none;
+    touch-action: none;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--txt);
+    font-family: system-ui, sans-serif;
+    overflow: hidden;
+    display: flex;
+    height: 100vh;
+    height: 100dvh;
+    padding-top: env(safe-area-inset-top);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  #stage {
+    flex: 1;
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: crosshair;
+    touch-action: none;
+  }
+
+  #hint {
+    position: absolute;
+    left: 10px;
+    bottom: 10px;
+    font-size: 11px;
+    color: var(--dim);
+    background: rgba(17, 17, 17, 0.7);
+    padding: 4px 8px;
+    border-radius: 3px;
+    pointer-events: none;
+    max-width: 70%;
+  }
+
+  #ui {
+    width: 300px;
+    background: var(--panel);
+    border-left: 1px solid var(--brd);
+    padding: 15px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    z-index: 10;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+  }
+
+  h1 {
+    font-size: 15px;
+    color: var(--acc);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+
+  h1 a { color: var(--dim); font-size: 11px; text-decoration: none; }
+  h1 a:hover { color: var(--txt); }
+
+  h2 {
+    font-size: 13px;
+    color: var(--acc);
+    border-bottom: 1px solid var(--brd);
+    padding-bottom: 5px;
+  }
+
+  .ctrl { display: flex; flex-direction: column; gap: 6px; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+  .hidden { display: none !important; }
+
+  .value, #fps { color: var(--acc); font-variant-numeric: tabular-nums; }
+
+  label {
+    font-size: 11px;
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    align-items: center;
+  }
+
+  input[type="range"] { width: 100%; accent-color: var(--acc); }
+
+  select, input[type="text"] {
+    width: 100%;
+    background: var(--bg);
+    color: var(--txt);
+    border: 1px solid var(--brd);
+    padding: 4px;
+    border-radius: 3px;
+    font-size: 11px;
+  }
+
+  label select { width: 58%; }
+
+  button {
+    background: var(--acc);
+    color: #000;
+    border: none;
+    padding: 6px;
+    cursor: pointer;
+    border-radius: 3px;
+    font-weight: bold;
+    width: 100%;
+    min-height: 34px;
+    font-size: 11px;
+  }
+
+  button.secondary {
+    background: #2a2a2a;
+    color: var(--txt);
+    border: 1px solid var(--brd);
+  }
+
+  button.active { outline: 2px solid var(--acc); outline-offset: 1px; }
+  button:hover { opacity: 0.85; }
+
+  .tabs { display: flex; gap: 4px; }
+  .tabs button { min-height: 28px; padding: 4px; }
+
+  .info {
+    font-size: 11px;
+    color: var(--dim);
+    line-height: 1.5;
+    font-variant-numeric: tabular-nums;
+  }
+  .info b { color: var(--txt); font-weight: normal; }
+
+  .check { display: flex; gap: 8px; align-items: center; font-size: 11px; }
+  .check input { accent-color: var(--acc); width: 16px; height: 16px; }
+
+  @media (max-width: 900px) {
+    body { flex-direction: column; height: 100dvh; }
+    #stage { min-height: 52dvh; }
+    #ui {
+      width: 100%;
+      border-left: 0;
+      border-top: 1px solid var(--brd);
+      max-height: 48dvh;
+    }
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="glCanvas"></canvas>
+  <div id="hint"></div>
+</div>
+
+<div id="ui">
+  <h1>Wellenlabor <a href="../">← RD Dual Pointcloud</a></h1>
+
+  <h2>Modus</h2>
+  <div class="ctrl">
+    <div class="tabs">
+      <button class="secondary" data-mode="wave">Wellen</button>
+      <button class="secondary" data-mode="moire">Moiré</button>
+      <button class="secondary" data-mode="both">Wellen × Moiré</button>
+    </div>
+    <label>Preset <select id="preset"></select></label>
+    <div class="row">
+      <button id="savePresetBtn" class="secondary">Preset speichern</button>
+      <button id="deletePresetBtn" class="secondary">Löschen</button>
+    </div>
+    <div class="row">
+      <button id="randomBtn" class="secondary">Zufall</button>
+      <button id="pauseBtn" class="secondary">Pause</button>
+    </div>
+    <div id="animSliders" class="ctrl"></div>
+    <div class="row">
+      <button id="resetTimeBtn" class="secondary">Zeit auf 0</button>
+      <button id="resetViewBtn" class="secondary">Ansicht zurück</button>
+    </div>
+    <label>FPS <span id="fps">--</span></label>
+  </div>
+
+  <div id="secWave" class="ctrl" style="gap:15px">
+    <div class="ctrl">
+      <h2>Wellen</h2>
+      <div id="waveSliders" class="ctrl"></div>
+      <label>Darstellung <select id="view">
+        <option value="snapshot">Momentaufnahme</option>
+        <option value="intensity">Intensität (zeitl. Mittel)</option>
+        <option value="envelope">Amplitudenhülle</option>
+        <option value="phase">Phase</option>
+        <option value="contours">Höhenlinien</option>
+      </select></label>
+      <label>Anordnen <select id="arrange">
+        <option value="">– wählen –</option>
+        <option value="line">Linie (Gitter)</option>
+        <option value="circle">Kreis</option>
+        <option value="pair">Doppelspalt</option>
+        <option value="random">Zufällig</option>
+        <option value="standing">Stehende Welle (2 Ebenen)</option>
+      </select></label>
+      <div class="check"><input type="checkbox" id="showSources" checked><span>Quellen anzeigen</span></div>
+    </div>
+
+    <div class="ctrl">
+      <h2>Quelle <span id="srcTitle" class="value">1</span></h2>
+      <div class="tabs" id="srcTabs"></div>
+      <label>Typ <select id="srcType">
+        <option value="point">Punktquelle</option>
+        <option value="plane">Ebene Welle</option>
+      </select></label>
+      <div id="srcSliders" class="ctrl"></div>
+      <div class="check"><input type="checkbox" id="srcEnabled" checked><span>Quelle aktiv</span></div>
+      <div class="row">
+        <button id="addSrcBtn" class="secondary">+ Quelle</button>
+        <button id="removeSrcBtn" class="secondary">– Quelle</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="secMoire" class="ctrl" style="gap:15px">
+    <div class="ctrl">
+      <h2>Moiré</h2>
+      <label>Mischung <select id="blend">
+        <option value="multiply">Multiplizieren</option>
+        <option value="add">Addieren</option>
+        <option value="difference">Differenz</option>
+        <option value="min">Minimum</option>
+        <option value="max">Maximum</option>
+        <option value="screen">Negativ multiplizieren</option>
+        <option value="xor">XOR</option>
+      </select></label>
+      <label id="waveAsLayerRow">Wellen-Ebene <select id="waveAsLayer">
+        <option value="snapshot">Momentaufnahme</option>
+        <option value="intensity">Intensität</option>
+        <option value="envelope">Amplitudenhülle</option>
+      </select></label>
+      <div class="check"><input type="checkbox" id="aa" checked><span>Kantenglättung</span></div>
+    </div>
+
+    <div class="ctrl">
+      <h2>Ebene <span id="layTitle" class="value">1</span></h2>
+      <div class="tabs" id="layTabs"></div>
+      <div class="check"><input type="checkbox" id="layEnabled" checked><span>Ebene aktiv</span></div>
+      <label>Muster <select id="layType">
+        <option value="lines">Linien</option>
+        <option value="dots">Punktraster</option>
+        <option value="hex">Sechseck-Raster</option>
+        <option value="rings">Ringe</option>
+        <option value="radial">Strahlen</option>
+        <option value="checker">Schachbrett</option>
+        <option value="wave">Wellenfeld</option>
+      </select></label>
+      <div id="laySliders" class="ctrl"></div>
+      <div class="row">
+        <button id="copyLayerBtn" class="secondary">Auf nächste kopieren</button>
+        <button id="centerLayerBtn" class="secondary">Versatz 0</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="ctrl">
+    <h2>Farbe</h2>
+    <label>Palette <select id="palette">
+      <option value="gray">Graustufen</option>
+      <option value="diverging">Blau – Weiß – Rot</option>
+      <option value="spectrum">Spektrum</option>
+      <option value="ocean">Ozean</option>
+      <option value="ember">Glut</option>
+      <option value="aurora">Aurora</option>
+    </select></label>
+    <div id="colorSliders" class="ctrl"></div>
+    <div class="check"><input type="checkbox" id="invert"><span>Invertieren</span></div>
+    <label>Auflösung (DPR) <select id="dpr">
+      <option value="1">1</option>
+      <option value="1.5" selected>1.5</option>
+      <option value="2">2</option>
+      <option value="3">3</option>
+    </select></label>
+  </div>
+
+  <div class="ctrl">
+    <h2>Messwerte</h2>
+    <div id="infoBox" class="info"></div>
+  </div>
+
+  <div class="ctrl">
+    <h2>Export</h2>
+    <div class="row">
+      <button id="pngBtn">PNG speichern</button>
+      <button id="linkBtn" class="secondary">Link kopieren</button>
+    </div>
+    <div class="info">
+      Tipp: Ziehen = Quelle bewegen bzw. Ebene versetzen · Doppeltipp = Quelle setzen ·
+      Zwei Finger = Zoom/Drehen · Mausrad = Zoom · Alt+Rad = Ebene drehen · Shift+Ziehen = Ansicht verschieben.
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const TAU = Math.PI * 2;
+const MAX_SRC = 8;
+const MAX_LAY = 3;
+
+const canvas = $("glCanvas");
+const gl = canvas.getContext("webgl2", { preserveDrawingBuffer: true, antialias: false });
+if (!gl) {
+  alert("WebGL2 wird benötigt!");
+  throw new Error("WebGL2 not available");
+}
+
+/* ---------------------------------------------------------------- Shader */
+const vsSource = `#version 300 es
+in vec2 a_pos;
+out vec2 v_uv;
+void main() {
+  v_uv = a_pos * 0.5 + 0.5;
+  gl_Position = vec4(a_pos, 0.0, 1.0);
+}`;
+
+const fsSource = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 fragColor;
+
+uniform vec2 u_res;
+uniform float u_time;
+uniform int u_mode;          // 0 Wellen, 1 Moiré, 2 Wellen x Moiré
+uniform int u_view;          // 0 Momentaufnahme, 1 Intensität, 2 Hülle, 3 Phase, 4 Höhenlinien
+uniform int u_srcCount;
+uniform vec4 u_srcA[${MAX_SRC}];  // x, y, phase, amp
+uniform vec4 u_srcB[${MAX_SRC}];  // type, angle, lambdaMul, enabled
+uniform float u_lambda, u_omega, u_damping, u_ampNorm, u_contours;
+uniform vec4 u_layA[${MAX_LAY}];  // type, period, angle, duty
+uniform vec4 u_layB[${MAX_LAY}];  // offx, offy, soft, enabled
+uniform int u_blend;
+uniform int u_waveAsLayer;   // 0 Momentaufnahme, 1 Intensität, 2 Hülle
+uniform int u_palette;
+uniform float u_invert, u_contrast, u_gamma, u_showSources, u_zoom, u_aa;
+uniform int u_activeSrc;
+uniform vec2 u_pan;
+
+const float TAU = 6.28318530718;
+
+vec2 field(vec2 p) {
+  vec2 acc = vec2(0.0);
+  for (int i = 0; i < ${MAX_SRC}; i++) {
+    if (i >= u_srcCount) break;
+    vec4 a = u_srcA[i];
+    vec4 b = u_srcB[i];
+    if (b.w < 0.5) continue;
+    float k = TAU / max(u_lambda * b.z, 1e-4);
+    float amp = a.w;
+    float ph;
+    if (b.x < 0.5) {
+      float r = length(p - a.xy);
+      ph = k * r + a.z;
+      amp *= pow(1.0 + r * 4.0, -u_damping);
+    } else {
+      vec2 d = vec2(cos(b.y), sin(b.y));
+      ph = k * dot(p - a.xy, d) + a.z;
+    }
+    acc += amp * vec2(cos(ph), sin(ph));
+  }
+  return acc;
+}
+
+float snapshot(vec2 f) {
+  float wt = u_omega * u_time;
+  return (f.x * cos(wt) + f.y * sin(wt)) * u_ampNorm;
+}
+
+// Wellenfeld als 0..1-Wert für die Moiré-Mischung
+float waveLayer(vec2 p) {
+  vec2 f = field(p);
+  if (u_waveAsLayer == 0) return 0.5 + 0.5 * snapshot(f);
+  float env = length(f) * u_ampNorm;
+  if (u_waveAsLayer == 1) return env * env;
+  return env;
+}
+
+float pattern(int type, vec2 q, float period, float duty, float soft, vec2 p) {
+  float v;
+  if (type == 0) {
+    v = 0.5 + 0.5 * cos(TAU * q.x / period);
+  } else if (type == 1) {
+    vec2 c = cos(TAU * q / period);
+    v = 0.5 + 0.5 * min(c.x, c.y);
+  } else if (type == 2) {
+    float a0 = cos(TAU * q.x / period);
+    float a1 = cos(TAU * dot(q, vec2(0.5, 0.8660254)) / period);
+    float a2 = cos(TAU * dot(q, vec2(-0.5, 0.8660254)) / period);
+    v = (a0 + a1 + a2 + 1.5) / 4.5;
+  } else if (type == 3) {
+    v = 0.5 + 0.5 * cos(TAU * length(q) / period);
+  } else if (type == 4) {
+    float n = max(2.0, floor(1.0 / period + 0.5));
+    v = 0.5 + 0.5 * cos(atan(q.y, q.x) * n);
+  } else if (type == 5) {
+    vec2 s = sin(TAU * q / period);
+    v = 0.5 + 0.5 * s.x * s.y / max(abs(s.x * s.y), 1e-4);
+    soft = max(soft, 0.001);
+  } else {
+    return waveLayer(p);
+  }
+  float th = 1.0 - duty;
+  float aa = u_aa * fwidth(v) * 0.7;
+  return smoothstep(th - soft - aa, th + soft + aa, v);
+}
+
+float blendOp(float a, float b) {
+  if (u_blend == 0) return a * b;
+  if (u_blend == 1) return min(a + b, 1.0);
+  if (u_blend == 2) return abs(a - b);
+  if (u_blend == 3) return min(a, b);
+  if (u_blend == 4) return max(a, b);
+  if (u_blend == 5) return 1.0 - (1.0 - a) * (1.0 - b);
+  return a + b - 2.0 * a * b;
+}
+
+float moire(vec2 p, bool withWave) {
+  float acc = 0.0;
+  bool first = true;
+  if (withWave) { acc = waveLayer(p); first = false; }
+  for (int i = 0; i < ${MAX_LAY}; i++) {
+    vec4 a = u_layA[i];
+    vec4 b = u_layB[i];
+    if (b.w < 0.5) continue;
+    float c = cos(a.z), s = sin(a.z);
+    vec2 q = p - b.xy;
+    q = vec2(c * q.x + s * q.y, -s * q.x + c * q.y);
+    float v = pattern(int(a.x + 0.5), q, max(a.y, 1e-4), a.w, b.z, p);
+    if (first) { acc = v; first = false; } else { acc = blendOp(acc, v); }
+  }
+  return first ? 0.5 : acc;
+}
+
+vec3 grad3(float t, vec3 c0, vec3 c1, vec3 c2) {
+  return t < 0.5 ? mix(c0, c1, t * 2.0) : mix(c1, c2, (t - 0.5) * 2.0);
+}
+
+vec3 colorize(float t) {
+  t = clamp(t, 0.0, 1.0);
+  if (u_palette == 0) return vec3(t);
+  if (u_palette == 1) return grad3(t, vec3(0.13, 0.35, 0.85), vec3(0.97), vec3(0.9, 0.2, 0.15));
+  if (u_palette == 2) return 0.5 + 0.5 * cos(TAU * (t + vec3(0.0, 0.33, 0.67)));
+  if (u_palette == 3) return grad3(t, vec3(0.01, 0.07, 0.17), vec3(0.05, 0.48, 0.61), vec3(0.85, 0.96, 1.0));
+  if (u_palette == 4) return grad3(t, vec3(0.07, 0.01, 0.02), vec3(0.78, 0.25, 0.1), vec3(1.0, 0.88, 0.54));
+  return grad3(t, vec3(0.04, 0.02, 0.13), vec3(0.09, 0.63, 0.52), vec3(0.78, 1.0, 0.42));
+}
+
+float markers(vec2 p) {
+  float m = 0.0;
+  float px = 2.0 / (u_res.y * u_zoom);
+  for (int i = 0; i < ${MAX_SRC}; i++) {
+    if (i >= u_srcCount) break;
+    vec4 a = u_srcA[i];
+    vec4 b = u_srcB[i];
+    float r = 10.0 * px;
+    float d = length(p - a.xy);
+    float ring = 1.0 - smoothstep(1.2 * px, 2.4 * px, abs(d - r));
+    if (b.w < 0.5) ring *= 0.4;
+    if (i == u_activeSrc) ring = max(ring, 1.0 - smoothstep(3.0 * px, 4.5 * px, d));
+    if (b.x > 0.5) {
+      vec2 dir = vec2(cos(b.y), sin(b.y));
+      vec2 rel = p - a.xy;
+      float along = clamp(dot(rel, dir), 0.0, 40.0 * px);
+      float dist = length(rel - dir * along);
+      ring = max(ring, 1.0 - smoothstep(1.0 * px, 2.2 * px, dist));
+    }
+    m = max(m, ring);
+  }
+  return m;
+}
+
+void main() {
+  float aspect = u_res.x / u_res.y;
+  vec2 p = (v_uv - 0.5) * 2.0 * vec2(aspect, 1.0) / u_zoom + u_pan;
+
+  float t;
+  if (u_mode == 1) {
+    t = moire(p, false);
+  } else if (u_mode == 2) {
+    t = moire(p, true);
+  } else {
+    vec2 f = field(p);
+    if (u_view == 0) {
+      t = 0.5 + 0.5 * snapshot(f);
+    } else if (u_view == 1) {
+      float env = length(f) * u_ampNorm;
+      t = env * env;
+    } else if (u_view == 2) {
+      t = length(f) * u_ampNorm;
+    } else if (u_view == 3) {
+      float ph = atan(f.y, f.x) - u_omega * u_time;
+      t = fract(ph / TAU);
+    } else {
+      float s = snapshot(f);
+      float g = (s + 1.0) * 0.5 * u_contours;
+      float fw = fwidth(g);
+      float line = 1.0 - smoothstep(0.0, 1.5 * fw + 0.02, abs(fract(g) - 0.5));
+      t = mix(0.5 + 0.3 * s, 1.0, line * 0.9);
+    }
+  }
+
+  t = clamp((t - 0.5) * u_contrast + 0.5, 0.0, 1.0);
+  t = pow(t, u_gamma);
+  if (u_invert > 0.5) t = 1.0 - t;
+  vec3 col = colorize(t);
+
+  if (u_showSources > 0.5 && u_mode != 1) {
+    float m = markers(p);
+    col = mix(col, vec3(1.0, 0.67, 0.0), m * 0.9);
+  }
+  fragColor = vec4(col, 1.0);
+}`;
+
+function compile(type, src) {
+  const sh = gl.createShader(type);
+  gl.shaderSource(sh, src);
+  gl.compileShader(sh);
+  if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+    const log = gl.getShaderInfoLog(sh);
+    alert("Shader-Fehler: " + log);
+    throw new Error(log);
+  }
+  return sh;
+}
+
+const prog = gl.createProgram();
+gl.attachShader(prog, compile(gl.VERTEX_SHADER, vsSource));
+gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, fsSource));
+gl.linkProgram(prog);
+if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+  throw new Error(gl.getProgramInfoLog(prog));
+}
+gl.useProgram(prog);
+
+const quad = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+const aPos = gl.getAttribLocation(prog, "a_pos");
+gl.enableVertexAttribArray(aPos);
+gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+const U = {};
+[
+  "u_res", "u_time", "u_mode", "u_view", "u_srcCount", "u_srcA[0]", "u_srcB[0]", "u_lambda", "u_omega",
+  "u_damping", "u_ampNorm", "u_contours", "u_layA[0]", "u_layB[0]", "u_blend", "u_waveAsLayer", "u_palette",
+  "u_invert", "u_contrast", "u_gamma", "u_showSources", "u_zoom", "u_aa", "u_activeSrc", "u_pan"
+].forEach((n) => { U[n.replace("[0]", "")] = gl.getUniformLocation(prog, n); });
+
+/* ----------------------------------------------------------------- State */
+const MODES = ["wave", "moire", "both"];
+const VIEWS = ["snapshot", "intensity", "envelope", "phase", "contours"];
+const LAYER_TYPES = ["lines", "dots", "hex", "rings", "radial", "checker", "wave"];
+const BLENDS = ["multiply", "add", "difference", "min", "max", "screen", "xor"];
+const PALETTES = ["gray", "diverging", "spectrum", "ocean", "ember", "aurora"];
+const WAVE_LAYER = ["snapshot", "intensity", "envelope"];
+
+function mkSource(x, y, extra = {}) {
+  return Object.assign({ x, y, phase: 0, amp: 1, type: "point", angle: 0, lambdaMul: 1, enabled: true }, extra);
+}
+function mkLayer(extra = {}) {
+  return Object.assign({
+    enabled: true, type: "lines", period: 0.05, angle: 0, offx: 0, offy: 0,
+    duty: 0.5, soft: 0.05, rotSpeed: 0, driftX: 0, driftY: 0, periodMod: 0
+  }, extra);
+}
+
+function defaultState() {
+  return {
+    mode: "wave",
+    view: "snapshot",
+    palette: "diverging",
+    invert: false,
+    contrast: 1.0,
+    gamma: 1.0,
+    speed: 1.0,
+    paused: false,
+    lambda: 0.14,
+    omega: 4.0,
+    damping: 0.0,
+    contours: 6,
+    showSources: true,
+    aa: true,
+    blend: "multiply",
+    waveAsLayer: "snapshot",
+    zoom: 1,
+    pan: [0, 0],
+    sources: [mkSource(-0.35, 0), mkSource(0.35, 0)],
+    layers: [mkLayer(), mkLayer({ angle: 3 * Math.PI / 180 }), mkLayer({ enabled: false, type: "rings" })],
+    activeSource: 0,
+    activeLayer: 0
+  };
+}
+
+let S = defaultState();
+let time = 0;
+let needsSync = true;
+
+/* --------------------------------------------------------------- Presets */
+const builtinPresets = {
+  "Doppelspalt": () => Object.assign(defaultState(), { view: "intensity", lambda: 0.1 }),
+  "Zwei Quellen Momentaufnahme": () => defaultState(),
+  "Kreis aus 6 Quellen": () => {
+    const s = defaultState();
+    s.sources = arrangeCircle(6, 0.55);
+    s.lambda = 0.12;
+    s.view = "snapshot";
+    return s;
+  },
+  "Gitter aus 5 Spalten": () => {
+    const s = defaultState();
+    s.sources = arrangeLine(5, 0.22);
+    s.lambda = 0.11;
+    s.view = "intensity";
+    s.palette = "ember";
+    return s;
+  },
+  "Ebene Welle trifft Punktquelle": () => {
+    const s = defaultState();
+    s.sources = [mkSource(-1.2, 0, { type: "plane", angle: 0 }), mkSource(0.2, 0.1, { amp: 0.8 })];
+    s.lambda = 0.12;
+    s.view = "snapshot";
+    return s;
+  },
+  "Stehende Welle": () => {
+    const s = defaultState();
+    s.sources = arrangeStanding();
+    s.lambda = 0.16;
+    s.view = "snapshot";
+    s.palette = "diverging";
+    return s;
+  },
+  "Phasenkarte": () => {
+    const s = defaultState();
+    s.sources = arrangeCircle(3, 0.4);
+    s.view = "phase";
+    s.palette = "spectrum";
+    s.lambda = 0.18;
+    return s;
+  },
+  "Höhenlinien": () => {
+    const s = defaultState();
+    s.sources = [mkSource(-0.4, -0.1), mkSource(0.4, 0.1, { phase: Math.PI })];
+    s.view = "contours";
+    s.palette = "gray";
+    s.lambda = 0.2;
+    s.contours = 8;
+    return s;
+  },
+  "Linien-Moiré 3°": () => {
+    const s = defaultState();
+    s.mode = "moire";
+    s.palette = "gray";
+    s.layers = [mkLayer({ period: 0.04 }), mkLayer({ period: 0.04, angle: 3 * Math.PI / 180, rotSpeed: 0.004 }), mkLayer({ enabled: false })];
+    return s;
+  },
+  "Perioden-Schwebung": () => {
+    const s = defaultState();
+    s.mode = "moire";
+    s.palette = "gray";
+    s.layers = [mkLayer({ period: 0.04 }), mkLayer({ period: 0.043, driftX: 0.01 }), mkLayer({ enabled: false })];
+    return s;
+  },
+  "Rotierende Punktraster": () => {
+    const s = defaultState();
+    s.mode = "moire";
+    s.palette = "gray";
+    s.layers = [
+      mkLayer({ type: "dots", period: 0.06, duty: 0.45 }),
+      mkLayer({ type: "dots", period: 0.06, duty: 0.45, angle: 0.08, rotSpeed: 0.01 }),
+      mkLayer({ enabled: false })
+    ];
+    return s;
+  },
+  "Ring-Moiré (Zonenplatten)": () => {
+    const s = defaultState();
+    s.mode = "moire";
+    s.palette = "gray";
+    s.blend = "multiply";
+    s.layers = [
+      mkLayer({ type: "rings", period: 0.05, offx: -0.15 }),
+      mkLayer({ type: "rings", period: 0.05, offx: 0.15, driftX: 0.02 }),
+      mkLayer({ enabled: false })
+    ];
+    return s;
+  },
+  "Sechseck gegen Quadrat": () => {
+    const s = defaultState();
+    s.mode = "moire";
+    s.palette = "aurora";
+    s.blend = "difference";
+    s.layers = [
+      mkLayer({ type: "hex", period: 0.07, duty: 0.4 }),
+      mkLayer({ type: "dots", period: 0.07, duty: 0.4, rotSpeed: 0.006 }),
+      mkLayer({ enabled: false })
+    ];
+    return s;
+  },
+  "Strahlen × Ringe": () => {
+    const s = defaultState();
+    s.mode = "moire";
+    s.palette = "ocean";
+    s.blend = "xor";
+    s.layers = [
+      mkLayer({ type: "radial", period: 1 / 48 }),
+      mkLayer({ type: "rings", period: 0.06, offx: 0.2, offy: 0.1, driftX: -0.03, driftY: 0.02 }),
+      mkLayer({ enabled: false })
+    ];
+    return s;
+  },
+  "Welle × Gitter": () => {
+    const s = defaultState();
+    s.mode = "both";
+    s.palette = "gray";
+    s.blend = "multiply";
+    s.waveAsLayer = "snapshot";
+    s.lambda = 0.12;
+    s.layers = [mkLayer({ period: 0.03, duty: 0.5 }), mkLayer({ enabled: false }), mkLayer({ enabled: false })];
+    return s;
+  },
+  "Interferenz als XOR-Ringe": () => {
+    const s = defaultState();
+    s.mode = "both";
+    s.palette = "ember";
+    s.blend = "xor";
+    s.waveAsLayer = "snapshot";
+    s.sources = arrangeCircle(4, 0.5);
+    s.lambda = 0.16;
+    s.layers = [mkLayer({ type: "rings", period: 0.08, rotSpeed: 0 }), mkLayer({ enabled: false }), mkLayer({ enabled: false })];
+    return s;
+  }
+};
+
+function arrangeLine(n, spacing) {
+  const out = [];
+  for (let i = 0; i < n; i++) out.push(mkSource((i - (n - 1) / 2) * spacing, 0));
+  return out;
+}
+function arrangeCircle(n, radius) {
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * TAU;
+    out.push(mkSource(Math.cos(a) * radius, Math.sin(a) * radius));
+  }
+  return out;
+}
+function arrangeStanding() {
+  return [
+    mkSource(-1.0, 0, { type: "plane", angle: 0 }),
+    mkSource(1.0, 0, { type: "plane", angle: Math.PI })
+  ];
+}
+function arrangeRandom(n) {
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    out.push(mkSource((Math.random() - 0.5) * 1.6, (Math.random() - 0.5) * 1.4, { phase: Math.random() * TAU }));
+  }
+  return out;
+}
+
+const USER_KEY = "wellenlabor-presets";
+function loadUserPresets() {
+  try { return JSON.parse(localStorage.getItem(USER_KEY) || "{}"); } catch (e) { return {}; }
+}
+function saveUserPresets(obj) {
+  try { localStorage.setItem(USER_KEY, JSON.stringify(obj)); } catch (e) { /* ignore */ }
+}
+
+function refreshPresetList(selected) {
+  const sel = $("preset");
+  sel.innerHTML = "";
+  const addGroup = (label, names) => {
+    if (!names.length) return;
+    const g = document.createElement("optgroup");
+    g.label = label;
+    names.forEach((n) => {
+      const o = document.createElement("option");
+      o.value = n;
+      o.textContent = n;
+      g.appendChild(o);
+    });
+    sel.appendChild(g);
+  };
+  addGroup("Vorlagen", Object.keys(builtinPresets));
+  addGroup("Eigene", Object.keys(loadUserPresets()));
+  if (selected) sel.value = selected;
+}
+
+function applyPreset(name) {
+  const user = loadUserPresets();
+  let next = null;
+  if (builtinPresets[name]) next = builtinPresets[name]();
+  else if (user[name]) next = sanitizeState(user[name]);
+  if (!next) return;
+  S = next;
+  time = 0;
+  needsSync = true;
+  syncUI();
+}
+
+function sanitizeState(obj) {
+  const base = defaultState();
+  const out = Object.assign(base, obj);
+  out.sources = (Array.isArray(obj.sources) ? obj.sources : base.sources).slice(0, MAX_SRC).map((s) => mkSource(s.x || 0, s.y || 0, s));
+  if (!out.sources.length) out.sources = [mkSource(0, 0)];
+  const layers = (Array.isArray(obj.layers) ? obj.layers : base.layers).slice(0, MAX_LAY).map((l) => mkLayer(l));
+  while (layers.length < MAX_LAY) layers.push(mkLayer({ enabled: false }));
+  out.layers = layers;
+  if (!MODES.includes(out.mode)) out.mode = "wave";
+  if (!VIEWS.includes(out.view)) out.view = "snapshot";
+  if (!BLENDS.includes(out.blend)) out.blend = "multiply";
+  if (!PALETTES.includes(out.palette)) out.palette = "diverging";
+  if (!WAVE_LAYER.includes(out.waveAsLayer)) out.waveAsLayer = "snapshot";
+  out.layers.forEach((l) => { if (!LAYER_TYPES.includes(l.type)) l.type = "lines"; });
+  out.activeSource = Math.min(Math.max(0, out.activeSource | 0), out.sources.length - 1);
+  out.activeLayer = Math.min(Math.max(0, out.activeLayer | 0), MAX_LAY - 1);
+  if (!Array.isArray(out.pan) || out.pan.length !== 2) out.pan = [0, 0];
+  out.zoom = Math.min(Math.max(+out.zoom || 1, 0.2), 20);
+  return out;
+}
+
+/* -------------------------------------------------------------- UI build */
+const fmt2 = (v) => v.toFixed(2);
+const fmt3 = (v) => v.toFixed(3);
+const fmtDeg = (v) => (v * 180 / Math.PI).toFixed(1) + "°";
+const fmtInt = (v) => String(Math.round(v));
+
+function sliderDefs() {
+  const src = () => S.sources[S.activeSource];
+  const lay = () => S.layers[S.activeLayer];
+  return {
+    animSliders: [
+      { key: "speed", label: "Geschwindigkeit", min: 0, max: 4, step: 0.01, get: () => S.speed, set: (v) => (S.speed = v), fmt: fmt2 }
+    ],
+    waveSliders: [
+      { key: "lambda", label: "Wellenlänge λ", min: 0.02, max: 0.8, step: 0.001, get: () => S.lambda, set: (v) => (S.lambda = v), fmt: fmt3 },
+      { key: "omega", label: "Kreisfrequenz ω", min: 0, max: 20, step: 0.05, get: () => S.omega, set: (v) => (S.omega = v), fmt: fmt2 },
+      { key: "damping", label: "Dämpfung (1/r)", min: 0, max: 2, step: 0.01, get: () => S.damping, set: (v) => (S.damping = v), fmt: fmt2 },
+      { key: "contours", label: "Höhenlinien", min: 2, max: 24, step: 1, get: () => S.contours, set: (v) => (S.contours = v), fmt: fmtInt, showIf: () => S.view === "contours" }
+    ],
+    srcSliders: [
+      { key: "srcX", label: "Position X", min: -2, max: 2, step: 0.005, get: () => src().x, set: (v) => (src().x = v), fmt: fmt3 },
+      { key: "srcY", label: "Position Y", min: -1.2, max: 1.2, step: 0.005, get: () => src().y, set: (v) => (src().y = v), fmt: fmt3 },
+      { key: "srcPhase", label: "Phase φ", min: 0, max: TAU, step: 0.01, get: () => src().phase, set: (v) => (src().phase = v), fmt: fmtDeg },
+      { key: "srcAmp", label: "Amplitude", min: 0, max: 2, step: 0.01, get: () => src().amp, set: (v) => (src().amp = v), fmt: fmt2 },
+      { key: "srcLambda", label: "λ-Faktor", min: 0.25, max: 4, step: 0.01, get: () => src().lambdaMul, set: (v) => (src().lambdaMul = v), fmt: fmt2 },
+      { key: "srcAngle", label: "Richtung", min: 0, max: TAU, step: 0.01, get: () => src().angle, set: (v) => (src().angle = v), fmt: fmtDeg, showIf: () => src().type === "plane" }
+    ],
+    laySliders: [
+      { key: "layPeriod", label: "Periode", min: 0.004, max: 0.4, step: 0.0005, get: () => lay().period, set: (v) => (lay().period = v), fmt: (v) => v.toFixed(4) },
+      { key: "layAngle", label: "Winkel", min: 0, max: TAU, step: 0.001, get: () => lay().angle, set: (v) => (lay().angle = v), fmt: (v) => (v * 180 / Math.PI).toFixed(2) + "°" },
+      { key: "layOffX", label: "Versatz X", min: -1, max: 1, step: 0.001, get: () => lay().offx, set: (v) => (lay().offx = v), fmt: fmt3 },
+      { key: "layOffY", label: "Versatz Y", min: -1, max: 1, step: 0.001, get: () => lay().offy, set: (v) => (lay().offy = v), fmt: fmt3 },
+      { key: "layDuty", label: "Füllgrad", min: 0.02, max: 0.98, step: 0.01, get: () => lay().duty, set: (v) => (lay().duty = v), fmt: fmt2 },
+      { key: "laySoft", label: "Weichheit", min: 0, max: 0.5, step: 0.005, get: () => lay().soft, set: (v) => (lay().soft = v), fmt: fmt3 },
+      { key: "layRot", label: "Rotation/s", min: -0.1, max: 0.1, step: 0.0005, get: () => lay().rotSpeed, set: (v) => (lay().rotSpeed = v), fmt: (v) => (v * 180 / Math.PI).toFixed(2) + "°/s" },
+      { key: "layDriftX", label: "Drift X/s", min: -0.1, max: 0.1, step: 0.001, get: () => lay().driftX, set: (v) => (lay().driftX = v), fmt: fmt3 },
+      { key: "layDriftY", label: "Drift Y/s", min: -0.1, max: 0.1, step: 0.001, get: () => lay().driftY, set: (v) => (lay().driftY = v), fmt: fmt3 },
+      { key: "layPeriodMod", label: "Perioden-Atmung", min: 0, max: 0.3, step: 0.005, get: () => lay().periodMod, set: (v) => (lay().periodMod = v), fmt: fmt3 }
+    ],
+    colorSliders: [
+      { key: "contrast", label: "Kontrast", min: 0.2, max: 4, step: 0.01, get: () => S.contrast, set: (v) => (S.contrast = v), fmt: fmt2 },
+      { key: "gamma", label: "Gamma", min: 0.3, max: 3, step: 0.01, get: () => S.gamma, set: (v) => (S.gamma = v), fmt: fmt2 }
+    ]
+  };
+}
+
+const sliderRegistry = [];
+function buildSliders() {
+  const defs = sliderDefs();
+  Object.entries(defs).forEach(([containerId, list]) => {
+    const container = $(containerId);
+    container.innerHTML = "";
+    list.forEach((d) => {
+      const wrap = document.createElement("div");
+      wrap.className = "ctrl";
+      wrap.style.gap = "2px";
+      const label = document.createElement("label");
+      label.innerHTML = `${d.label} <span class="value"></span>`;
+      const input = document.createElement("input");
+      input.type = "range";
+      input.min = d.min;
+      input.max = d.max;
+      input.step = d.step;
+      const valueEl = label.querySelector(".value");
+      input.addEventListener("input", () => {
+        const v = parseFloat(input.value);
+        d.set(v);
+        valueEl.textContent = d.fmt(v);
+        needsSync = true;
+        scheduleHash();
+      });
+      wrap.appendChild(label);
+      wrap.appendChild(input);
+      container.appendChild(wrap);
+      sliderRegistry.push({ def: d, input, valueEl, wrap });
+    });
+  });
+}
+
+function refreshSliders() {
+  sliderRegistry.forEach(({ def, input, valueEl, wrap }) => {
+    const v = def.get();
+    input.value = v;
+    valueEl.textContent = def.fmt(v);
+    wrap.classList.toggle("hidden", def.showIf ? !def.showIf() : false);
+  });
+}
+
+function buildTabs(containerId, count, activeIdx, onPick, labelFn) {
+  const c = $(containerId);
+  c.innerHTML = "";
+  for (let i = 0; i < count; i++) {
+    const b = document.createElement("button");
+    b.className = "secondary" + (i === activeIdx ? " active" : "");
+    b.textContent = labelFn ? labelFn(i) : String(i + 1);
+    b.addEventListener("click", () => { onPick(i); syncUI(); });
+    c.appendChild(b);
+  }
+}
+
+function syncUI() {
+  document.querySelectorAll("[data-mode]").forEach((b) => b.classList.toggle("active", b.dataset.mode === S.mode));
+  const showWave = S.mode !== "moire";
+  const showMoire = S.mode !== "wave";
+  $("secWave").classList.toggle("hidden", !showWave);
+  $("secMoire").classList.toggle("hidden", !showMoire);
+  $("waveAsLayerRow").classList.toggle("hidden", S.mode !== "both");
+  $("view").closest("label").classList.toggle("hidden", S.mode === "both");
+
+  $("view").value = S.view;
+  $("blend").value = S.blend;
+  $("waveAsLayer").value = S.waveAsLayer;
+  $("palette").value = S.palette;
+  $("invert").checked = S.invert;
+  $("aa").checked = S.aa;
+  $("showSources").checked = S.showSources;
+  $("pauseBtn").textContent = S.paused ? "Weiter" : "Pause";
+  $("pauseBtn").classList.toggle("active", S.paused);
+
+  const src = S.sources[S.activeSource];
+  $("srcTitle").textContent = String(S.activeSource + 1);
+  $("srcType").value = src.type;
+  $("srcEnabled").checked = src.enabled;
+  buildTabs("srcTabs", S.sources.length, S.activeSource, (i) => (S.activeSource = i));
+  $("addSrcBtn").disabled = S.sources.length >= MAX_SRC;
+  $("removeSrcBtn").disabled = S.sources.length <= 1;
+
+  const lay = S.layers[S.activeLayer];
+  $("layTitle").textContent = String(S.activeLayer + 1);
+  $("layType").value = lay.type;
+  $("layEnabled").checked = lay.enabled;
+  buildTabs("layTabs", MAX_LAY, S.activeLayer, (i) => (S.activeLayer = i), (i) => (S.layers[i].enabled ? "" : "( ") + (i + 1) + (S.layers[i].enabled ? "" : " )"));
+
+  refreshSliders();
+  updateHint();
+  scheduleHash();
+}
+
+function updateHint() {
+  const hint = $("hint");
+  if (S.mode === "moire") {
+    hint.textContent = `Ebene ${S.activeLayer + 1}: Ziehen = Versatz · Zwei Finger / Alt+Rad = Drehen · Mausrad = Zoom`;
+  } else {
+    hint.textContent = `Quelle ${S.activeSource + 1}: Ziehen = Bewegen · Doppeltipp = neue Quelle · Zwei Finger / Mausrad = Zoom`;
+  }
+}
+
+/* ------------------------------------------------------------- Bindings */
+document.querySelectorAll("[data-mode]").forEach((b) => b.addEventListener("click", () => {
+  S.mode = b.dataset.mode;
+  needsSync = true;
+  syncUI();
+}));
+
+function bindSelect(id, key) {
+  $(id).addEventListener("change", (e) => { S[key] = e.target.value; needsSync = true; syncUI(); });
+}
+bindSelect("view", "view");
+bindSelect("blend", "blend");
+bindSelect("waveAsLayer", "waveAsLayer");
+bindSelect("palette", "palette");
+
+function bindCheck(id, key) {
+  $(id).addEventListener("change", (e) => { S[key] = e.target.checked; needsSync = true; scheduleHash(); });
+}
+bindCheck("invert", "invert");
+bindCheck("aa", "aa");
+bindCheck("showSources", "showSources");
+
+$("srcType").addEventListener("change", (e) => { S.sources[S.activeSource].type = e.target.value; needsSync = true; syncUI(); });
+$("srcEnabled").addEventListener("change", (e) => { S.sources[S.activeSource].enabled = e.target.checked; needsSync = true; syncUI(); });
+$("layType").addEventListener("change", (e) => { S.layers[S.activeLayer].type = e.target.value; needsSync = true; syncUI(); });
+$("layEnabled").addEventListener("change", (e) => { S.layers[S.activeLayer].enabled = e.target.checked; needsSync = true; syncUI(); });
+
+$("addSrcBtn").addEventListener("click", () => {
+  if (S.sources.length >= MAX_SRC) return;
+  S.sources.push(mkSource((Math.random() - 0.5) * 1.2, (Math.random() - 0.5) * 1.0));
+  S.activeSource = S.sources.length - 1;
+  needsSync = true;
+  syncUI();
+});
+$("removeSrcBtn").addEventListener("click", () => {
+  if (S.sources.length <= 1) return;
+  S.sources.splice(S.activeSource, 1);
+  S.activeSource = Math.min(S.activeSource, S.sources.length - 1);
+  needsSync = true;
+  syncUI();
+});
+
+$("arrange").addEventListener("change", (e) => {
+  const v = e.target.value;
+  e.target.value = "";
+  const n = Math.max(2, S.sources.length);
+  if (v === "line") S.sources = arrangeLine(n, 1.4 / Math.max(1, n - 1) * Math.min(1, (n - 1) / 4));
+  else if (v === "circle") S.sources = arrangeCircle(Math.max(3, n), 0.55);
+  else if (v === "pair") S.sources = [mkSource(-0.35, 0), mkSource(0.35, 0)];
+  else if (v === "random") S.sources = arrangeRandom(n);
+  else if (v === "standing") S.sources = arrangeStanding();
+  else return;
+  S.activeSource = 0;
+  needsSync = true;
+  syncUI();
+});
+
+$("copyLayerBtn").addEventListener("click", () => {
+  const next = (S.activeLayer + 1) % MAX_LAY;
+  S.layers[next] = mkLayer(S.layers[S.activeLayer]);
+  S.layers[next].enabled = true;
+  S.activeLayer = next;
+  needsSync = true;
+  syncUI();
+});
+$("centerLayerBtn").addEventListener("click", () => {
+  const l = S.layers[S.activeLayer];
+  l.offx = 0; l.offy = 0;
+  needsSync = true;
+  syncUI();
+});
+
+$("pauseBtn").addEventListener("click", () => { S.paused = !S.paused; syncUI(); });
+$("resetTimeBtn").addEventListener("click", () => { time = 0; needsSync = true; });
+$("resetViewBtn").addEventListener("click", () => { S.zoom = 1; S.pan = [0, 0]; needsSync = true; scheduleHash(); });
+
+$("randomBtn").addEventListener("click", () => {
+  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+  if (S.mode !== "moire") {
+    S.sources = arrangeRandom(2 + Math.floor(Math.random() * 5));
+    S.lambda = 0.06 + Math.random() * 0.25;
+    S.view = pick(VIEWS);
+  }
+  if (S.mode !== "wave") {
+    S.blend = pick(BLENDS);
+    S.layers = S.layers.map((l, i) => mkLayer({
+      enabled: i < 2 || Math.random() < 0.4,
+      type: pick(LAYER_TYPES.filter((t) => t !== "wave")),
+      period: 0.02 + Math.random() * 0.08,
+      angle: Math.random() * TAU,
+      duty: 0.3 + Math.random() * 0.4,
+      soft: Math.random() * 0.15,
+      rotSpeed: (Math.random() - 0.5) * 0.02,
+      driftX: (Math.random() - 0.5) * 0.04,
+      driftY: (Math.random() - 0.5) * 0.04
+    }));
+  }
+  S.palette = pick(PALETTES);
+  S.activeSource = 0;
+  needsSync = true;
+  syncUI();
+});
+
+$("preset").addEventListener("change", (e) => applyPreset(e.target.value));
+$("savePresetBtn").addEventListener("click", () => {
+  const name = prompt("Name für das Preset:", "Mein Muster");
+  if (!name) return;
+  const user = loadUserPresets();
+  user[name] = JSON.parse(JSON.stringify(S));
+  saveUserPresets(user);
+  refreshPresetList(name);
+});
+$("deletePresetBtn").addEventListener("click", () => {
+  const name = $("preset").value;
+  const user = loadUserPresets();
+  if (!user[name]) { alert("Nur eigene Presets lassen sich löschen."); return; }
+  if (!confirm(`Preset „${name}“ löschen?`)) return;
+  delete user[name];
+  saveUserPresets(user);
+  refreshPresetList();
+});
+
+$("dpr").addEventListener("change", resize);
+
+$("pngBtn").addEventListener("click", () => {
+  render(true);
+  canvas.toBlob((blob) => {
+    if (!blob) return;
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `wellenlabor-${Date.now()}.png`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  }, "image/png");
+});
+
+$("linkBtn").addEventListener("click", async () => {
+  writeHash();
+  const url = location.href;
+  try {
+    await navigator.clipboard.writeText(url);
+    $("linkBtn").textContent = "Kopiert ✓";
+  } catch (e) {
+    prompt("Link kopieren:", url);
+  }
+  setTimeout(() => { $("linkBtn").textContent = "Link kopieren"; }, 1500);
+});
+
+/* --------------------------------------------------------------- URL-Hash */
+let hashTimer = null;
+function scheduleHash() {
+  clearTimeout(hashTimer);
+  hashTimer = setTimeout(writeHash, 400);
+}
+function writeHash() {
+  try {
+    const json = JSON.stringify(S);
+    const enc = btoa(unescape(encodeURIComponent(json)));
+    history.replaceState(null, "", "#s=" + enc);
+  } catch (e) { /* ignore */ }
+}
+function readHash() {
+  const m = location.hash.match(/^#s=(.+)$/);
+  if (!m) return false;
+  try {
+    const json = decodeURIComponent(escape(atob(m[1])));
+    S = sanitizeState(JSON.parse(json));
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+/* ------------------------------------------------------------ Interaction */
+const pointers = new Map();
+let gesture = null;
+
+function toWorld(clientX, clientY) {
+  const r = canvas.getBoundingClientRect();
+  const aspect = r.width / r.height;
+  const nx = (clientX - r.left) / r.width - 0.5;
+  const ny = (clientY - r.top) / r.height - 0.5;
+  return [nx * 2 * aspect / S.zoom + S.pan[0], -ny * 2 / S.zoom + S.pan[1]];
+}
+
+function nearestSource(wx, wy) {
+  const r = canvas.getBoundingClientRect();
+  const threshold = (28 / r.height) * 2 / S.zoom;
+  let best = -1, bestD = threshold;
+  S.sources.forEach((s, i) => {
+    const d = Math.hypot(s.x - wx, s.y - wy);
+    if (d < bestD) { bestD = d; best = i; }
+  });
+  return best;
+}
+
+canvas.addEventListener("pointerdown", (e) => {
+  canvas.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pointers.size === 1) {
+    const [wx, wy] = toWorld(e.clientX, e.clientY);
+    if (e.shiftKey) {
+      gesture = { kind: "pan", lastX: e.clientX, lastY: e.clientY };
+    } else if (S.mode !== "moire") {
+      const idx = nearestSource(wx, wy);
+      if (idx >= 0) {
+        S.activeSource = idx;
+        gesture = { kind: "source", idx, dx: S.sources[idx].x - wx, dy: S.sources[idx].y - wy };
+        syncUI();
+      } else {
+        gesture = { kind: "pan", lastX: e.clientX, lastY: e.clientY };
+      }
+    } else {
+      gesture = { kind: "layer", lastX: e.clientX, lastY: e.clientY };
+    }
+  } else if (pointers.size === 2) {
+    const [a, b] = [...pointers.values()];
+    gesture = {
+      kind: "pinch",
+      dist: Math.hypot(a.x - b.x, a.y - b.y),
+      angle: Math.atan2(b.y - a.y, b.x - a.x),
+      midX: (a.x + b.x) / 2,
+      midY: (a.y + b.y) / 2,
+      zoom0: S.zoom
+    };
+  }
+});
+
+canvas.addEventListener("pointermove", (e) => {
+  if (!pointers.has(e.pointerId)) return;
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (!gesture) return;
+  const r = canvas.getBoundingClientRect();
+  const unitPerPx = 2 / r.height / S.zoom;
+
+  if (gesture.kind === "source" && pointers.size === 1) {
+    const [wx, wy] = toWorld(e.clientX, e.clientY);
+    const s = S.sources[gesture.idx];
+    s.x = wx + gesture.dx;
+    s.y = wy + gesture.dy;
+    needsSync = true;
+    refreshSliders();
+  } else if (gesture.kind === "pan" && pointers.size === 1) {
+    S.pan[0] -= (e.clientX - gesture.lastX) * unitPerPx;
+    S.pan[1] += (e.clientY - gesture.lastY) * unitPerPx;
+    gesture.lastX = e.clientX; gesture.lastY = e.clientY;
+    needsSync = true;
+  } else if (gesture.kind === "layer" && pointers.size === 1) {
+    const l = S.layers[S.activeLayer];
+    l.offx += (e.clientX - gesture.lastX) * unitPerPx;
+    l.offy -= (e.clientY - gesture.lastY) * unitPerPx;
+    gesture.lastX = e.clientX; gesture.lastY = e.clientY;
+    needsSync = true;
+    refreshSliders();
+  } else if (gesture.kind === "pinch" && pointers.size === 2) {
+    const [a, b] = [...pointers.values()];
+    const dist = Math.hypot(a.x - b.x, a.y - b.y);
+    const ang = Math.atan2(b.y - a.y, b.x - a.x);
+    const midX = (a.x + b.x) / 2, midY = (a.y + b.y) / 2;
+    if (S.mode === "moire") {
+      let dAng = ang - gesture.angle;
+      while (dAng > Math.PI) dAng -= TAU;
+      while (dAng < -Math.PI) dAng += TAU;
+      const l = S.layers[S.activeLayer];
+      l.angle = ((l.angle - dAng) % TAU + TAU) % TAU;
+      gesture.angle = ang;
+      l.offx += (midX - gesture.midX) * unitPerPx;
+      l.offy -= (midY - gesture.midY) * unitPerPx;
+    } else {
+      S.pan[0] -= (midX - gesture.midX) * unitPerPx;
+      S.pan[1] += (midY - gesture.midY) * unitPerPx;
+    }
+    gesture.midX = midX; gesture.midY = midY;
+    const factor = dist / Math.max(1, gesture.dist);
+    S.zoom = Math.min(20, Math.max(0.2, S.zoom * factor));
+    gesture.dist = dist;
+    needsSync = true;
+    refreshSliders();
+  }
+});
+
+function endPointer(e) {
+  pointers.delete(e.pointerId);
+  if (pointers.size === 0) { gesture = null; scheduleHash(); }
+  else if (pointers.size === 1) {
+    const [p] = [...pointers.values()];
+    gesture = S.mode === "moire" ? { kind: "layer", lastX: p.x, lastY: p.y } : { kind: "pan", lastX: p.x, lastY: p.y };
+  }
+}
+canvas.addEventListener("pointerup", endPointer);
+canvas.addEventListener("pointercancel", endPointer);
+
+canvas.addEventListener("dblclick", (e) => {
+  if (S.mode === "moire" || S.sources.length >= MAX_SRC) return;
+  const [wx, wy] = toWorld(e.clientX, e.clientY);
+  if (nearestSource(wx, wy) >= 0) return;
+  S.sources.push(mkSource(wx, wy));
+  S.activeSource = S.sources.length - 1;
+  needsSync = true;
+  syncUI();
+});
+
+canvas.addEventListener("wheel", (e) => {
+  e.preventDefault();
+  if (e.altKey && S.mode !== "wave") {
+    const l = S.layers[S.activeLayer];
+    l.angle = ((l.angle + e.deltaY * 0.0005) % TAU + TAU) % TAU;
+  } else {
+    const factor = Math.exp(-e.deltaY * 0.0015);
+    const [wx, wy] = toWorld(e.clientX, e.clientY);
+    const newZoom = Math.min(20, Math.max(0.2, S.zoom * factor));
+    // Zoom um den Mauszeiger
+    S.pan[0] = wx - (wx - S.pan[0]) * (S.zoom / newZoom);
+    S.pan[1] = wy - (wy - S.pan[1]) * (S.zoom / newZoom);
+    S.zoom = newZoom;
+  }
+  needsSync = true;
+  refreshSliders();
+  scheduleHash();
+}, { passive: false });
+
+/* ---------------------------------------------------------------- Render */
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, parseFloat($("dpr").value));
+  const r = canvas.getBoundingClientRect();
+  const w = Math.max(1, Math.round(r.width * dpr));
+  const h = Math.max(1, Math.round(r.height * dpr));
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width = w;
+    canvas.height = h;
+    gl.viewport(0, 0, w, h);
+  }
+  needsSync = true;
+}
+new ResizeObserver(resize).observe($("stage"));
+window.addEventListener("orientationchange", () => setTimeout(resize, 200));
+
+const srcA = new Float32Array(MAX_SRC * 4);
+const srcB = new Float32Array(MAX_SRC * 4);
+const layA = new Float32Array(MAX_LAY * 4);
+const layB = new Float32Array(MAX_LAY * 4);
+
+function uploadUniforms() {
+  gl.uniform2f(U.u_res, canvas.width, canvas.height);
+  gl.uniform1f(U.u_time, time);
+  gl.uniform1i(U.u_mode, MODES.indexOf(S.mode));
+  gl.uniform1i(U.u_view, VIEWS.indexOf(S.view));
+  gl.uniform1i(U.u_srcCount, S.sources.length);
+
+  let ampSum = 0;
+  S.sources.forEach((s, i) => {
+    srcA[i * 4] = s.x; srcA[i * 4 + 1] = s.y; srcA[i * 4 + 2] = s.phase; srcA[i * 4 + 3] = s.amp;
+    srcB[i * 4] = s.type === "plane" ? 1 : 0; srcB[i * 4 + 1] = s.angle; srcB[i * 4 + 2] = s.lambdaMul; srcB[i * 4 + 3] = s.enabled ? 1 : 0;
+    if (s.enabled) ampSum += Math.abs(s.amp);
+  });
+  gl.uniform4fv(U.u_srcA, srcA);
+  gl.uniform4fv(U.u_srcB, srcB);
+  gl.uniform1f(U.u_lambda, S.lambda);
+  gl.uniform1f(U.u_omega, S.omega);
+  gl.uniform1f(U.u_damping, S.damping);
+  gl.uniform1f(U.u_ampNorm, ampSum > 0 ? 1 / ampSum : 0);
+  gl.uniform1f(U.u_contours, S.contours);
+
+  S.layers.forEach((l, i) => {
+    const period = l.period * (1 + l.periodMod * Math.sin(time * 0.7 + i));
+    layA[i * 4] = LAYER_TYPES.indexOf(l.type); layA[i * 4 + 1] = period;
+    layA[i * 4 + 2] = l.angle + l.rotSpeed * time; layA[i * 4 + 3] = l.duty;
+    layB[i * 4] = l.offx + l.driftX * time; layB[i * 4 + 1] = l.offy + l.driftY * time;
+    layB[i * 4 + 2] = l.soft; layB[i * 4 + 3] = l.enabled ? 1 : 0;
+  });
+  gl.uniform4fv(U.u_layA, layA);
+  gl.uniform4fv(U.u_layB, layB);
+  gl.uniform1i(U.u_blend, BLENDS.indexOf(S.blend));
+  gl.uniform1i(U.u_waveAsLayer, WAVE_LAYER.indexOf(S.waveAsLayer));
+  gl.uniform1i(U.u_palette, PALETTES.indexOf(S.palette));
+  gl.uniform1f(U.u_invert, S.invert ? 1 : 0);
+  gl.uniform1f(U.u_contrast, S.contrast);
+  gl.uniform1f(U.u_gamma, S.gamma);
+  gl.uniform1f(U.u_showSources, S.showSources ? 1 : 0);
+  gl.uniform1f(U.u_zoom, S.zoom);
+  gl.uniform1f(U.u_aa, S.aa ? 1 : 0);
+  gl.uniform1i(U.u_activeSrc, S.activeSource);
+  gl.uniform2f(U.u_pan, S.pan[0], S.pan[1]);
+}
+
+function render(forExport) {
+  uploadUniforms();
+  if (forExport) {
+    // Marker für den Export ausblenden
+    gl.uniform1f(U.u_showSources, 0);
+  }
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+}
+
+/* ------------------------------------------------------------ Messwerte */
+let infoTimer = 0;
+function updateInfo() {
+  const lines = [];
+  if (S.mode !== "moire") {
+    const k = TAU / S.lambda;
+    const T = S.omega > 0 ? TAU / S.omega : Infinity;
+    const c = S.omega > 0 ? S.lambda / T : 0;
+    lines.push(`Einheit: halbe Bildhöhe = 1`);
+    lines.push(`λ = <b>${S.lambda.toFixed(3)}</b> · k = 2π/λ = <b>${k.toFixed(2)}</b>`);
+    lines.push(`ω = <b>${S.omega.toFixed(2)}</b> rad/s · T = <b>${isFinite(T) ? T.toFixed(2) + " s" : "∞"}</b> · c = λ/T = <b>${c.toFixed(3)}</b>/s`);
+    const pts = S.sources.filter((s) => s.enabled && s.type === "point");
+    if (pts.length >= 2) {
+      const d = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+      lines.push(`Abstand Q1–Q2: d = <b>${d.toFixed(3)}</b> = <b>${(d / S.lambda).toFixed(2)} λ</b>`);
+      const n = Math.floor(d / S.lambda);
+      lines.push(`Maxima-Hyperbeln (Fernfeld): <b>${2 * n + 1}</b> · sin θₙ = n·λ/d`);
+    }
+    lines.push(`Zeit t = <b>${time.toFixed(2)} s</b>`);
+  }
+  if (S.mode !== "wave") {
+    const act = S.layers.filter((l) => l.enabled && l.type !== "wave");
+    if (act.length >= 2) {
+      const [a, b] = act;
+      const t = time;
+      const p1 = a.period * (1 + a.periodMod * Math.sin(t * 0.7 + S.layers.indexOf(a)));
+      const p2 = b.period * (1 + b.periodMod * Math.sin(t * 0.7 + S.layers.indexOf(b)));
+      const th = (a.angle + a.rotSpeed * t) - (b.angle + b.rotSpeed * t);
+      const denom = Math.sqrt(Math.max(1e-12, p1 * p1 + p2 * p2 - 2 * p1 * p2 * Math.cos(th)));
+      const pm = (p1 * p2) / denom;
+      const degs = ((th * 180 / Math.PI) % 360 + 360) % 360;
+      lines.push(`Ebene 1 ↔ 2: Δφ = <b>${degs.toFixed(2)}°</b> · p₁ = ${p1.toFixed(4)} · p₂ = ${p2.toFixed(4)}`);
+      lines.push(`Moiré-Periode (Linien): p₁p₂ / √(p₁²+p₂²−2p₁p₂cosΔφ) = <b>${isFinite(pm) ? pm.toFixed(3) : "∞"}</b> ≈ <b>${isFinite(pm) ? (pm / p1).toFixed(1) : "∞"}×</b> p₁`);
+    } else if (act.length === 1) {
+      lines.push(`Nur eine Ebene aktiv – zweite Ebene einschalten für Moiré.`);
+    }
+    lines.push(`Zoom <b>${S.zoom.toFixed(2)}×</b>`);
+  }
+  $("infoBox").innerHTML = lines.join("<br>");
+}
+
+/* ------------------------------------------------------------------ Loop */
+let last = performance.now();
+let fpsAcc = 0, fpsN = 0, fpsT = 0;
+function frame(now) {
+  const dt = Math.min(0.1, (now - last) / 1000);
+  last = now;
+  if (!S.paused) time += dt * S.speed;
+  const animating = !S.paused && (S.mode !== "moire" ? S.omega > 0 && S.speed > 0 : S.layers.some((l) => l.enabled && (l.rotSpeed || l.driftX || l.driftY || l.periodMod)));
+  if (animating || needsSync) {
+    render(false);
+    needsSync = false;
+  }
+  fpsAcc += dt; fpsN++;
+  if (now - fpsT > 500) {
+    $("fps").textContent = fpsAcc > 0 ? Math.round(fpsN / fpsAcc) : "--";
+    fpsAcc = 0; fpsN = 0; fpsT = now;
+  }
+  if (now - infoTimer > 250) { updateInfo(); infoTimer = now; }
+  requestAnimationFrame(frame);
+}
+
+/* ------------------------------------------------------------------ Init */
+buildSliders();
+refreshPresetList("Doppelspalt");
+if (!readHash()) {
+  S = builtinPresets["Doppelspalt"]();
+}
+resize();
+syncUI();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
