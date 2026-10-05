@@ -59,7 +59,7 @@
   #panelHead { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px 6px; padding-top: calc(12px + env(safe-area-inset-top)); }
   #panelHead h1 { font-size: 15px; color: var(--acc); }
   #panelHead small { color: var(--dim); font-size: 11px; font-variant-numeric: tabular-nums; }
-  .ptabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; padding: 4px 10px 8px; border-bottom: 1px solid var(--brd); }
+  .ptabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; padding: 4px 10px 8px; border-bottom: 1px solid var(--brd); }
   .ptabs button { min-height: calc(var(--tap) - 4px); border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--dim); font: inherit; font-size: 11px; font-weight: 600; cursor: pointer; padding: 0 1px; }
   .ptabs button.active { color: #000; background: var(--acc); }
   .ptabs button.dimmed { opacity: .35; }
@@ -118,6 +118,7 @@
   .cat h3 small { color: var(--acc2); font-weight: normal; font-size: 11px; white-space: nowrap; }
   .cat p { font-size: 12px; color: var(--dim); line-height: 1.5; }
   .cat .math { color: var(--txt); }
+  .formula { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 12px; white-space: pre-wrap; line-height: 1.6; color: var(--txt); background: #0f131a; border: 1px solid var(--brd); border-radius: 8px; padding: 8px 10px; }
   .cont { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--acc); margin-top: 6px; }
   #ethnoText { font-size: 12px; line-height: 1.55; color: var(--dim); }
   #ethnoText b { color: var(--txt); font-weight: 600; }
@@ -182,6 +183,7 @@
     <button data-page="space">Raum</button>
     <button data-page="matrix">Matrix</button>
     <button data-page="culture">Kulturen</button>
+    <button data-page="pde">Gleichungen</button>
     <button data-page="style">Stil</button>
     <button data-page="info">Info</button>
   </nav>
@@ -206,6 +208,7 @@
         <label class="check"><input type="checkbox" data-opt="g1On"><span>Gitter 1</span></label>
         <label class="check"><input type="checkbox" data-opt="g2On"><span>Gitter 2</span></label>
         <label class="check"><input type="checkbox" data-opt="ethnoOn"><span>Kulturmuster (Ethnomathematik)</span></label>
+        <label class="check"><input type="checkbox" data-opt="pdeOn"><span>Gleichungsfeld (PDE-Simulation)</span></label>
         <div class="info">Die Ebenen werden der Reihe nach gemischt. Die Mischart steht bei jeder Ebene unter <b>Muster</b>.</div>
       </div>
       <div class="ctrl">
@@ -357,6 +360,33 @@
       <div class="ctrl">
         <h2>Quellen</h2>
         <div class="info">U. D'Ambrosio (Begriff „Ethnomathematik“, 1985) · M. Ascher, <i>Ethnomathematics</i> (1991) und <i>Mathematics Elsewhere</i> (2002) · P. Gerdes, <i>Lunda Geometry</i>, <i>Sona Geometry</i> · R. Eglash, <i>African Fractals</i> (1999) · D. Washburn &amp; D. Crowe, <i>Symmetries of Culture</i> (1988) · C. Zaslavsky, <i>Africa Counts</i> (1973) · M. &amp; R. Ascher, <i>Code of the Quipu</i> (1981) · G. Siromoney, Kolam-Array-Grammatiken (1970er) · Hallstatt-Textilforschung (Grömer u. a.).</div>
+      </div>
+    </div>
+
+    <div class="ppage hidden" data-page="pde">
+      <div class="ctrl">
+        <h2>Gleichungsfeld <small>nach VisualPDE</small></h2>
+        <button id="pdeOnBtn" class="btn">Gleichungsfeld: aus</button>
+        <label>Modell <select id="pdeModelSel"></select></label>
+        <div id="pdeFormula" class="formula"></div>
+        <div id="pdeModelText" class="info"></div>
+        <div class="row"><button id="pdeResetBtn" class="btn secondary">↺ Neu starten</button><button id="pdeDefaultsBtn" class="btn secondary">Standardwerte</button></div>
+        <label>Anfang <select data-opt="pdeInit" class="pdeSel" data-dict="PDE_INITS"></select></label>
+        <label>Rand <select data-opt="pdeBc" class="pdeSel" data-dict="PDE_BCS"></select></label>
+        <label>Anzeige <select data-opt="pdeView" class="pdeSel" data-dict="PDE_VIEWS"></select></label>
+        <label>Mischart <select data-opt="pdeBlend" class="blendSel"></select></label>
+        <label>Musterkopplung auf <select data-opt="pdeCouple" class="pdeSel" data-dict="PDE_COUPLE"></select></label>
+        <label>Gitter <select data-opt="pdeRes" class="pdeSel" data-dict="PDE_RES"></select></label>
+        <label class="check"><input type="checkbox" data-opt="pdePaint"><span>Ziehen malt in die Simulation (Pinsel)</span></label>
+        <div id="sl-pde" class="ctrl"></div>
+      </div>
+      <div class="ctrl">
+        <h2>Beispiele</h2>
+        <div id="pdeExamples" class="sceneGrid"></div>
+      </div>
+      <div class="ctrl">
+        <h2>Hintergrund</h2>
+        <div id="pdeText" class="info"></div>
       </div>
     </div>
 
@@ -534,10 +564,24 @@ const specs = {
   bGap: ["Fadenabstand", 0, 0.45, 0.01, 0.1, "bead"],
   bColors: ["Farbstufen", 2, 8, 1, 5, "bead"],
   bShine: ["Glasglanz", 0, 1.5, 0.01, 0.6, "bead"],
-  bShape: ["Rund ↔ Röhrchen", 0, 1, 0.01, 0, "bead"]
+  bShape: ["Rund ↔ Röhrchen", 0, 1, 0.01, 0, "bead"],
+  pdeA: ["Parameter A", -2, 12, 0.001, 0.037, "pde"],
+  pdeB: ["Parameter B", -2, 12, 0.001, 0.06, "pde"],
+  pdeC: ["Parameter C", -5, 20, 0.001, 0, "pde"],
+  pdeD: ["Parameter D", -2, 10, 0.001, 0, "pde"],
+  pdeDu: ["Diffusion D_u", 0, 4, 0.001, 0.5, "pde"],
+  pdeDv: ["Diffusion D_v", 0, 24, 0.001, 1, "pde"],
+  pdeDt: ["Zeitschritt dt", 0.001, 1, 0.001, 1, "pde"],
+  pdeSteps: ["Schritte je Bild", 0, 40, 1, 10, "pde"],
+  pdeNoise: ["Rauschen σ", 0, 0.5, 0.001, 0, "pde"],
+  pdeCouple: ["Musterkopplung ±", 0, 2, 0.01, 0.5, "pde"],
+  pdeScale: ["Gebietsgröße", 0.5, 4, 0.01, 1.6, "pde"],
+  pdeLo: ["Anzeige min", -5, 5, 0.01, 0, "pde"],
+  pdeHi: ["Anzeige max", -5, 5, 0.01, 0.5, "pde"],
+  pdeBrush: ["Pinselgröße", 2, 40, 1, 8, "pde"]
 };
 const targets = Object.keys(specs);
-const targetLabels = Object.fromEntries(targets.map((k) => [k, specs[k][0] + (specs[k][5] === "g1" ? " (Gitter 1)" : specs[k][5] === "g2" ? " (Gitter 2)" : specs[k][5] === "woven" ? " (Gewebe)" : specs[k][5] === "ethno" ? " (Kultur)" : specs[k][5] === "sculpt" ? " (Skulptur)" : specs[k][5] === "bead" ? " (Perlen)" : "")]));
+const targetLabels = Object.fromEntries(targets.map((k) => [k, specs[k][0] + (specs[k][5] === "g1" ? " (Gitter 1)" : specs[k][5] === "g2" ? " (Gitter 2)" : specs[k][5] === "woven" ? " (Gewebe)" : specs[k][5] === "ethno" ? " (Kultur)" : specs[k][5] === "sculpt" ? " (Skulptur)" : specs[k][5] === "bead" ? " (Perlen)" : specs[k][5] === "pde" ? " (Gleichung)" : "")]));
 // Welche Kultur-Regler bei welcher Technik sichtbar sind
 const ETHNO_USE = {
   eScale: "all", eLine: ["mirror", "lace", "nanduti", "symmetry", "fractal", "cornrow", "sashiko", "khipu"], eDot: ["mirror", "lace", "khipu"], eCurve: ["mirror"], eGap: ["mirror"],
@@ -594,13 +638,17 @@ const optionSpecs = {
   wField: ["0", "1", "2", "3"], paletteA: Object.keys(PALETTES), paletteB: Object.keys(PALETTES),
   viewMode: Object.keys(BODIES), viewBlend: Object.keys(BODIES).filter((k) => k !== "flat" && k !== "kuerpig"),
   sculptKind: Object.keys(SCULPT_KINDS), sculptAxis: Object.keys(SCULPT_AXES),
-  beadStitch: Object.keys(BEAD_STITCHES), beadPal: Object.keys(BEAD_PALETTES)
+  beadStitch: Object.keys(BEAD_STITCHES), beadPal: Object.keys(BEAD_PALETTES),
+  pdeModel: ["heat", "heatSrc", "wave", "transport", "burgers", "fisher", "allencahn", "cahnhilliard", "swifthohenberg", "grayscott", "schnakenberg", "gierer", "brusselator", "fitzhugh", "barkley", "oregonator", "kellersegel", "cgl", "nls", "kuramoto", "kdv", "predator", "sir", "klausmeier"],
+  pdeView: ["u", "v", "abs", "phase", "diff"], pdeInit: ["noise", "blob", "pattern", "spiral", "solitons", "packet"], pdeBc: ["periodic", "neumann"],
+  pdeCouple: ["none", "A", "B", "Du", "Dv", "source"], pdeRes: ["128", "256", "512"], pdeBlend: Object.keys(BLENDS)
 };
 const optionDefaults = {
   waveView: "snapshot", g1Type: "lines", g2Type: "lines", wovenBlend: "multiply", g1Blend: "multiply", g2Blend: "multiply",
   wShapeA: "ribbon", wShapeB: "wire", wWeave: "checker", wWeaveAlt: "light", wField: "0", paletteA: "diverging", paletteB: "ice",
   viewMode: "flat", viewBlend: "torus",
   sculptKind: "tetra", sculptAxis: "edge", beadStitch: "loom", beadPal: "none", beadOn: false,
+  pdeOn: false, pdeModel: "grayscott", pdeView: "u", pdeInit: "blob", pdeBc: "periodic", pdeCouple: "none", pdeRes: "256", pdeBlend: "multiply", pdePaint: true,
   ethnoType: "mirror", ethnoBlend: "multiply", mirrorRegion: "rect", tabletPreset: "diamond", draftPreset: "twill", lacePreset: "spider", symGroup: "p6m", sashikoKind: "seigaiha", tapestryKind: "diamond",
   waveOn: true, wovenOn: false, g1On: false, g2On: false, ethnoOn: false, showSources: true, aa: true, invert: false
 };
@@ -1147,9 +1195,21 @@ float ethno(vec2 q) {
   return ethKhipu(q);
 }
 
+uniform sampler2D u_pde;
+uniform int u_pdeOn, u_pdeView, u_pdeBlend;
+float pdeValue(vec2 q) {
+  vec2 uv = fract(q / (2.0 * P_pdeScale) + 0.5);
+  vec4 st = texture(u_pde, uv);
+  float val;
+  if (u_pdeView == 0) val = st.x; else if (u_pdeView == 1) val = st.y; else if (u_pdeView == 2) val = length(st.xy);
+  else if (u_pdeView == 3) val = atan(st.y, st.x) / TAU + 0.5; else val = st.x - st.y;
+  if (u_pdeView == 3) return val;
+  return clamp((val - P_pdeLo) / max(P_pdeHi - P_pdeLo, 1e-4), 0.0, 1.0);
+}
 float pattern(vec2 q) {
   bool first = true; float acc = 0.0;
   if (u_on.x == 1) { acc = waveValue(q); first = false; }
+  if (u_pdeOn == 1) { float v = pdeValue(q); acc = first ? v : blendOp(acc, v, u_pdeBlend); first = false; }
   if (u_on.y == 1) { float v = woven(q); acc = first ? v : blendOp(acc, v, u_blends.x); first = false; }
   if (u_on.z == 1) { vec2 g = rot(radians(P_g1Angle)) * (q - vec2(P_g1OffX, P_g1OffY)); float v = grating(u_g1Type, g, max(P_g1Period, 1e-4), P_g1Duty, P_g1Soft); acc = first ? v : blendOp(acc, v, u_blends.y); first = false; }
   if (u_on.w == 1) { vec2 g = rot(radians(P_g2Angle)) * (q - vec2(P_g2OffX, P_g2OffY)); float v = grating(u_g2Type, g, max(P_g2Period, 1e-4), P_g2Duty, P_g2Soft); acc = first ? v : blendOp(acc, v, u_blends.z); first = false; }
@@ -1379,7 +1439,7 @@ function makeProgram(vsrc, fsrc, mesh) {
   if (mesh) { const ib = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(idx), gl.STATIC_DRAW); }
   const names = ["uP[0]", "u_res", "u_time", "u_fieldPhase", "u_ampNorm", "u_invert", "u_aa", "u_showSources", "u_waveView", "u_srcCount", "u_activeSrc", "u_hoverSrc",
     "u_wField", "u_g1Type", "u_g2Type", "u_palA", "u_palB", "u_on", "u_blends", "u_wovenK", "u_srcA[0]", "u_srcB[0]", "u_eye", "u_layer", "u_mode", "u_modeB",
-    "u_data", "u_dataSize", "u_ethnoType", "u_ethnoSub", "u_khipuN", "u_khipu[0]", "u_ethnoFlags", "u_beadOn", "u_beadStitch", "u_beadPalN", "u_beadPal[0]"];
+    "u_data", "u_dataSize", "u_ethnoType", "u_ethnoSub", "u_khipuN", "u_khipu[0]", "u_ethnoFlags", "u_beadOn", "u_beadStitch", "u_beadPalN", "u_beadPal[0]", "u_pde", "u_pdeOn", "u_pdeView", "u_pdeBlend"];
   const u = {}; names.forEach((n) => { u[n.replace("[0]", "")] = gl.getUniformLocation(pr, n); });
   return { pr, vao, count: idx.length, u };
 }
@@ -1388,6 +1448,106 @@ const progBody = makeProgram(vs3d, fs3d, true);
 gl.disable(gl.CULL_FACE); gl.depthFunc(gl.LEQUAL);
 
 /* ------------------------------------------------ Skulptur-Programm */
+const fsSim = `#version 300 es
+${glslCommon}
+/* ---------------------------------------------------------- Gleichungsfeld */
+uniform sampler2D u_state;
+uniform vec2 u_simRes;
+uniform int u_model, u_bc, u_init, u_doInit, u_coupleTo;
+uniform vec4 u_init0;      // u0, v0, uAmp, vAmp
+uniform vec2 u_mouse;
+uniform float u_mouseDown, u_seed;
+in vec2 v_uv; out vec4 o;
+
+vec4 S(vec2 d) {
+  vec2 uv = v_uv + d / u_simRes;
+  if (u_bc == 0) uv = fract(uv); else uv = clamp(uv, 0.5 / u_simRes, 1.0 - 0.5 / u_simRes);
+  return texture(u_state, uv);
+}
+float rnd(vec2 p) { return fract(sin(dot(p + u_seed, vec2(12.9898, 78.233))) * 43758.5453); }
+float sech2(float x) { float c = cosh(x); return 1.0 / (c * c); }
+
+void main() {
+  vec2 q = (v_uv - 0.5) * 2.0 * P_pdeScale;      // Weltkoordinaten des Gebiets
+  vec2 g = v_uv * u_simRes;                        // Gitterkoordinaten
+  float pat = (u_coupleTo > 0 || u_init == 2) ? pattern(q) : 0.5;
+  float u0 = u_init0.x, v0 = u_init0.y, ua = u_init0.z, va = u_init0.w;
+  if (u_doInit == 1) {
+    float r1 = rnd(g), r2 = rnd(g + 7.0);
+    float u = u0, v = v0;
+    vec2 c = v_uv - 0.5; float rad = length(c);
+    if (u_init == 0) { u += ua * (r1 - 0.5) * 2.0; v += va * (r2 - 0.5) * 2.0; }
+    else if (u_init == 1) { float m = 1.0 - smoothstep(0.05, 0.07, rad); u += ua * m; v += va * m; }
+    else if (u_init == 2) { u += ua * (pat - 0.5) * 2.0; v += va * (pat - 0.5) * 0.2; }
+    else if (u_init == 3) { if (v_uv.y > 0.5) u += ua; if (v_uv.x < 0.5) v += va; }
+    else if (u_init == 4) { float x = (v_uv.x - 0.5) * 60.0; u += ua * (2.0 * sech2(x + 12.0) + 0.5 * sech2(0.5 * (x + 4.0))); }
+    else { float gs = exp(-rad * rad * 120.0); float k = 25.0; u += ua * gs * cos(k * (v_uv.x - 0.5) * 6.2831853); v += ua * gs * sin(k * (v_uv.x - 0.5) * 6.2831853); }
+    o = vec4(u, v, 0.0, 1.0); return;
+  }
+  vec4 c = S(vec2(0.0));
+  vec4 l = S(vec2(-1.0, 0.0)), r = S(vec2(1.0, 0.0)), b = S(vec2(0.0, -1.0)), t = S(vec2(0.0, 1.0));
+  vec4 lap = 0.2 * (l + r + b + t) + 0.05 * (S(vec2(-1.0, -1.0)) + S(vec2(1.0, -1.0)) + S(vec2(-1.0, 1.0)) + S(vec2(1.0, 1.0))) - c;
+  vec4 gx = (r - l) * 0.5, gy = (t - b) * 0.5;
+  float u = c.x, v = c.y;
+  float A = P_pdeA, B = P_pdeB, C = P_pdeC, D = P_pdeD, Du = P_pdeDu, Dv = P_pdeDv, dt = P_pdeDt;
+  float k = (pat - 0.5) * 2.0 * P_pdeCouple;      // Inhomogenität aus dem Muster
+  if (u_coupleTo == 1) A *= 1.0 + k; else if (u_coupleTo == 2) B *= 1.0 + k; else if (u_coupleTo == 3) Du *= max(0.0, 1.0 + k); else if (u_coupleTo == 4) Dv *= max(0.0, 1.0 + k);
+  float src = (u_coupleTo == 5) ? k : 0.0;
+  float du = 0.0, dv = 0.0, aux = 0.0;
+  if (u_model == 0) { du = Du * lap.x; }                                                            // Wärmeleitung
+  else if (u_model == 1) { du = Du * lap.x + A * (pat - 0.5) - B * u; }                              // inhomogene Wärmeleitung mit Quelle f(x,y)
+  else if (u_model == 2) { float c2 = A * max(0.0, 1.0 + (u_coupleTo == 0 ? (pat - 0.5) * 2.0 * C : 0.0)); dv = c2 * lap.x - B * v; v += dt * dv; dv = 0.0; du = v; } // Wellengleichung, c²(x,y), symplektischer Euler
+  else if (u_model == 3) { float ux = A > 0.0 ? (u - l.x) : (r.x - u); float uy = B > 0.0 ? (u - b.x) : (t.x - u); du = Du * lap.x - (A * ux + B * uy); } // Advektion–Diffusion (Upwind)
+  else if (u_model == 4) { float ux = u > 0.0 ? (u - l.x) : (r.x - u); float uy = u > 0.0 ? (u - b.x) : (t.x - u); du = Du * lap.x - u * (ux + uy); } // Burgers (Upwind)
+  else if (u_model == 5) { du = Du * lap.x + A * u * (1.0 - u); }                                    // Fisher–KPP
+  else if (u_model == 6) { du = Du * lap.x + A * (u - u * u * u); }                                  // Allen–Cahn
+  else if (u_model == 7) { du = Du * lap.y; aux = A * (u * u * u - u) - B * lap.x; }                 // Cahn–Hilliard: v speichert μ
+  else if (u_model == 8) { du = A * u - (B * v + lap.y) + C * u * u + D * u * u * u; aux = B * u + lap.x; } // Swift–Hohenberg: v = (k_c² + ∇²)u
+  else if (u_model == 9) { du = Du * lap.x + u * u * v - (A + B) * u; dv = Dv * lap.y - u * u * v + A * (1.0 - v); } // Gray–Scott (VisualPDE-Form)
+  else if (u_model == 10) { du = Du * lap.x + A - u + u * u * v; dv = Dv * lap.y + B - u * u * v; }  // Schnakenberg
+  else if (u_model == 11) { du = Du * lap.x + A + u * u / max(v, 1e-3) - B * u; dv = Dv * lap.y + u * u - C * v; } // Gierer–Meinhardt
+  else if (u_model == 12) { du = Du * lap.x + A - (B + 1.0) * u + u * u * v; dv = Dv * lap.y + B * u - u * u * v; } // Brusselator
+  else if (u_model == 13) { float r = max(D, 0.001); du = Du * lap.x + r * (u - u * u * u - v); dv = Dv * lap.y + r * C * (u - A * v - B); } // FitzHugh–Nagumo, r = Zeitskala
+  else if (u_model == 14) { float r = max(D, 0.001); du = Du * lap.x + r * (1.0 / max(C, 1e-3)) * u * (1.0 - u) * (u - (v + B) / A); dv = r * (u - v); } // Barkley, r = Zeitskala
+  else if (u_model == 15) { // Oregonator, r = Zeitskala; steifer Zerfallsterm f v u/(u+q) semi-implizit
+    float r = max(D, 0.001), e = r / max(C, 1e-3), den = max(u + B, 1e-5);
+    float un = (u + dt * (Du * lap.x + e * (u - u * u + A * v * B / den))) / (1.0 + dt * e * A * v / den);
+    du = (un - u) / dt; dv = r * (u - v);
+  }
+  else if (u_model == 16) { // Keller–Segel: ∇·(χ(u)∇v) mit χ = c u/(1+u²)
+    float chi = A * u / (1.0 + u * u);
+    float chiL = A * l.x / (1.0 + l.x * l.x), chiR = A * r.x / (1.0 + r.x * r.x), chiB = A * b.x / (1.0 + b.x * b.x), chiT = A * t.x / (1.0 + t.x * t.x);
+    float flux = 0.5 * ((chi + chiR) * (r.y - v) - (chi + chiL) * (v - l.y) + (chi + chiT) * (t.y - v) - (chi + chiB) * (v - b.y));
+    du = Du * lap.x - flux + C * u * (1.0 - u); dv = Dv * lap.y + C * (u - B * v);
+  }
+  else if (u_model == 17) { // komplexe Ginzburg–Landau: A_t = A + (1+ib)∇²A − (1+ic)|A|²A
+    float a2 = u * u + v * v;
+    du = u + (lap.x - A * lap.y) - (u - B * v) * a2; dv = v + (lap.y + A * lap.x) - (v + B * u) * a2;
+  }
+  else if (u_model == 18) { // nichtlineare Schrödinger mit Dämpfung: iψ_t = −∇²ψ + κ|ψ|²ψ + Vψ
+    float a2 = u * u + v * v; float V = (u_coupleTo == 0 ? (1.0 - pat) * C : 0.0);
+    du = lap.y - A * a2 * v - V * v + B * lap.x; dv = -lap.x + A * a2 * u + V * u + B * lap.y;
+  }
+  else if (u_model == 19) { du = -lap.x - lap.y - 0.5 * (gx.x * gx.x + gy.x * gy.x) - 0.02 * u; aux = lap.x; } // Kuramoto–Sivashinsky: v = ∇²u, schwache Dämpfung gegen die Drift
+  else if (u_model == 20) { // KdV–Burgers in x
+    float uxxx = (S(vec2(2.0, 0.0)).x - 2.0 * r.x + 2.0 * l.x - S(vec2(-2.0, 0.0)).x) * 0.5;
+    du = Du * (r.x - 2.0 * u + l.x) - A * uxxx - 6.0 * B * u * gx.x;
+  }
+  else if (u_model == 21) { float h = max(D, 0.01); du = Du * lap.x + u * (1.0 - u) - A * u * v / (u + h); dv = Dv * lap.y + B * u * v / (u + h) - C * v; } // Räuber–Beute
+  else if (u_model == 22) { du = Du * lap.x - A * u * v; dv = Dv * lap.y + A * u * v - B * v; }     // SIR
+  else if (u_model == 23) { float adv = C > 0.0 ? C * (v - l.y) : C * (r.y - v); du = Du * lap.x + D * (v * u * u - B * u); dv = Dv * lap.y + D * (A - v - v * u * u) + adv; } // Klausmeier: u = Vegetation, v = Wasser, Advektion stromaufwärts
+  else { du = Du * lap.x; }
+  du += src;
+  u += dt * du; v += dt * dv;
+  if (u_model == 7 || u_model == 8 || u_model == 19) v = aux;
+  if (u_model == 14 || u_model == 15 || u_model == 16 || u_model == 23 || u_model == 5 || u_model == 22) { u = max(u, 0.0); v = max(v, 0.0); }
+  if (P_pdeNoise > 0.0001) { u += P_pdeNoise * sqrt(dt) * (rnd(g + 3.0) - 0.5) * 2.0; }
+  if (u_mouseDown > 0.5) { float d = length((v_uv - u_mouse) * u_simRes); float m = 1.0 - smoothstep(P_pdeBrush * 0.7, P_pdeBrush, d); if (m > 0.0) { u = mix(u, u0 + ua, m); if (u_model == 2) v = mix(v, 0.0, m); } }
+  if (!(u == u) || abs(u) > 1e4) u = u0; if (!(v == v) || abs(v) > 1e4) v = v0;
+  o = vec4(u, v, 0.0, 1.0);
+}
+`;
+
 const vsSculpt = `#version 300 es
 precision highp float;
 in vec3 a_pos; in vec3 a_nrm; in vec3 a_loc;
@@ -1451,7 +1611,7 @@ const progSculpt = (() => {
   for (const [name, buf] of [["a_pos", bufs.pos], ["a_nrm", bufs.nrm], ["a_loc", bufs.loc]]) { gl.bindBuffer(gl.ARRAY_BUFFER, buf); const l = gl.getAttribLocation(pr, name); gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, 3, gl.FLOAT, false, 0, 0); }
   const names = ["uP[0]", "u_res", "u_time", "u_fieldPhase", "u_ampNorm", "u_invert", "u_aa", "u_showSources", "u_waveView", "u_srcCount", "u_activeSrc", "u_hoverSrc",
     "u_wField", "u_g1Type", "u_g2Type", "u_palA", "u_palB", "u_on", "u_blends", "u_wovenK", "u_srcA[0]", "u_srcB[0]", "u_eye",
-    "u_data", "u_dataSize", "u_ethnoType", "u_ethnoSub", "u_khipuN", "u_khipu[0]", "u_ethnoFlags", "u_worm", "u_beadOn", "u_beadStitch", "u_beadPalN", "u_beadPal[0]"];
+    "u_data", "u_dataSize", "u_ethnoType", "u_ethnoSub", "u_khipuN", "u_khipu[0]", "u_ethnoFlags", "u_worm", "u_beadOn", "u_beadStitch", "u_beadPalN", "u_beadPal[0]", "u_pde", "u_pdeOn", "u_pdeView", "u_pdeBlend"];
   const u = {}; names.forEach((n) => { u[n.replace("[0]", "")] = gl.getUniformLocation(pr, n); });
   return { pr, vao, bufs, u, count: 0 };
 })();
@@ -1522,6 +1682,11 @@ function uploadCommon(u, P, w, h) {
   const pal = (BEAD_PALETTES[o.beadPal] || BEAD_PALETTES.none)[1];
   beadArr.fill(0); pal.slice(0, 8).forEach((hex, i) => { beadArr[i * 3] = parseInt(hex.slice(1, 3), 16) / 255; beadArr[i * 3 + 1] = parseInt(hex.slice(3, 5), 16) / 255; beadArr[i * 3 + 2] = parseInt(hex.slice(5, 7), 16) / 255; });
   gl.uniform3fv(u.u_beadPal, beadArr); gl.uniform1i(u.u_beadPalN, Math.min(8, pal.length));
+  gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, pde.tex[pde.cur] || dataTex); gl.uniform1i(u.u_pde, 2);
+  gl.uniform1i(u.u_pdeOn, o.pdeOn && pde.tex[0] ? 1 : 0);
+  gl.uniform1i(u.u_pdeView, ["u", "v", "abs", "phase", "diff"].indexOf(o.pdeView));
+  gl.uniform1i(u.u_pdeBlend, bk.indexOf(o.pdeBlend));
+  gl.activeTexture(gl.TEXTURE0);
 }
 const beadArr = new Float32Array(24);
 
@@ -1534,6 +1699,7 @@ function visibleRect() {
 }
 function render(forExport) {
   const P = parameters();
+  if (S.opt.pdeOn && (!S.paused || pde.needInit)) pdeStep(P);
   const vr = visibleRect();
   const w = canvas.width, vh = forExport ? canvas.height : Math.max(2, Math.round(canvas.height * vr.height / vr.full));
   const h = vh, vy = canvas.height - vh;
@@ -1701,7 +1867,7 @@ function makeSlider(container, d) {
     if (raw === null) return; const v = parseFloat(raw.replace(",", ".")); if (!isNaN(v)) commit(v, true);
   });
   srow.append(minus, input, plus); wrap.append(label, srow); container.appendChild(wrap);
-  sliderRegistry.push({ def: d, input, valueEl, wrap });
+  sliderRegistry.push({ def: d, input, valueEl, wrap, nameEl: name });
 }
 function paramSlider(key) {
   const s = specs[key];
@@ -1722,8 +1888,9 @@ function buildSliders() {
   makeSlider($("sl-master"), { label: "Modulations-Master", min: 0, max: 1, step: 0.01, def: 0.65, get: () => S.master, set: (v) => (S.master = v) });
 }
 function refreshSliders() {
-  sliderRegistry.forEach(({ def, input, valueEl, wrap }) => {
+  sliderRegistry.forEach(({ def, input, valueEl, wrap, nameEl }) => {
     const v = def.get(); input.value = v; valueEl.textContent = fmtNum(v, def.step); valueEl.classList.remove("effective");
+    if (def.labelFn && nameEl) nameEl.textContent = def.labelFn();
     wrap.classList.toggle("hidden", def.showIf ? !def.showIf() : false);
   });
 }
@@ -1773,6 +1940,7 @@ function buildOptions() {
       remember();
       S.opt[key] = el.type === "checkbox" ? el.checked : el.value;
       if (key === "viewMode") cameraHome();
+      if (key === "pdeOn" && el.checked) pde.needInit = true;
       needsSync = true; syncUI();
     });
   });
@@ -1914,6 +2082,8 @@ const scenes = {
   mattang: { name: "Mattang · Dünungskarte", opt: { waveOn: true, waveView: "intensity", paletteA: "ocean", paletteB: "ice", viewMode: "flat" }, base: { lambda: 0.14, paletteMix: 0.3, damping: 0.3 }, sources: () => [mkSource(-1.3, 0, { type: "plane", angle: 0.2 }), mkSource(1.3, 0.2, { type: "plane", angle: Math.PI - 0.3, amp: 0.7 }), mkSource(0.1, -0.1, { amp: 0.6, phase: Math.PI })] },
   knotmobius: { name: "Keltischer Knoten · Möbius", opt: { waveOn: false, ethnoOn: true, ethnoType: "mirror", paletteA: "aurora", paletteB: "gray", viewMode: "mobius", viewBlend: "torus" }, base: { eRows: 4, eCols: 8, eCurve: 0.5, eGap: 0.09, eLine: 0.24, eDot: 0, eMirrors: 3, eSeed: 4, cutout: 0.2, spin: 5, rim: 0.7, paletteMix: 0.2 } },
   kuerpig: { name: "Kürpigsches Tetraeder", opt: { waveOn: false, viewMode: "kuerpig", sculptKind: "tetra", sculptAxis: "edge", paletteA: "gray", paletteB: "ice" }, base: { sSlices: 19, sThick: 0.018, sSpread: 1.3, spin: 4, rim: 0.3, exposure: 1.1, camYaw: 32, camPitch: 18, distance: 4.2 } },
+  grayscott: { name: "Gray–Scott · Flecken", opt: { waveOn: false, pdeOn: true, pdeModel: "grayscott", pdeInit: "blob", paletteA: "ocean", paletteB: "ember", viewMode: "flat" }, base: { pdeA: 0.037, pdeB: 0.06, pdeDu: 0.5, pdeDv: 1, pdeDt: 1, pdeSteps: 10, pdeLo: 0, pdeHi: 0.5, paletteMix: 0.35 } },
+  spirals: { name: "Spiralwellen · Barkley", opt: { waveOn: false, pdeOn: true, pdeModel: "barkley", pdeInit: "spiral", paletteA: "ember", paletteB: "gray", viewMode: "flat" }, base: { pdeA: 0.75, pdeB: 0.02, pdeC: 0.04, pdeD: 0.1, pdeDu: 4, pdeDv: 0, pdeDt: 0.25, pdeSteps: 16, pdeLo: 0, pdeHi: 1, paletteMix: 0.2 } },
   layers: { name: "Schichten · Licht", opt: { waveOn: true, g1On: true, g1Type: "hex", g1Blend: "difference", paletteA: "violet", paletteB: "ice", viewMode: "stack", viewBlend: "cloth" }, base: { lambda: 0.18, g1Period: 0.1, separation: 0.65, camYaw: 38, spin: 2, cutout: 0.3 }, sources: () => arrangeCircle(3, 0.4), style: "space" }
 };
 function applyScene(key) {
@@ -2478,6 +2648,191 @@ function syncSculptUI() {
   sculptKey = "";
 }
 
+/* ------------------------------------------------------- Gleichungsfeld */
+const PDE_MODELS = {
+  heat: { name: "Wärmeleitung", cat: "Grundgleichungen", labels: ["–", "–", "–", "–"], f: "∂u/∂t = D ∇²u", d: { Du: 0.5, dt: 1, steps: 6, lo: 0, hi: 1, view: "u", init: "blob", u0: 0, v0: 0, ua: 1, va: 0 },
+    text: "Die Wärmeleitungsgleichung glättet jede Anfangsverteilung: Hohe Wellenzahlen zerfallen am schnellsten (e^{−Dk²t}). Startet man mit dem Moiré- oder Kulturmuster, sieht man die Fourier-Moden nacheinander verschwinden. Pinsel: Wärme einstreichen." },
+  heatSrc: { name: "Inhomogene Wärmeleitung", cat: "Grundgleichungen", labels: ["Quellstärke a", "Zerfall b", "–", "–"], f: "∂u/∂t = D ∇²u + a·f(x,y) − b u\nf(x,y) = Muster der anderen Ebenen", d: { A: 1, B: 0.05, Du: 0.5, dt: 1, steps: 6, lo: -2, hi: 2, view: "u", init: "noise", u0: 0, v0: 0, ua: 0.1, va: 0 },
+    text: "Quelle f(x,y) ist das aktuelle Muster (Wellen, Moiré, Kultur). Die Lösung strebt gegen einen stationären Zustand – die geglättete Version der Quelle." },
+  wave: { name: "Wellengleichung", cat: "Grundgleichungen", labels: ["c²", "Dämpfung k", "Inhomogenität", "–"], f: "∂²u/∂t² = c²(x,y) ∇²u − k ∂u/∂t\nc²(x,y) = c²·(1 + Inhomogenität·(f − ½)·2)", d: { A: 0.5, B: 0.002, C: 0, Du: 0, dt: 0.5, steps: 8, lo: -0.6, hi: 0.6, view: "u", init: "blob", u0: 0, v0: 0, ua: 1, va: 0 },
+    text: "Als System erster Ordnung (u, v = ∂u/∂t). Mit Inhomogenität wird die Wellengeschwindigkeit vom Muster gesteuert – Brechung und Streuung an Gittern. Pinsel: Impulse setzen." },
+  transport: { name: "Advektion–Diffusion", cat: "Grundgleichungen", labels: ["v_x", "v_y", "–", "–"], f: "∂u/∂t = D ∇²u − (v_x ∂u/∂x + v_y ∂u/∂y)", d: { A: 0.4, B: 0.1, Du: 0.1, dt: 0.5, steps: 6, lo: 0, hi: 1, view: "u", init: "blob", u0: 0, v0: 0, ua: 1, va: 0 },
+    text: "Transport in einer Strömung plus Diffusion. Periodische Ränder lassen das Feld zirkulieren." },
+  burgers: { name: "Burgers-Gleichung", cat: "Grundgleichungen", labels: ["–", "–", "–", "–"], f: "∂u/∂t = ν ∇²u − u (∂u/∂x + ∂u/∂y)", d: { Du: 0.15, dt: 0.3, steps: 6, lo: -1, hi: 1, view: "u", init: "noise", u0: 0, v0: 0, ua: 1, va: 0 },
+    text: "Nichtlineare Advektion steilt Fronten auf, Viskosität ν verhindert Schocks." },
+  fisher: { name: "Fisher–KPP", cat: "Mathematische Biologie", labels: ["Wachstum r", "–", "–", "–"], f: "∂u/∂t = D ∇²u + r u (1 − u)", d: { A: 0.08, Du: 0.5, dt: 1, steps: 6, lo: 0, hi: 1, view: "u", init: "blob", u0: 0, v0: 0, ua: 1, va: 0 },
+    text: "Logistische Wanderwellen: Eine Population breitet sich mit Geschwindigkeit 2√(rD) aus. Pinsel: neue Kolonien setzen." },
+  allencahn: { name: "Allen–Cahn", cat: "Nichtlineare Physik", labels: ["Rate", "–", "–", "–"], f: "∂u/∂t = D ∇²u + a (u − u³)", d: { A: 0.2, Du: 0.3, dt: 1, steps: 6, lo: -1, hi: 1, view: "u", init: "noise", u0: 0, v0: 0, ua: 0.6, va: 0 },
+    text: "Bistabiles Doppelmuldenpotential: Domänen ±1 bilden sich, Grenzflächen bewegen sich mit ihrer Krümmung (Vergröberung)." },
+  cahnhilliard: { name: "Cahn–Hilliard", cat: "Nichtlineare Physik", labels: ["r", "ε", "–", "–"], f: "∂u/∂t = ∇²( r (u³ − u) − ε ∇²u )", d: { A: 1, B: 1, Du: 0.25, dt: 0.5, steps: 8, lo: -1, hi: 1, view: "u", init: "noise", u0: 0, v0: 0, ua: 0.2, va: 0 },
+    text: "Spinodale Entmischung: Die Masse bleibt erhalten, Phasen trennen sich in Labyrinthe, die langsam vergröbern. ε setzt die Breite der Grenzflächen (VisualPDE: Cahn–Hilliard equation)." },
+  swifthohenberg: { name: "Swift–Hohenberg", cat: "Nichtlineare Physik", labels: ["r", "k_c²", "a (u²)", "b (u³)"], f: "∂u/∂t = r u − (k_c² + ∇²)² u + a u² + b u³", d: { A: 0.3, B: 0.5, C: 0.6, D: -1, Du: 0, dt: 0.05, steps: 10, lo: -1.2, hi: 1.2, view: "u", init: "noise", u0: 0, v0: 0, ua: 0.3, va: 0 },
+    text: "Modell der Rayleigh–Bénard-Konvektion: Streifen (a = 0) oder Sechsecke (a ≠ 0) mit Wellenzahl k_c. Stabil nur für b < 0." },
+  grayscott: { name: "Gray–Scott", cat: "Nichtlineare Physik", labels: ["a (Zufuhr)", "b (Abbau)", "–", "–"], f: "∂u/∂t = ∇²u + u²v − (a + b) u\n∂v/∂t = D ∇²v − u²v + a (1 − v)", d: { A: 0.037, B: 0.06, Du: 0.5, Dv: 1.0, dt: 1, steps: 10, lo: 0, hi: 0.5, view: "u", init: "blob", u0: 0, v0: 1, ua: 0.25, va: -0.5 },
+    text: "Autokatalyse u + 2v → 3u mit Zufuhr von v: Flecken, die sich teilen, Streifen, Labyrinthe, Spiralen – je nach (a, b). Pinsel: Aktivator einstreichen." },
+  schnakenberg: { name: "Schnakenberg", cat: "Mathematische Biologie", labels: ["a", "b", "–", "–"], f: "∂u/∂t = ∇²u + a − u + u²v\n∂v/∂t = D ∇²v + b − u²v", d: { A: 0.1, B: 0.9, Du: 0.5, Dv: 8, dt: 0.1, steps: 20, lo: 0.3, hi: 2.5, view: "u", init: "noise", u0: 1, v0: 0.9, ua: 0.05, va: 0.05 },
+    text: "Turings Paradigma: ein kurzreichweitiger Aktivator (u) und ein weitreichender Inhibitor (v, D ≫ 1) machen den homogenen Zustand instabil – Flecken und Streifen entstehen aus Rauschen." },
+  gierer: { name: "Gierer–Meinhardt", cat: "Mathematische Biologie", labels: ["a", "b", "c", "–"], f: "∂u/∂t = ∇²u + a + u²/v − b u\n∂v/∂t = D ∇²v + u² − c v", d: { A: 0.1, B: 1, C: 1, Du: 0.25, Dv: 12, dt: 0.08, steps: 25, lo: 0, hi: 4, view: "u", init: "noise", u0: 1.1, v0: 1.21, ua: 0.1, va: 0.1 },
+    text: "Aktivator u fördert sich selbst und seinen Inhibitor v; lateraler Hemmung folgt die Musterbildung in Hydra und Muscheln (Gierer & Meinhardt 1972)." },
+  brusselator: { name: "Brusselator", cat: "Nichtlineare Physik", labels: ["a", "b", "–", "–"], f: "∂u/∂t = D_u ∇²u + a − (b + 1) u + u²v\n∂v/∂t = D_v ∇²v + b u − u²v", d: { A: 1, B: 3, Du: 0.5, Dv: 4, dt: 0.2, steps: 12, lo: 0, hi: 3, view: "u", init: "noise", u0: 1, v0: 3, ua: 0.1, va: 0.1 },
+    text: "Prigogines Modellreaktion (Brüssel 1968): b > (1 + a√(D_u/D_v))² gibt Turing-Muster, b > 1 + a² Oszillationen. Mit a = 1, b = 3 und D_v/D_u = 8 liegt das System im Turing-Bereich." },
+  fitzhugh: { name: "FitzHugh–Nagumo", cat: "Mathematische Biologie", labels: ["a_v", "a_z", "ε_v", "Zeitskala r"], f: "∂u/∂t = ∇²u + r (u − u³ − v)\n∂v/∂t = D ∇²v + r ε_v (u − a_v v − a_z)", d: { A: 1, B: -0.4, C: 0.04, D: 0.6, Du: 4, Dv: 0, dt: 0.25, steps: 20, lo: -1.2, hi: 1.2, view: "u", init: "spiral", bc: "neumann", u0: -0.74, v0: -0.34, ua: 1.74, va: 0.8 },
+    text: "Erregbare Nervenzelle als Reaktions-Diffusions-System. D > 1 liefert Turing-Labyrinthe, kleines ε wandernde Pulse und Spiralen (Start: Spirale)." },
+  barkley: { name: "Barkley · erregbare Medien", cat: "Mathematische Biologie", labels: ["a", "b", "ε", "Zeitskala r"], f: "∂u/∂t = D ∇²u + (r/ε) u (1 − u) (u − (v + b)/a)\n∂v/∂t = r (u − v)", d: { A: 0.75, B: 0.02, C: 0.04, D: 0.1, Du: 4, Dv: 0, dt: 0.25, steps: 16, lo: 0, hi: 1, view: "u", init: "spiral", bc: "neumann", u0: 0, v0: 0, ua: 1, va: 0.6 },
+    text: "Spiralwellen wie im Herzmuskel oder der BZ-Reaktion: Ein Puls läuft, dahinter folgt die Refraktärzeit (v). Start „Spirale“ schneidet eine Front an." },
+  oregonator: { name: "Oregonator · BZ-Reaktion", cat: "Nichtlineare Physik", labels: ["f", "q", "ε", "Zeitskala r"], f: "∂u/∂t = D ∇²u + (r/ε)(u − u² − f v (u − q)/(u + q))\n∂v/∂t = r (u − v)", d: { A: 3, B: 0.002, C: 0.01, D: 0.03, Du: 4, Dv: 0, dt: 0.08, steps: 40, lo: 0, hi: 1, view: "u", init: "spiral", bc: "neumann", u0: 0.004, v0: 0.004, ua: 1, va: 0.1 },
+    text: "Zwei-Variablen-Modell der Belousov–Zhabotinsky-Reaktion (Tyson & Fife): Zielscheiben und Spiralen in der Petrischale. Erregbar für f > 1+√2, darunter schwingt die ganze Schale. Der steife Abbauterm wird semi-implizit integriert; die Spirale braucht mindestens 256² Zellen." },
+  kellersegel: { name: "Keller–Segel · Chemotaxis", cat: "Mathematische Biologie", labels: ["χ-Stärke c", "Abbau a", "Rate r", "–"], f: "∂u/∂t = ∇²u − ∇·(χ(u) ∇v) + r u (1 − u)\n∂v/∂t = D ∇²v + r (u − a v),   χ(u) = c u/(1 + u²)", d: { A: 12, B: 1, C: 0.1, Du: 1, Dv: 1, dt: 0.15, steps: 20, lo: 0, hi: 2, view: "u", init: "noise", u0: 1, v0: 1, ua: 0.05, va: 0.05 },
+    text: "Zellen (u) wandern den Gradienten des Lockstoffs (v) hinauf, den sie selbst produzieren: Aggregation in Flecken, die wandern und verschmelzen. Die Rate r setzt die Zeitskala von Wachstum und Abbau gegen die Diffusion – kleines r ergibt große Flecken." },
+  cgl: { name: "Komplexe Ginzburg–Landau", cat: "Nichtlineare Physik", labels: ["b (Dispersion)", "c (Nichtlinearität)", "–", "–"], f: "∂A/∂t = A + (1 + i b) ∇²A − (1 + i c) |A|² A,   A = u + i v", d: { A: 0, B: 1.5, Du: 1, Dv: 1, dt: 0.05, steps: 12, lo: 0, hi: 1.1, view: "abs", init: "noise", u0: 0, v0: 0, ua: 0.3, va: 0.3 },
+    text: "Normalform oszillierender Felder: Spiraldefekte, Defektchaos (Benjamin–Feir-Instabilität für 1 + bc < 0). Ansicht „Phase“ zeigt die Wirbel." },
+  nls: { name: "Nichtlineare Schrödinger", cat: "Nichtlineare Physik", labels: ["κ", "Dämpfung", "Potential V", "–"], f: "i ∂ψ/∂t = −∇²ψ + κ |ψ|² ψ + V(x,y) ψ,   ψ = u + i v\nV = Potential · (1 − f), f = Muster", d: { A: 0, B: 0.02, C: 1.5, Du: 0, Dv: 0, dt: 0.02, steps: 12, lo: 0, hi: 0.6, view: "abs", init: "packet", u0: 0, v0: 0, ua: 1, va: 0 },
+    text: "Ein Wellenpaket läuft durch das Potential, das aus Gitter- oder Kulturmuster gebaut wird – Beugung und Tunneln am Moiré. κ ≠ 0 macht die Gleichung nichtlinear (Solitonen, Kollaps). Kleine Dämpfung hält das explizite Verfahren stabil." },
+  kuramoto: { name: "Kuramoto–Sivashinsky", cat: "Nichtlineare Physik", labels: ["–", "–", "–", "–"], f: "∂u/∂t = −∇²u − ∇⁴u − ½ |∇u|²", d: { Du: 0, dt: 0.03, steps: 12, lo: -0.5, hi: 0.5, view: "v", init: "noise", u0: 0, v0: 0, ua: 0.2, va: 0 },
+    text: "Flammenfronten und Flüssigkeitsfilme: lineare Instabilität bei großen Skalen, Dämpfung bei kleinen – raumzeitliches Chaos. Angezeigt wird ∇²u (zweite Komponente), weil der Mittelwert von u stetig driftet; eine schwache Dämpfung −0,02u hält ihn in der Nähe von null." },
+  kdv: { name: "KdV–Burgers · Solitonen", cat: "Nichtlineare Physik", labels: ["Dispersion", "Nichtlinearität", "–", "–"], f: "∂u/∂t = ν ∂²u/∂x² − a ∂³u/∂x³ − 6 b u ∂u/∂x", d: { A: 0.15, B: 0.12, Du: 0.2, dt: 0.08, steps: 10, lo: 0, hi: 2.2, view: "u", init: "solitons", u0: 0, v0: 0, ua: 1, va: 0 },
+    text: "Korteweg–de Vries entlang x: Zwei Solitonen, das größere überholt das kleinere und beide gehen unverändert hervor. Etwas Viskosität ν stabilisiert das Verfahren." },
+  predator: { name: "Räuber–Beute mit Diffusion", cat: "Mathematische Biologie", labels: ["Prädation a", "Umsatz b", "Sterberate c", "Sättigung h"], f: "∂u/∂t = D_u ∇²u + u (1 − u) − a u v/(u + h)\n∂v/∂t = D_v ∇²v + b u v/(u + h) − c v", d: { A: 1, B: 0.5, C: 0.2, D: 0.3, Du: 0.1, Dv: 0.5, dt: 0.3, steps: 8, lo: 0, hi: 1, view: "u", init: "noise", u0: 0.5, v0: 0.3, ua: 0.3, va: 0.2 },
+    text: "Rosenzweig–MacArthur-Kinetik mit Diffusion: Beutewellen, hinter denen die Räuber herziehen – Spiralen und Chaos im Raum." },
+  sir: { name: "SIR-Epidemie", cat: "Mathematische Biologie", labels: ["Infektion β", "Genesung γ", "–", "–"], f: "∂S/∂t = D ∇²S − β S I\n∂I/∂t = D ∇²I + β S I − γ I", d: { A: 1, B: 0.2, Du: 0.3, Dv: 0.3, dt: 0.5, steps: 6, lo: 0, hi: 1, view: "v", init: "blob", u0: 1, v0: 0, ua: 0, va: 1 },
+    text: "u = Anfällige, v = Infizierte: Die Epidemie läuft als Welle durch die Population und hinterlässt Genesene. Pinsel setzt Infektionsherde." },
+  klausmeier: { name: "Klausmeier · Vegetation", cat: "Mathematische Biologie", labels: ["Regen a", "Mortalität m", "Hangneigung V", "Zeitskala r"], f: "∂n/∂t = ∇²n + r (w n² − m n)\n∂w/∂t = D ∇²w + r (a − w − w n²) + V ∂w/∂x", d: { A: 1.0, B: 0.45, C: 0.5, D: 0.2, Du: 0.1, Dv: 4, dt: 0.25, steps: 30, lo: 0, hi: 4, view: "u", init: "noise", u0: 1.6, v0: 0.28, ua: 0.3, va: 0.05 },
+    text: "Tigerbusch: Vegetationsstreifen in Trockengebieten, die hangaufwärts wandern, weil Wasser (w) den Hang hinunterfließt. Weniger Regen a → Streifen → Flecken → Wüste." }
+};
+const PDE_KEYS = Object.keys(PDE_MODELS);
+const PDE_VIEWS = { u: "u (1. Komponente)", v: "v (2. Komponente)", abs: "|A| = √(u² + v²)", phase: "Phase arg(u + iv)", diff: "u − v" };
+const PDE_INITS = { noise: "Rauschen", blob: "Mittelpunkt", pattern: "Aus dem Muster", spiral: "Spirale (zwei Halbebenen)", solitons: "Zwei Solitonen (x)", packet: "Wellenpaket" };
+const PDE_BCS = { periodic: "Periodisch", neumann: "Neumann (kein Fluss)" };
+const PDE_COUPLE = { none: "Keine", A: "Parameter A", B: "Parameter B", Du: "Diffusion u", Dv: "Diffusion v", source: "Quelle in u" };
+const PDE_RES = { 128: "128 × 128", 256: "256 × 256", 512: "512 × 512" };
+
+const pde = { fbo: [null, null], tex: [null, null], res: 0, cur: 0, needInit: true, mouse: [0.5, 0.5], down: 0, floatType: null };
+function pdeAlloc(n) {
+  if (pde.res === n && pde.tex[0]) return;
+  const ext = gl.getExtension("EXT_color_buffer_float");
+  const half = !ext && gl.getExtension("EXT_color_buffer_half_float");
+  pde.floatType = ext ? gl.FLOAT : (half ? gl.HALF_FLOAT : null);
+  if (!pde.floatType) { toast("Float-Texturen nicht verfügbar – Gleichungsfeld deaktiviert"); S.opt.pdeOn = false; return; }
+  const ifmt = ext ? gl.RGBA32F : gl.RGBA16F;
+  const linearOk = ext ? !!gl.getExtension("OES_texture_float_linear") : !!gl.getExtension("OES_texture_half_float_linear");
+  const filt = linearOk ? gl.LINEAR : gl.NEAREST;
+  for (let i = 0; i < 2; i++) {
+    if (pde.tex[i]) { gl.deleteTexture(pde.tex[i]); gl.deleteFramebuffer(pde.fbo[i]); }
+    const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texImage2D(gl.TEXTURE_2D, 0, ifmt, n, n, 0, gl.RGBA, pde.floatType, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filt); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filt);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+    const f = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, f); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
+    pde.tex[i] = t; pde.fbo[i] = f;
+  }
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  pde.res = n; pde.needInit = true;
+}
+const progSim = (() => {
+  const pr = gl.createProgram();
+  gl.attachShader(pr, compileShader(gl.VERTEX_SHADER, vs2d)); gl.attachShader(pr, compileShader(gl.FRAGMENT_SHADER, fsSim));
+  gl.linkProgram(pr); if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(pr));
+  const vao = gl.createVertexArray(); gl.bindVertexArray(vao);
+  const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+  const loc = gl.getAttribLocation(pr, "a_pos"); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+  const names = ["uP[0]", "u_res", "u_time", "u_fieldPhase", "u_ampNorm", "u_invert", "u_aa", "u_showSources", "u_waveView", "u_srcCount", "u_activeSrc", "u_hoverSrc",
+    "u_wField", "u_g1Type", "u_g2Type", "u_palA", "u_palB", "u_on", "u_blends", "u_wovenK", "u_srcA[0]", "u_srcB[0]",
+    "u_data", "u_dataSize", "u_ethnoType", "u_ethnoSub", "u_khipuN", "u_khipu[0]", "u_ethnoFlags", "u_beadOn", "u_beadStitch", "u_beadPalN", "u_beadPal[0]",
+    "u_pde", "u_pdeOn", "u_pdeView", "u_pdeBlend", "u_state", "u_simRes", "u_model", "u_bc", "u_init", "u_doInit", "u_coupleTo", "u_init0", "u_mouse", "u_mouseDown", "u_seed"];
+  const u = {}; names.forEach((n) => { u[n.replace("[0]", "")] = gl.getUniformLocation(pr, n); });
+  return { pr, vao, u };
+})();
+function pdeStep(P) {
+  const n = +S.opt.pdeRes; pdeAlloc(n); if (!pde.tex[0]) return;
+  const m = PDE_MODELS[S.opt.pdeModel];
+  gl.useProgram(progSim.pr); gl.bindVertexArray(progSim.vao);
+  uploadCommon(progSim.u, P, n, n);
+  gl.uniform1i(progSim.u.u_pdeOn, 0); // keine Rückkopplung des Feldes auf sich selbst
+  gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, dataTex); // Zieltextur darf nicht gebunden sein (Feedback-Schleife)
+  gl.uniform2f(progSim.u.u_simRes, n, n);
+  gl.uniform1i(progSim.u.u_model, PDE_KEYS.indexOf(S.opt.pdeModel));
+  gl.uniform1i(progSim.u.u_bc, Object.keys(PDE_BCS).indexOf(S.opt.pdeBc));
+  gl.uniform1i(progSim.u.u_init, Object.keys(PDE_INITS).indexOf(S.opt.pdeInit));
+  gl.uniform1i(progSim.u.u_coupleTo, Object.keys(PDE_COUPLE).indexOf(S.opt.pdeCouple));
+  gl.uniform4f(progSim.u.u_init0, m.d.u0, m.d.v0, m.d.ua, m.d.va);
+  gl.uniform2f(progSim.u.u_mouse, pde.mouse[0], pde.mouse[1]);
+  gl.uniform1f(progSim.u.u_mouseDown, pde.down);
+  gl.uniform1f(progSim.u.u_seed, (time * 13.7) % 100);
+  gl.viewport(0, 0, n, n); gl.disable(gl.DEPTH_TEST);
+  const steps = pde.needInit ? 1 : clamp(Math.round(P.pdeSteps), 0, 40);
+  for (let i = 0; i < steps; i++) {
+    const src = pde.cur, dst = 1 - pde.cur;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, pde.fbo[dst]);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, pde.tex[src]); gl.uniform1i(progSim.u.u_state, 1);
+    gl.uniform1i(progSim.u.u_doInit, pde.needInit ? 1 : 0);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    pde.cur = dst; pde.needInit = false;
+  }
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+}
+function pdeApplyDefaults() {
+  const d = PDE_MODELS[S.opt.pdeModel].d;
+  const map = { A: "pdeA", B: "pdeB", C: "pdeC", D: "pdeD", Du: "pdeDu", Dv: "pdeDv", dt: "pdeDt", steps: "pdeSteps", lo: "pdeLo", hi: "pdeHi" };
+  for (const [k, key] of Object.entries(map)) S.base[key] = d[k] !== undefined ? d[k] : specs[key][4];
+  if (d.view) S.opt.pdeView = d.view; if (d.init) S.opt.pdeInit = d.init; S.opt.pdeBc = d.bc || "periodic";
+  S.base.pdeNoise = 0; pde.needInit = true;
+}
+const PDE_TEXT = `<p><b>Nach VisualPDE.</b> Die Modelle, Formeln und Standardparameter folgen den Seiten von <b>visualpde.com</b> (B. Walker, A. Townsend, V. Chudasama, A. Krause: <i>VisualPDE: Rapid Interactive Simulations of Partial Differential Equations</i>, Bull. Math. Biol. 2023). Wie dort wird mit Vorwärts-Euler auf der Grafikkarte gerechnet: Das Feld (u, v) liegt in einer Float-Textur, jeder Zeitschritt ist ein Shader-Durchlauf mit 9-Punkt-Laplace-Operator; Stabilität verlangt D·dt klein (hier in Gitter-Einheiten D·dt ≲ 1, bei Reaktionsraten 1/ε entsprechend kleinere dt). Cahn–Hilliard, Swift–Hohenberg und Kuramoto–Sivashinsky (4. Ordnung) führen die Hilfsgröße ∇²u bzw. μ in der zweiten Komponente mit.</p>
+<p><b>Zeitskala r.</b> Erregbare Medien (FitzHugh–Nagumo, Barkley, Oregonator), Chemotaxis und Klausmeier tragen einen Faktor r vor den Reaktionstermen. Weil die Diffusion pro Schritt durch die Stabilität begrenzt ist, macht nur ein kleines r die Fronten breiter als eine Gitterzelle – dieselbe Gleichung auf einem feineren Gitter. Großes r: schnelle, dünne Fronten; kleines r: breite Wellen, träge Entwicklung.</p>
+<p><b>Was neu ist gegenüber VisualPDE.</b> Das Feld ist eine Ebene der Komposition: mischbar mit Wellen, Moiré, Gewebe, Kulturmustern, als Perlenarbeit, auf 3D-Körpern und Kürpig-Blechen. Umgekehrt steuert das Muster die Gleichung: <b>Musterkopplung</b> macht Parameter, Diffusion oder Quelle ortsabhängig (inhomogene Wärme- und Wellengleichung, Potential der Schrödinger-Gleichung, „Survival in a harsh environment“). Alle Parameter sind über die Matrix modulierbar.</p>
+<p><b>Ausprobieren.</b> Pinsel: Mit eingeschaltetem „Ziehen malt“ in die Fläche streichen (Aktivator, Wärme, Infektion). „Neu starten“ setzt die Anfangsbedingung, „Standardwerte“ holt die Parameter des Modells. Rauschen σ macht jede Gleichung stochastisch (VisualPDE: Stochastic PDEs).</p>`;
+const pdeExamples = [
+  { name: "Gray–Scott Flecken", opt: { pdeModel: "grayscott", pdeInit: "blob" }, base: {} },
+  { name: "Gray–Scott Labyrinth", opt: { pdeModel: "grayscott", pdeInit: "noise" }, base: { pdeA: 0.029, pdeB: 0.057 } },
+  { name: "Turing-Streifen", opt: { pdeModel: "schnakenberg" }, base: {} },
+  { name: "Spiralwellen", opt: { pdeModel: "barkley" }, base: {} },
+  { name: "Entmischung", opt: { pdeModel: "cahnhilliard" }, base: {} },
+  { name: "Sechsecke (Swift–Hohenberg)", opt: { pdeModel: "swifthohenberg" }, base: {} },
+  { name: "Chemotaxis", opt: { pdeModel: "kellersegel" }, base: {} },
+  { name: "Tigerbusch", opt: { pdeModel: "klausmeier" }, base: {} },
+  { name: "Wellen im Moiré-Medium", opt: { pdeModel: "wave", pdeCouple: "none", g1On: true, g1Type: "dots", pdeBlend: "add" }, base: { pdeC: 0.8, g1Period: 0.12, g1Duty: 0.6, g1Soft: 0.3 } },
+  { name: "Schrödinger im Gitter", opt: { pdeModel: "nls", g1On: true, g1Type: "dots", pdeBlend: "max" }, base: { g1Period: 0.14, g1Duty: 0.5, g1Soft: 0.4 } },
+  { name: "Wärme aus dem Muster", opt: { pdeModel: "heat", pdeInit: "pattern", ethnoOn: true, ethnoType: "mirror" }, base: { eRows: 4, eCols: 6 } },
+  { name: "Defektchaos (CGL)", opt: { pdeModel: "cgl", pdeView: "phase" }, base: {} }
+];
+function loadPdeExample(ex) {
+  remember(); const prev = S; S = defaultState(); S.quality = prev.quality;
+  S.opt.waveOn = false; S.opt.pdeOn = true; S.opt.paletteA = "ocean"; S.opt.paletteB = "ember"; S.base.paletteMix = 0.35;
+  Object.assign(S.opt, ex.opt); pdeApplyDefaults(); Object.assign(S.base, ex.base || {});
+  resetPhases(); buildMods(); syncUI(); showPage("pde"); if (narrowMQ.matches) setSheet("peek"); toast(ex.name);
+}
+(function pdeControls() {
+  const sel = $("pdeModelSel"); sel.innerHTML = "";
+  const cats = [...new Set(PDE_KEYS.map((k) => PDE_MODELS[k].cat))];
+  cats.forEach((c) => { const g = document.createElement("optgroup"); g.label = c; PDE_KEYS.filter((k) => PDE_MODELS[k].cat === c).forEach((k) => { const o = document.createElement("option"); o.value = k; o.textContent = PDE_MODELS[k].name; g.appendChild(o); }); sel.appendChild(g); });
+  sel.addEventListener("change", () => { remember(); S.opt.pdeModel = sel.value; pdeApplyDefaults(); syncUI(); });
+  const dicts = { PDE_VIEWS, PDE_INITS, PDE_BCS, PDE_COUPLE, PDE_RES };
+  document.querySelectorAll(".pdeSel").forEach((s) => fillSelect(s, dicts[s.dataset.dict]));
+  document.querySelectorAll(".pdeSel").forEach((s) => s.addEventListener("change", () => { remember(); S.opt[s.dataset.opt] = s.value; if (s.dataset.opt === "pdeInit" || s.dataset.opt === "pdeRes") pde.needInit = true; syncUI(); }));
+  targets.filter((k) => specs[k][5] === "pde").forEach((k) => {
+    const d = paramSlider(k);
+    if (["pdeA", "pdeB", "pdeC", "pdeD"].includes(k)) { const idx = ["pdeA", "pdeB", "pdeC", "pdeD"].indexOf(k); d.labelFn = () => PDE_MODELS[S.opt.pdeModel].labels[idx]; d.showIf = () => PDE_MODELS[S.opt.pdeModel].labels[idx] !== "–"; }
+    if (k === "pdeDv") d.showIf = () => ["grayscott", "schnakenberg", "gierer", "brusselator", "fitzhugh", "kellersegel", "cgl", "predator", "sir", "klausmeier"].includes(S.opt.pdeModel);
+    if (k === "pdeDu") d.showIf = () => !["swifthohenberg", "kuramoto", "nls"].includes(S.opt.pdeModel);
+    makeSlider($("sl-pde"), d);
+  });
+  $("pdeText").innerHTML = PDE_TEXT;
+  $("pdeExamples").innerHTML = pdeExamples.map((e, i) => `<button class="btn secondary" data-pde="${i}">${e.name}</button>`).join("");
+  document.querySelectorAll("[data-pde]").forEach((b) => b.addEventListener("click", () => loadPdeExample(pdeExamples[+b.dataset.pde])));
+  $("pdeResetBtn").addEventListener("click", () => { pde.needInit = true; needsSync = true; toast("Neu gestartet"); });
+  $("pdeDefaultsBtn").addEventListener("click", () => { remember(); pdeApplyDefaults(); syncUI(); toast("Standardwerte: " + PDE_MODELS[S.opt.pdeModel].name); });
+  $("pdeOnBtn").addEventListener("click", () => { remember(); S.opt.pdeOn = !S.opt.pdeOn; if (S.opt.pdeOn) pde.needInit = true; syncUI(); });
+})();
+function syncPdeUI() {
+  const m = PDE_MODELS[S.opt.pdeModel];
+  $("pdeModelSel").value = S.opt.pdeModel;
+  $("pdeFormula").textContent = m.f;
+  $("pdeModelText").innerHTML = `<b>${m.name}</b> · ${m.cat}<br>${m.text}`;
+  $("pdeOnBtn").textContent = S.opt.pdeOn ? "Gleichungsfeld: an" : "Gleichungsfeld: aus";
+  $("pdeOnBtn").classList.toggle("active", S.opt.pdeOn);
+  document.querySelector('#ptabs [data-page="pde"]').classList.toggle("dimmed", !S.opt.pdeOn);
+}
+
 /* ------------------------------------------------------------- syncUI */
 let currentPage = "start";
 function showPage(name) {
@@ -2509,11 +2864,12 @@ function syncUI() {
   const active = S.mods.filter((m) => m.on).length;
   $("matrixInfo").textContent = `${S.mods.slice(0, 8).filter((m) => m.on).length} / 8 aktiv`;
   $("modBtn").textContent = `Mod ${active}`;
-  refreshOptions(); refreshSliders(); updateRoutes(); updateHint(); syncEthnoUI(); syncSculptUI(); scheduleHash();
+  refreshOptions(); refreshSliders(); updateRoutes(); updateHint(); syncEthnoUI(); syncSculptUI(); syncPdeUI(); scheduleHash();
   dataKey = ""; needsSync = true;
 }
 function updateHint() {
   const spatial = S.opt.viewMode !== "flat";
+  if (S.opt.pdeOn && S.opt.pdePaint && !spatial) { $("hint").textContent = `${PDE_MODELS[S.opt.pdeModel].name} · Ziehen = in die Simulation malen · Shift+Ziehen = verschieben · Rad = Zoom`; return; }
   $("hint").textContent = S.opt.viewMode === "kuerpig"
     ? `${SCULPT_KINDS[S.opt.sculptKind]} · Ziehen = Kamera drehen · Rad = Abstand · Blick entlang der Achse schließt die Scheiben zum Körper`
     : spatial
@@ -2677,7 +3033,10 @@ canvas.addEventListener("pointerdown", (e) => {
     if (e.pointerType !== "mouse") longPress = { x: e.clientX, y: e.clientY, timer: setTimeout(() => { longPress = null; gesture = null; contextMenu(e.clientX, e.clientY); }, 550) };
     const [wx, wy] = toWorld(e.clientX, e.clientY);
     const idx = S.opt.waveOn && !e.shiftKey ? nearestSource(wx, wy) : -1;
-    if (idx >= 0) {
+    if (idx < 0 && S.opt.pdeOn && S.opt.pdePaint && !spatial() && !e.shiftKey) {
+      const P0 = parameters(); pde.mouse = [((wx / (2 * P0.pdeScale) + 0.5) % 1 + 1) % 1, ((wy / (2 * P0.pdeScale) + 0.5) % 1 + 1) % 1]; pde.down = 1;
+      gesture = { kind: "paint" }; needsSync = true;
+    } else if (idx >= 0) {
       S.activeSource = idx; const [sx, sy] = worldToSource(wx, wy);
       gesture = { kind: "source", idx, dx: S.sources[idx].x - sx, dy: S.sources[idx].y - sy }; canvas.classList.add("grabbing"); syncUI();
     } else if (spatial() && !e.shiftKey) {
@@ -2699,7 +3058,10 @@ canvas.addEventListener("pointermove", (e) => {
   if (longPress && Math.hypot(e.clientX - longPress.x, e.clientY - longPress.y) > 8) cancelLongPress();
   if (!gesture) return;
   const r = visibleRect(), unitPerPx = 2 / r.height / S.base.zoom, b = S.base;
-  if (gesture.kind === "source" && pointers.size === 1) {
+  if (gesture.kind === "paint" && pointers.size === 1) {
+    const [wx, wy] = toWorld(e.clientX, e.clientY); const P0 = parameters();
+    pde.mouse = [((wx / (2 * P0.pdeScale) + 0.5) % 1 + 1) % 1, ((wy / (2 * P0.pdeScale) + 0.5) % 1 + 1) % 1]; needsSync = true;
+  } else if (gesture.kind === "source" && pointers.size === 1) {
     const [wx, wy] = toWorld(e.clientX, e.clientY); const [sx, sy] = worldToSource(wx, wy);
     const s = S.sources[gesture.idx]; s.x = sx + gesture.dx; s.y = sy + gesture.dy; needsSync = true; refreshSliders();
   } else if (gesture.kind === "orbit" && pointers.size === 1) {
@@ -2722,6 +3084,7 @@ canvas.addEventListener("pointermove", (e) => {
   }
 });
 function endPointer(e) {
+  pde.down = 0;
   if (gesture && gesture.kind === "pan" && pointers.size === 1 && gesture.x0 !== undefined && Math.hypot(e.clientX - gesture.x0, e.clientY - gesture.y0) < 6 && performance.now() - gesture.t0 < 500
       && S.opt.ethnoOn && S.opt.ethnoType === "mirror" && !spatial()) { const [wx, wy] = toWorld(e.clientX, e.clientY); toggleMirrorAt(wx, wy); }
   pointers.delete(e.pointerId); cancelLongPress(); canvas.classList.remove("grabbing");
@@ -2869,7 +3232,11 @@ const introSlides = [
     <p>Der Aachener Geometer und Bildhauer <b>Friedhelm Kürpig</b> zerlegt Polyeder senkrecht zu einer Symmetrieachse in parallele Edelstahlscheiben und montiert sie mit Abständen neu. Beim Blick entlang der Achse schließen sich die Scheiben zum Körper, von der Seite erscheint er gestreckt oder löst sich auf – sein Tetraeder vor dem Mathematikum wirkt als Pyramide, Würfel oder Quader.</p>
     <p>Hinter dieser Karte: ein Tetraeder aus 19 Scheiben, geschnitten senkrecht zur Achse durch zwei gegenüberliegende Kantenmitten. Die Schnitte sind Rechtecke, die sich von einem schmalen Streifen über das Quadrat zum gedrehten Streifen wandeln.</p>
     <div class="try">Ziehe die Kamera, bis du genau entlang der Achse blickst. Unter <b>Raum → Skulptur</b> findest du Ikosaeder, Rhombentriakontaeder, Fußball, die Dupin-Zyklide aus Kreisen und das HP-Paraboloid aus Geraden – und mit „Musteranteil“ liegen die Wellen auf dem Stahl.</div>` },
-  { title: "8 · Szenen, Export & Experimente", scene: "wavecloth", html: `
+  { title: "8 · Gleichungen nach VisualPDE", scene: "grayscott", html: `
+    <p>Hinter dieser Karte rechnet die Grafikkarte das <b>Gray–Scott-System</b>: ∂u/∂t = ∇²u + u²v − (a+b)u, ∂v/∂t = D∇²v − u²v + a(1−v). Der Tab <b>Gleichungen</b> enthält 24 Modelle mit ihren Formeln nach visualpde.com – Wärme- und Wellengleichung, Fisher–KPP, Cahn–Hilliard, Swift–Hohenberg, Schnakenberg, Gierer–Meinhardt, Brusselator, FitzHugh–Nagumo, Barkley, Oregonator, Keller–Segel, Ginzburg–Landau, Schrödinger, Kuramoto–Sivashinsky, KdV, Räuber–Beute, SIR, Klausmeier.</p>
+    <p>Das Feld ist eine Ebene wie jede andere: mischbar, perlbar, auf Körper und Bleche legbar. Und das Muster wirkt zurück – als ortsabhängiger Koeffizient, Quelle oder Potential.</p>
+    <div class="try">Streiche mit dem Finger oder der Maus in die Fläche: Du malst Aktivator in die Reaktion. Mit „Standardwerte“ und „Neu starten“ im Tab Gleichungen beginnst du jedes Modell frisch.</div>` },
+  { title: "9 · Szenen, Export & Experimente", scene: "wavecloth", html: `
     <p><b>Start</b> hält zwölf komplette Szenen bereit und speichert eigene Presets. <b>Stil</b> mischt zwei Paletten, exportiert PNG und JSON (inklusive Matrix und Phasen) und erzeugt einen Link mit dem ganzen Zustand. <b>Info</b> liefert Messwerte, alle Gesten und Tastenkürzel sowie Experimente mit fertigem Aufbau.</p>
     <div class="try">Viel Freude beim Erforschen – diese Einführung erreichst du jederzeit über <b>?</b>.</div>` }
 ];
@@ -2905,6 +3272,8 @@ const experiments = [
   { title: "Blickachse finden", text: "Kürpigsches Tetraeder laden, Automatische Drehung auf 0 und die Kamera drehen, bis die Scheiben zu einem geschlossenen Quadrat verschmelzen – das ist der Blick entlang der zweizähligen Achse. Dann Achse auf „Ecke“ wechseln: Die Schnitte werden zu Dreiecken.", scene: "kuerpig" },
   { title: "Moiré zwischen Blechen", text: "Unter Raum → Skulptur „Moiré im Stapel“ laden: 31 Würfelscheiben tragen dasselbe Liniengitter. Beim Blick schräg durch den Stapel überlagern sich die Gitter der Scheiben zu Moiré-Streifen, die mit der Kamera wandern.", scene: "kuerpig", after: (s) => { loadWork(works[11]); } },
   { title: "Perlen zählen", text: "Lakota-Webrahmen aus dem Katalog laden. Unter Stil → Perlen stehen Reihen, Spalten und Perlenzahl der sichtbaren Vorlage. Perlengröße verdoppeln: Die Zahl viertelt sich – Auflösung gegen Material.", scene: "doubleslit", after: () => { const e = catalog.find((x) => x.title === "Lakota-Webrahmen"); if (e) ethnoSetup(e.cfg); showPage("style"); } },
+  { title: "Turing-Instabilität finden", text: "Gleichungen → Schnakenberg laden. Diffusion D_v langsam senken: Unter einem kritischen Verhältnis D_v/D_u verschwinden die Muster, der homogene Zustand wird stabil. Dann D_v wieder erhöhen und mit Musterkopplung auf „Parameter A“ das Muster ortsabhängig machen.", scene: "grayscott", after: () => loadPdeExample(pdeExamples[2]) },
+  { title: "Wellen im inhomogenen Medium", text: "Beispiel „Wellen im Moiré-Medium“ laden und in die Fläche tippen: Der Impuls läuft durch ein Punktgitter, dessen Dichte die Wellengeschwindigkeit c²(x,y) setzt – Brechung und Streuung wie in der inhomogenen Wellengleichung bei VisualPDE.", scene: "grayscott", after: () => loadPdeExample(pdeExamples[8]) },
   { title: "Eigene Modulation bauen", text: "Beliebige Szene, dann in der Matrix alle Quellen aus. LFO 1: Ziel λ, Tiefe 0,15, Rate 0,05 Hz. LFO 2: Ziel Quellen-Drehung, Dreieck, Tiefe 0,3. Beobachte Basis → Effektiv.", scene: "standing" }
 ];
 $("experiments").innerHTML = experiments.map((ex, i) => `<div class="exp"><h3>${ex.title}</h3><p>${ex.text}</p><button class="btn secondary" data-exp="${i}">Aufbau laden</button></div>`).join("");
@@ -2933,6 +3302,7 @@ function updateInfo() {
     lines.push(`Gitter 1 ↔ 2: Δφ = <b>${(((P.g1Angle - P.g2Angle) % 360) + 360) % 360 < 180 ? ((((P.g1Angle - P.g2Angle) % 360) + 360) % 360).toFixed(2) : (360 - (((P.g1Angle - P.g2Angle) % 360) + 360) % 360).toFixed(2)}°</b> · p₁ = ${p1.toFixed(4)} · p₂ = ${p2.toFixed(4)}`);
     lines.push(`Moiré-Periode (Linien): <b>${isFinite(pm) ? pm.toFixed(3) : "∞"}</b> ≈ <b>${isFinite(pm) ? (pm / p1).toFixed(1) : "∞"}×</b> p₁`);
   }
+  if (S.opt.pdeOn) lines.push(`Gleichung: <b>${PDE_MODELS[S.opt.pdeModel].name}</b> · ${S.opt.pdeRes}² Gitter · dt ${P.pdeDt.toFixed(3)} × ${Math.round(P.pdeSteps)} Schritte/Bild · t ≈ ${(time * P.pdeDt * P.pdeSteps * 60 / Math.max(1, P.speed)).toFixed(0)}`);
   if (S.opt.ethnoOn) lines.push(`Kultur: <b>${ETHNO_TYPES[S.opt.ethnoType].split(" · ")[0]}</b> · ${ethnoStats.replace(/<[^>]+>/g, "")}`);
   if (S.opt.wovenOn) lines.push(`Gewebe: Dichte <b>${P.wDensity.toFixed(0)}</b> · Wölbung <b>${P.wBulge.toFixed(2)}</b> · Band ${FORMS[S.opt.wShapeA]} → ${FORMS[S.opt.wShapeB]} (${P.wMorph.toFixed(2)})`);
   if (S.opt.viewMode === "kuerpig") lines.push(`Skulptur: ${sculptStats}`);
@@ -2947,7 +3317,7 @@ let lastFrame = performance.now(), fpsAcc = 0, fpsN = 0, fpsT = 0, uiT = 0, draw
 function frame(now) {
   const dt = clamp((now - lastFrame) / 1000, 0, 0.1); lastFrame = now;
   const P = S.base;
-  const animating = !S.paused && ((S.opt.waveOn && P.omega > 0 && P.speed > 0) || (S.opt.wovenOn && P.wMotion > 0 && P.speed > 0) || (S.opt.viewMode !== "flat" && P.spin !== 0) || anyModActive());
+  const animating = !S.paused && ((S.opt.waveOn && P.omega > 0 && P.speed > 0) || (S.opt.wovenOn && P.wMotion > 0 && P.speed > 0) || (S.opt.viewMode !== "flat" && P.spin !== 0) || S.opt.pdeOn || anyModActive());
   if (!S.paused && !document.hidden) { let rem = dt; while (rem > 0) { const step = Math.min(rem, 1 / 120); advance(step); rem -= step; } }
   if (animating || needsSync) { render(false); needsSync = false; drawCount++; }
   fpsAcc += dt; fpsN++;

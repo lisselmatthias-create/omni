@@ -101,3 +101,26 @@ Chevron, Gablonz, Lakota, Wixárika/Huichol. Der Katalog erhält zwölf Perlen-E
 Indus-Karneol und Chevron-Handelsperlen bis zu Zulu-Perlenbriefen, Maasai-Kragen, Lakota-Webrahmen (Eglashs Virtual Bead Loom) und
 Huichol-Peyotestich. Quellen: Eglash (CSDT), Krannert Art Museum (Ndebele), Petrie Museum (Perlennetz Qau), harappa.com (Karneol),
 Wikipedia/Barovier (Chevron), ethnographische Literatur zu Zulu-Farbcodes und Maasai-Altersklassen.
+
+### Gleichungsfeld · nach VisualPDE
+
+Eine Schicht im Musterstapel (Tab *Gleichungen*), die partielle Differentialgleichungen in Echtzeit auf der GPU löst, nach dem Vorbild
+von [VisualPDE](https://visualpde.com) (Walker, Krause et al., Universität Oxford). Zwei Felder *u*, *v* werden in
+Ping-Pong-Fließkommatexturen (128², 256² oder 512²) mit explizitem Euler-Schritt, 9-Punkt-Laplace und periodischen oder Neumann-Rändern integriert;
+Gleichungen vierter Ordnung (Cahn–Hilliard, Swift–Hohenberg, Kuramoto–Sivashinsky) laufen über eine Hilfsvariable, Transport und
+Burgers mit Upwind-Diskretisierung, die Wellengleichung symplektisch. 24 Modelle mit Formeltext, Hintergrund und Standardparametern:
+
+| Gruppe | Modelle |
+|---|---|
+| Grundgleichungen | Wärmeleitung, Wärmeleitung mit Quelle, Wellengleichung, Transport, Burgers |
+| Reaktion–Diffusion | Fisher–KPP, Allen–Cahn, Cahn–Hilliard, Swift–Hohenberg |
+| Turing-Muster | Gray–Scott, Schnakenberg, Gierer–Meinhardt, Brusselator |
+| Erregbare Medien | FitzHugh–Nagumo, Barkley, Oregonator |
+| Weitere | Keller–Segel (Chemotaxis), komplexe Ginzburg–Landau, nichtlineare Schrödinger, Kuramoto–Sivashinsky, KdV–Burgers, Räuber–Beute, SIR-Epidemie, Klausmeier-Vegetation |
+
+Parameter A–D, Diffusionen, Zeitschritt und Schritte pro Bild sind Regler und Modulationsziele; Ansicht *u*, *v*, |u|, Phase oder Differenz;
+Startzustände Rauschen, Blob, Spirale, Solitonen, Wellenpaket oder das darunterliegende Wellenmuster; Kopplung des aktuellen
+Wellen-/Moiré-Felds in A, B, D_u, D_v oder als Quellterm (Turing-Muster im inhomogenen Medium); Pinselmodus zum Hineinmalen von
+Störungen; Blendmodus mit den übrigen Schichten; zwölf Beispielaufbauten, Einführungsschritt und Experimente („Turing-Instabilität
+finden“, „Wellen im inhomogenen Medium“). Explizite Zeitintegration ⇒ Stabilitätsgrenze dt·D ≲ 1,2; außerhalb springt das Feld auf den
+Startzustand zurück.
