@@ -362,6 +362,15 @@
 
     <div class="ppage hidden" data-page="style">
       <div class="ctrl">
+        <h2>Perlen <small>Beadwork-Modus</small></h2>
+        <label class="check"><input type="checkbox" data-opt="beadOn"><span>Perlenmodus – jede Zelle wird eine Perle</span></label>
+        <label>Stich <select data-opt="beadStitch" class="optSel" data-dict="BEAD_STITCHES"></select></label>
+        <label>Perlenpalette <select data-opt="beadPal" class="optSel" data-dict="BEAD_PAL_NAMES"></select></label>
+        <div id="sl-bead" class="ctrl"></div>
+        <div id="beadStats" class="info"></div>
+        <div id="beadText" class="info"></div>
+      </div>
+      <div class="ctrl">
         <h2>Farbe</h2>
         <div class="row"><select data-opt="paletteA" class="palSel" aria-label="Palette A"></select><select data-opt="paletteB" class="palSel" aria-label="Palette B"></select></div>
         <div id="sl-color" class="ctrl"></div>
@@ -520,10 +529,15 @@ const specs = {
   sCurves: ["Meridiane / Geraden", 4, 48, 1, 24, "sculpt"],
   sRings: ["Parallelkreise", 2, 15, 1, 7, "sculpt"],
   sBrush: ["Bürstung", 0, 1, 0.01, 0.6, "sculpt"],
-  sPattern: ["Musteranteil auf dem Blech", 0, 1, 0.01, 0, "sculpt"]
+  sPattern: ["Musteranteil auf dem Blech", 0, 1, 0.01, 0, "sculpt"],
+  bSize: ["Perlengröße", 0.012, 0.2, 0.001, 0.045, "bead"],
+  bGap: ["Fadenabstand", 0, 0.45, 0.01, 0.1, "bead"],
+  bColors: ["Farbstufen", 2, 8, 1, 5, "bead"],
+  bShine: ["Glasglanz", 0, 1.5, 0.01, 0.6, "bead"],
+  bShape: ["Rund ↔ Röhrchen", 0, 1, 0.01, 0, "bead"]
 };
 const targets = Object.keys(specs);
-const targetLabels = Object.fromEntries(targets.map((k) => [k, specs[k][0] + (specs[k][5] === "g1" ? " (Gitter 1)" : specs[k][5] === "g2" ? " (Gitter 2)" : specs[k][5] === "woven" ? " (Gewebe)" : specs[k][5] === "ethno" ? " (Kultur)" : specs[k][5] === "sculpt" ? " (Skulptur)" : "")]));
+const targetLabels = Object.fromEntries(targets.map((k) => [k, specs[k][0] + (specs[k][5] === "g1" ? " (Gitter 1)" : specs[k][5] === "g2" ? " (Gitter 2)" : specs[k][5] === "woven" ? " (Gewebe)" : specs[k][5] === "ethno" ? " (Kultur)" : specs[k][5] === "sculpt" ? " (Skulptur)" : specs[k][5] === "bead" ? " (Perlen)" : "")]));
 // Welche Kultur-Regler bei welcher Technik sichtbar sind
 const ETHNO_USE = {
   eScale: "all", eLine: ["mirror", "lace", "nanduti", "symmetry", "fractal", "cornrow", "sashiko", "khipu"], eDot: ["mirror", "lace", "khipu"], eCurve: ["mirror"], eGap: ["mirror"],
@@ -541,6 +555,24 @@ const WEAVES = { checker: "Wechsel", warp: "Vertikal oben", weft: "Horizontal ob
 const PALETTES = { gray: "Graustufen", diverging: "Blau – Weiß – Rot", spectrum: "Spektrum", ocean: "Ozean", ember: "Glut", aurora: "Aurora", ice: "Eis", violet: "Violett" };
 const BODIES = { flat: "2D · Fläche", cloth: "Tuch", stack: "Schichtgewebe", torus: "Torus", sphere: "Kugel", tunnel: "Tunnel", mobius: "Möbiusband", helix: "Helix", shell: "Muschel", kuerpig: "Kürpig-Skulptur" };
 const SCULPT_KINDS = { tetra: "Tetraeder", cube: "Würfel", octa: "Oktaeder", dodeca: "Dodekaeder", icosa: "Ikosaeder", cubocta: "Kuboktaeder", icosidodeca: "Ikosidodekaeder", truncicosa: "Abgestumpftes Ikosaeder", rhombdodeca: "Rhombendodekaeder", rhombtriaconta: "Rhombentriakontaeder", sphere: "Scheibenkugel", cyclide: "Dupin-Zyklide · Kreise", hypar: "Hyperbolisches Paraboloid · Geraden", helicoid: "Helikoid · Geraden", wormsphere: "Kugel mit zwei Helikoiden" };
+const BEAD_STITCHES = { loom: "Webrahmen · Quadratgitter", brick: "Peyote / Ziegel · versetzt", net: "Netz · Sechseckgitter", radial: "Kragen · Ringe" };
+const BEAD_PALETTES = {
+  none: ["Farbverlauf (Stil)", []],
+  zulu: ["Zulu · Südafrika", ["#ffffff", "#111111", "#d1202a", "#1c7a3a", "#1d4fd1", "#f2d234", "#e84f9b"]],
+  ndebele: ["Ndebele · Südafrika", ["#f7f7f2", "#1d4fd1", "#1c7a3a", "#d1202a", "#111111", "#f2d234"]],
+  maasai: ["Maasai · Kenia/Tansania", ["#d1202a", "#1d4fd1", "#ffffff", "#1c7a3a", "#f28c28", "#111111"]],
+  bamileke: ["Bamileke · Kamerun", ["#1d3fa8", "#ffffff", "#d1202a", "#111111", "#f2d234"]],
+  yoruba: ["Yoruba · Nigeria", ["#f2d234", "#1d4fd1", "#d1202a", "#ffffff", "#1c7a3a", "#111111"]],
+  krobo: ["Krobo · Ghana", ["#f2d234", "#2b8fd6", "#f3efe0", "#d1202a", "#1c7a3a"]],
+  egypt: ["Fayence · Altes Ägypten", ["#3fb8b0", "#1f5fb0", "#111111", "#f3efe0"]],
+  indus: ["Karneol · Indus", ["#b5451b", "#f3e9d8", "#6b2a0e"]],
+  dayak: ["Dayak · Borneo", ["#f2d234", "#111111", "#d1202a", "#ffffff"]],
+  venice: ["Chevron · Venedig", ["#1d4fd1", "#ffffff", "#d1202a", "#f2d234", "#1c7a3a"]],
+  bohemia: ["Gablonz · Böhmen", ["#7fd1ff", "#f3efe0", "#b05fd1", "#ffd37a", "#111111"]],
+  lakota: ["Lakota · Great Plains", ["#ffffff", "#2b5fc4", "#d1202a", "#f2d234", "#1c7a3a", "#111111"]],
+  huichol: ["Wixárika/Huichol · Mexiko", ["#ff2fa0", "#1aa7ff", "#ffe600", "#28c75a", "#ff7a00", "#7a2bff", "#ffffff"]]
+};
+const BEAD_PAL_NAMES = Object.fromEntries(Object.entries(BEAD_PALETTES).map(([k, v]) => [k, v[0]]));
 const SCULPT_AXES = { vertex: "Ecke", vertexB: "Ecke (2. Art)", edge: "Kantenmitte", face: "Flächenmitte", faceB: "Flächenmitte (2. Art)" };
 const WAVEFORMS = { sine: "Sinus", tri: "Dreieck", saw: "Säge auf", fall: "Säge ab", pulse: "Puls", smooth: "Zufall weich", hold: "Sample & Hold", steps: "4 Stufen" };
 
@@ -561,13 +593,14 @@ const optionSpecs = {
   wShapeA: Object.keys(FORMS), wShapeB: Object.keys(FORMS), wWeave: Object.keys(WEAVES), wWeaveAlt: Object.keys(WEAVES),
   wField: ["0", "1", "2", "3"], paletteA: Object.keys(PALETTES), paletteB: Object.keys(PALETTES),
   viewMode: Object.keys(BODIES), viewBlend: Object.keys(BODIES).filter((k) => k !== "flat" && k !== "kuerpig"),
-  sculptKind: Object.keys(SCULPT_KINDS), sculptAxis: Object.keys(SCULPT_AXES)
+  sculptKind: Object.keys(SCULPT_KINDS), sculptAxis: Object.keys(SCULPT_AXES),
+  beadStitch: Object.keys(BEAD_STITCHES), beadPal: Object.keys(BEAD_PALETTES)
 };
 const optionDefaults = {
   waveView: "snapshot", g1Type: "lines", g2Type: "lines", wovenBlend: "multiply", g1Blend: "multiply", g2Blend: "multiply",
   wShapeA: "ribbon", wShapeB: "wire", wWeave: "checker", wWeaveAlt: "light", wField: "0", paletteA: "diverging", paletteB: "ice",
   viewMode: "flat", viewBlend: "torus",
-  sculptKind: "tetra", sculptAxis: "edge",
+  sculptKind: "tetra", sculptAxis: "edge", beadStitch: "loom", beadPal: "none", beadOn: false,
   ethnoType: "mirror", ethnoBlend: "multiply", mirrorRegion: "rect", tabletPreset: "diamond", draftPreset: "twill", lacePreset: "spider", symGroup: "p6m", sashikoKind: "seigaiha", tapestryKind: "diamond",
   waveOn: true, wovenOn: false, g1On: false, g2On: false, ethnoOn: false, showSources: true, aa: true, invert: false
 };
@@ -1147,6 +1180,57 @@ vec3 shade(float t, vec2 px) {
   float l = dot(col, vec3(0.299, 0.587, 0.114));
   return clamp(mix(vec3(l), col, P_saturation), 0.0, 1.0);
 }
+uniform int u_beadOn, u_beadStitch, u_beadPalN;
+uniform vec3 u_beadPal[8];
+float toneOf(float t) { t = clamp((t - 0.5) * P_contrast + 0.5, 0.0, 1.0); t = pow(t, P_gamma); if (u_invert > 0.5) t = 1.0 - t; return t; }
+vec3 beadColorFor(float t) {
+  float n = max(floor(P_bColors + 0.5), 2.0);
+  if (u_beadPalN > 0) n = min(n, float(u_beadPalN));
+  float idx = clamp(floor(toneOf(t) * n), 0.0, n - 1.0);
+  if (u_beadPalN > 0) return u_beadPal[int(idx)];
+  float lvl = idx / (n - 1.0);
+  vec3 col = mix(colorize(lvl, u_palA), colorize(lvl, u_palB), P_paletteMix);
+  col = hueRotate(col, radians(P_hue));
+  float l = dot(col, vec3(0.299, 0.587, 0.114));
+  return clamp(mix(vec3(l), col, P_saturation), 0.0, 1.0);
+}
+// Perlenmodus: jede Zelle eine Perle, Farbe am Perlenmittelpunkt abgefragt und quantisiert
+vec3 beads(vec2 q) {
+  float s = max(P_bSize, 0.004);
+  vec2 c, l;
+  if (u_beadStitch == 3) {
+    float r = length(q); float ring = floor(r / s); float rc = (ring + 0.5) * s;
+    float circ = max(6.0, floor(TAU * rc / s));
+    float a = atan(q.y, q.x); float ai = floor((a + 3.14159265) / TAU * circ); float ac = (ai + 0.5) / circ * TAU - 3.14159265;
+    vec2 er = vec2(cos(ac), sin(ac)); c = er * rc; vec2 et = vec2(-er.y, er.x); vec2 d = q - c;
+    float sw = TAU * rc / circ;
+    l = vec2(dot(d, et) / (sw * 0.5), dot(d, er) / (s * 0.5));
+  } else {
+    float h = (u_beadStitch == 2) ? s * 0.866 : s * 0.82;
+    float row = floor(q.y / h);
+    float off = (u_beadStitch >= 1 && mod(row, 2.0) > 0.5) ? 0.5 : 0.0;
+    float col = floor(q.x / s - off);
+    c = vec2((col + off + 0.5) * s, (row + 0.5) * h);
+    l = (q - c) / vec2(s * 0.5, h * 0.5);
+  }
+  vec3 bc = beadColorFor(pattern(c));
+  vec2 lp = l / max(1.0 - P_bGap, 0.2);
+  float rr = dot(lp, lp);
+  vec3 thread = vec3(0.07, 0.065, 0.06);
+  float aa = fwidth(rr) * 1.2 + 0.01;
+  float m = 1.0 - smoothstep(1.0 - aa, 1.0 + aa, rr);
+  if (m <= 0.001) return thread;
+  float z = sqrt(max(0.0, 1.0 - min(rr, 1.0)));
+  vec3 n = normalize(vec3(lp.x, lp.y, z));
+  vec3 nc = normalize(vec3(lp.x, 0.0, sqrt(max(0.0, 1.0 - min(lp.x * lp.x, 1.0)))));
+  n = normalize(mix(n, nc, P_bShape));
+  vec3 ld = normalize(vec3(-0.45, 0.65, 0.7));
+  float diff = max(0.0, dot(n, ld));
+  float spec = pow(max(0.0, dot(n, normalize(ld + vec3(0.0, 0.0, 1.0)))), 36.0) * P_bShine;
+  float rimDark = 0.65 + 0.35 * smoothstep(1.0, 0.6, rr);
+  vec3 col = bc * (0.4 + 0.6 * diff) * rimDark + spec;
+  return mix(thread, col, m);
+}
 float markers(vec2 q, float px) {
   float m = 0.0;
   for (int i = 0; i < ${MAX_SRC}; i++) {
@@ -1176,8 +1260,8 @@ ${glslCommon}
 in vec2 v_uv; out vec4 fragColor;
 void main() {
   vec2 q = toWorld(v_uv, u_res.x / u_res.y);
-  float t = pattern(q);
-  vec3 col = shade(t, gl_FragCoord.xy);
+  vec3 col;
+  if (u_beadOn == 1) col = beads(q); else col = shade(pattern(q), gl_FragCoord.xy);
   if (u_showSources > 0.5 && u_on.x == 1) col = mix(col, vec3(1.0, 0.7, 0.2), markers(q, 2.0 / (u_res.y * P_zoom)) * 0.9);
   fragColor = vec4(col, 1.0);
 }`;
@@ -1260,7 +1344,7 @@ void main() {
   float diffuse = max(0.0, dot(n, lightDir));
   float specular = pow(max(0.0, dot(n, normalize(lightDir + viewDir))), mix(8.0, 88.0, P_metal)) * P_metal;
   float edge = pow(1.0 - max(0.0, dot(n, viewDir)), 2.5) * P_rim;
-  vec3 material = shade(t, gl_FragCoord.xy);
+  vec3 material = u_beadOn == 1 ? beads(q) : shade(t, gl_FragCoord.xy);
   if (u_showSources > 0.5 && u_on.x == 1) material = mix(material, vec3(1.0, 0.7, 0.2), markers(q, 0.004 / P_zoom) * 0.9);
   vec3 shaded = (material * (0.45 + 0.65 * diffuse) + specular * vec3(0.8, 0.9, 1.0) + edge * mix(vec3(0.25, 0.5, 0.7), material, 0.5)) * P_exposure;
   vec3 background = vec3(0.72, 1.0, 1.6) * P_background;
@@ -1295,7 +1379,7 @@ function makeProgram(vsrc, fsrc, mesh) {
   if (mesh) { const ib = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(idx), gl.STATIC_DRAW); }
   const names = ["uP[0]", "u_res", "u_time", "u_fieldPhase", "u_ampNorm", "u_invert", "u_aa", "u_showSources", "u_waveView", "u_srcCount", "u_activeSrc", "u_hoverSrc",
     "u_wField", "u_g1Type", "u_g2Type", "u_palA", "u_palB", "u_on", "u_blends", "u_wovenK", "u_srcA[0]", "u_srcB[0]", "u_eye", "u_layer", "u_mode", "u_modeB",
-    "u_data", "u_dataSize", "u_ethnoType", "u_ethnoSub", "u_khipuN", "u_khipu[0]", "u_ethnoFlags"];
+    "u_data", "u_dataSize", "u_ethnoType", "u_ethnoSub", "u_khipuN", "u_khipu[0]", "u_ethnoFlags", "u_beadOn", "u_beadStitch", "u_beadPalN", "u_beadPal[0]"];
   const u = {}; names.forEach((n) => { u[n.replace("[0]", "")] = gl.getUniformLocation(pr, n); });
   return { pr, vao, count: idx.length, u };
 }
@@ -1352,7 +1436,7 @@ void main() {
   if (P_sPattern > 0.001) {
     vec2 q = toWorld(v_loc.xy * 0.5 + 0.5, 1.0);
     float t = pattern(q);
-    col = mix(steel, shade(t, gl_FragCoord.xy) * (0.45 + 0.6 * diff) + spec * 0.5, P_sPattern);
+    col = mix(steel, (u_beadOn == 1 ? beads(q) : shade(t, gl_FragCoord.xy)) * (0.45 + 0.6 * diff) + spec * 0.5, P_sPattern);
   }
   col *= P_exposure;
   vec3 bg = vec3(0.72, 1.0, 1.6) * P_background;
@@ -1367,7 +1451,7 @@ const progSculpt = (() => {
   for (const [name, buf] of [["a_pos", bufs.pos], ["a_nrm", bufs.nrm], ["a_loc", bufs.loc]]) { gl.bindBuffer(gl.ARRAY_BUFFER, buf); const l = gl.getAttribLocation(pr, name); gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, 3, gl.FLOAT, false, 0, 0); }
   const names = ["uP[0]", "u_res", "u_time", "u_fieldPhase", "u_ampNorm", "u_invert", "u_aa", "u_showSources", "u_waveView", "u_srcCount", "u_activeSrc", "u_hoverSrc",
     "u_wField", "u_g1Type", "u_g2Type", "u_palA", "u_palB", "u_on", "u_blends", "u_wovenK", "u_srcA[0]", "u_srcB[0]", "u_eye",
-    "u_data", "u_dataSize", "u_ethnoType", "u_ethnoSub", "u_khipuN", "u_khipu[0]", "u_ethnoFlags", "u_worm"];
+    "u_data", "u_dataSize", "u_ethnoType", "u_ethnoSub", "u_khipuN", "u_khipu[0]", "u_ethnoFlags", "u_worm", "u_beadOn", "u_beadStitch", "u_beadPalN", "u_beadPal[0]"];
   const u = {}; names.forEach((n) => { u[n.replace("[0]", "")] = gl.getUniformLocation(pr, n); });
   return { pr, vao, bufs, u, count: 0 };
 })();
@@ -1433,7 +1517,13 @@ function uploadCommon(u, P, w, h) {
   gl.uniform4i(u.u_ethnoFlags, bk.indexOf(o.ethnoBlend), 0, 0, 0);
   khipuArr.fill(0); S.khipu.forEach((n, i) => { if (i < 12) khipuArr[i] = n; });
   gl.uniform1fv(u.u_khipu, khipuArr); gl.uniform1i(u.u_khipuN, Math.min(12, S.khipu.length));
+  gl.uniform1i(u.u_beadOn, o.beadOn ? 1 : 0);
+  gl.uniform1i(u.u_beadStitch, Object.keys(BEAD_STITCHES).indexOf(o.beadStitch));
+  const pal = (BEAD_PALETTES[o.beadPal] || BEAD_PALETTES.none)[1];
+  beadArr.fill(0); pal.slice(0, 8).forEach((hex, i) => { beadArr[i * 3] = parseInt(hex.slice(1, 3), 16) / 255; beadArr[i * 3 + 1] = parseInt(hex.slice(3, 5), 16) / 255; beadArr[i * 3 + 2] = parseInt(hex.slice(5, 7), 16) / 255; });
+  gl.uniform3fv(u.u_beadPal, beadArr); gl.uniform1i(u.u_beadPalN, Math.min(8, pal.length));
 }
+const beadArr = new Float32Array(24);
 
 // Sichtbarer Bereich in CSS-Pixeln: auf schmalen Bildschirmen liegt das Bedienfeld über der Bühne
 function visibleRect() {
@@ -1648,6 +1738,13 @@ function refreshEffective() {
     valueEl.classList.toggle("effective", diff);
   });
   meters.forEach((el) => { el.style.transform = "scaleX(" + clamp(0.5 + signals[+el.dataset.meter] * 0.5, 0, 1) + ")"; });
+  if (S.opt.beadOn) {
+    const vr = visibleRect(), aspect = vr.width / vr.height, sz = Math.max(P.bSize, 0.004);
+    const h = S.opt.beadStitch === "net" ? sz * 0.866 : sz * 0.82;
+    const cols = Math.round(2 * aspect / P.zoom / sz), rows = Math.round(2 / P.zoom / h);
+    const pal = BEAD_PALETTES[S.opt.beadPal][1]; const n = pal.length ? Math.min(Math.round(P.bColors), pal.length) : Math.round(P.bColors);
+    $("beadStats").innerHTML = S.opt.beadStitch === "radial" ? `Kragen: <b>${Math.round(1 / P.zoom / sz)}</b> Ringe bis zum Bildrand · ${n} Farben` : `Sichtbare Vorlage: <b>${cols} × ${rows}</b> = <b>${cols * rows}</b> Perlen · ${n} Farben · ${BEAD_STITCHES[S.opt.beadStitch]}`;
+  } else $("beadStats").textContent = "";
   const xx = specs[$("xyX").value], yy = specs[$("xyY").value];
   if (xx && yy) {
     $("xyDot").style.left = (S.base[$("xyX").value] - xx[1]) / (xx[2] - xx[1]) * 100 + "%";
@@ -2096,10 +2193,27 @@ const catalog = [
   { cont: "Ozeanien", title: "Mattang der Marshallinseln", region: "Mikronesien", tech: "Dünungskarte aus Palmrippen", math: "Wellenüberlagerung, Knotenlinien", text: "Navigatoren lesen, wie Inseln die Dünung beugen; wo zwei Dünungen sich treffen, spüren sie Knotenlinien (booj). Hier als Interferenz zweier Dünungen mit Insel als Streuquelle.", cfg: { name: "Mattang", opt: { ethnoOn: false, waveOn: true, waveView: "intensity", paletteA: "ocean", paletteB: "ice" }, base: { lambda: 0.14, paletteMix: 0.3, damping: 0.3 }, sources: () => [mkSource(-1.3, 0, { type: "plane", angle: 0.2 }), mkSource(1.3, 0.2, { type: "plane", angle: Math.PI - 0.3, amp: 0.7 }), mkSource(0.1, -0.1, { amp: 0.6, phase: Math.PI })] } },
   { cont: "Ozeanien", title: "Tukutuku · Poutama", region: "Aotearoa Neuseeland", tech: "Flechtpaneele", math: "Treppenmotiv, Fries", text: "Māori-Wandpaneele aus Schilf und Flachs; Poutama (Treppe) steht für Wachstum und Wissen.", cfg: { name: "Poutama", opt: { ethnoType: "tapestry", tapestryKind: "steps", paletteA: "gray", paletteB: "ember" }, base: { eStep: 8, eA: 0.3, paletteMix: 0.45 } } },
   { cont: "Ozeanien", title: "Kōwhaiwhai", region: "Aotearoa Neuseeland", tech: "Dachsparren-Malerei", math: "Friesgruppe p11g", text: "Koru-Spiralen in Gleitspiegelung entlang der Sparren – Washburn & Crowe analysierten sie als Friese.", cfg: { name: "Kōwhaiwhai · p11g", opt: { ethnoType: "symmetry", symGroup: "f-p11g", paletteA: "ember", paletteB: "gray" }, base: { paletteMix: 0.35, eA: 0.25, eB: 0.6, eSeed: 3, eLine: 0.3, eScale: 1.2 } } },
+  { cont: "Afrika", title: "Zulu-Perlenbriefe", region: "KwaZulu-Natal, Südafrika", tech: "Perlenarbeit · Ziegelstich", math: "Farbcode, Dreiecksgitter", text: "Ubhala abuyise: Dreiecke und Farben tragen Botschaften – Weiß Treue, Rot Liebe, Blau Treue oder Einsamkeit, Grün Zufriedenheit.", cfg: { name: "Zulu-Perlenbrief", opt: { ethnoType: "tapestry", tapestryKind: "diamond", beadOn: true, beadStitch: "brick", beadPal: "zulu" }, base: { eStep: 5, eA: 0.45, eScale: 1.2, bSize: 0.045, bColors: 7, bShine: 0.7 } } },
+  { cont: "Afrika", title: "Ndebele-Geometrie", region: "Mpumalanga, Südafrika", tech: "Perlenarbeit · Webrahmen", math: "Stufenblöcke, Translation", text: "Bunte Blöcke auf weißem Grund wie die Hausmalerei; Perlenarbeit markiert die Lebensphasen der Frauen.", cfg: { name: "Ndebele", opt: { ethnoType: "tapestry", tapestryKind: "steps", beadOn: true, beadStitch: "loom", beadPal: "ndebele" }, base: { eStep: 4, eA: 0.3, bSize: 0.04, bColors: 6 } } },
+  { cont: "Afrika", title: "Maasai-Kragen", region: "Kenia · Tansania", tech: "Perlenarbeit · Ringe", math: "Polarraster, Altersklassen-Code", text: "Konzentrische Ringe aus Rot (Mut), Blau (Energie), Weiß (Frieden), Grün, Orange; jede Altersklasse trägt eigene Farben.", cfg: { name: "Maasai-Kragen", opt: { ethnoOn: false, g1On: true, g1Type: "rings", beadOn: true, beadStitch: "radial", beadPal: "maasai" }, base: { g1Period: 0.22, g1Duty: 0.5, g1Soft: 0.5, bSize: 0.034, bColors: 6, bShine: 0.8 } } },
+  { cont: "Afrika", title: "Bamileke-Perlenthron", region: "Grasland, Kamerun", tech: "Perlenbesatz", math: "Zickzack-Fries", text: "Throne, Masken und Elefantenmasken sind vollständig mit Perlen in Zickzack- und Dreiecksreihen besetzt.", cfg: { name: "Bamileke", opt: { ethnoType: "tapestry", tapestryKind: "zigzag", beadOn: true, beadStitch: "loom", beadPal: "bamileke" }, base: { eStep: 6, eA: 0.6, bSize: 0.04, bColors: 5 } } },
+  { cont: "Afrika", title: "Yoruba-Perlenkrone", region: "Nigeria", tech: "Perlenbesatz", math: "Gruppe pmm", text: "Die Kronen (adé) der Oba tragen Gesichter und Vögel in Perlen – Spiegelsymmetrien auf blauem Grund.", cfg: { name: "Yoruba-Krone", opt: { ethnoType: "symmetry", symGroup: "pmm", beadOn: true, beadStitch: "brick", beadPal: "yoruba" }, base: { eSeed: 5, eA: 0.35, eB: 0.5, eLine: 0.3, eScale: 1.4, bSize: 0.03, bColors: 6 } } },
+  { cont: "Afrika", title: "Ägyptisches Perlennetz", region: "Qau, Altes Reich (um 2400 v. Chr.)", tech: "Fayence-Stiftperlen · Netz", math: "Rautengitter", text: "Perlennetzkleider aus blauen und grünen Fayenceröhrchen im Rautenmuster – das älteste erhaltene Lozenge-Gewand.", cfg: { name: "Perlennetz", opt: { ethnoOn: false, g1On: true, g1Type: "checker", beadOn: true, beadStitch: "net", beadPal: "egypt" }, base: { g1Period: 0.4, g1Soft: 0.5, bSize: 0.05, bGap: 0.3, bShape: 1, bColors: 2, bShine: 0.5 } } },
+  { cont: "Asien", title: "Indus-Karneolperlen", region: "Harappa · Dholavira (3. Jt. v. Chr.)", tech: "Geätzte Steinperlen", math: "Linienmuster, Fernhandel", text: "Weiße, alkalisch geätzte Linien auf rotem Karneol; gehandelt bis Mesopotamien und an den Golf.", cfg: { name: "Karneol", opt: { ethnoOn: false, g1On: true, g1Type: "lines", beadOn: true, beadStitch: "loom", beadPal: "indus" }, base: { g1Period: 0.16, g1Duty: 0.18, g1Angle: 90, bSize: 0.09, bShape: 1, bColors: 2, bGap: 0.08 } } },
+  { cont: "Asien", title: "Dayak-Perlenarbeit", region: "Borneo", tech: "Perlenarbeit · Ziegelstich", math: "Gruppe pgg", text: "Hakenspiralen und Hundsdrachen (aso) in Gelb, Schwarz und Rot mit Gleitspiegelungen.", cfg: { name: "Dayak", opt: { ethnoType: "symmetry", symGroup: "pgg", beadOn: true, beadStitch: "brick", beadPal: "dayak" }, base: { eSeed: 23, eA: 0.25, eB: 0.7, eLine: 0.3, eScale: 1.5, bSize: 0.03, bColors: 4 } } },
+  { cont: "Europa", title: "Venezianische Chevron-Perle", region: "Murano, um 1500", tech: "Glasperle in Schichten", math: "Sternquerschnitt, Ringe", text: "Rosetta-Perlen aus bis zu sieben Glasschichten mit zwölfzackigem Stern – die Handelsperle Afrikas und Amerikas.", cfg: { name: "Chevron", opt: { ethnoOn: false, g1On: true, g1Type: "rings", g2On: true, g2Type: "radial", g2Blend: "xor", beadOn: true, beadStitch: "radial", beadPal: "venice" }, base: { g1Period: 0.18, g1Soft: 0.4, g2Period: 1 / 12, g2Duty: 0.5, bSize: 0.03, bColors: 5 } } },
+  { cont: "Europa", title: "Böhmische Glasperlen", region: "Gablonz, 19. Jh.", tech: "Gepresste Glasperlen", math: "Kreisgitter", text: "Aus Gablonz kamen Millionen Perlen in die Welt; hier als Sieben-Schätze-Kreisgitter geperlt.", cfg: { name: "Gablonz", opt: { ethnoType: "sashiko", sashikoKind: "shippo", beadOn: true, beadStitch: "loom", beadPal: "bohemia" }, base: { eLine: 0.3, eScale: 1.3, bSize: 0.035, bColors: 5, bShine: 1.0 } } },
+  { cont: "Amerika", title: "Lakota-Webrahmen", region: "Great Plains, USA", tech: "Perlenweberei", math: "Kartesische Koordinaten (Eglash)", text: "Stufenrauten in Weiß, Blau und Rot; Eglashs Virtual Bead Loom lehrt daran Koordinaten und vierfache Symmetrie.", cfg: { name: "Lakota-Webrahmen", opt: { ethnoType: "tapestry", tapestryKind: "diamond", beadOn: true, beadStitch: "loom", beadPal: "lakota" }, base: { eStep: 6, eA: 0.35, bSize: 0.04, bColors: 6 } } },
+  { cont: "Amerika", title: "Wixárika-Peyotestich", region: "Jalisco · Nayarit, Mexiko", tech: "Perlen auf Wachs", math: "Hexagonales Gitter, p6m", text: "Perlen werden einzeln in warmes Bienenwachs gesetzt; Peyote-Blüten, Hirsch und Mais in leuchtenden Farben.", cfg: { name: "Huichol", opt: { ethnoType: "symmetry", symGroup: "p6m", beadOn: true, beadStitch: "brick", beadPal: "huichol" }, base: { eSeed: 2, eA: 0.2, eB: 0.75, eLine: 0.3, eScale: 1.3, bSize: 0.03, bColors: 7, bShine: 0.9 } } },
   { cont: "Ozeanien", title: "Siapo · Ngatu", region: "Samoa · Tonga", tech: "Rindenbaststoff (Tapa)", math: "Rasterfelder, p4m", text: "Bedruckte oder gemalte Felder mit Rauten, Dreiecken und Blättern in strengen Rastern.", cfg: { name: "Siapo · p4g", opt: { ethnoType: "symmetry", symGroup: "p4g", paletteA: "ember", paletteB: "gray" }, base: { paletteMix: 0.5, eA: 0.4, eB: 0.3, eSeed: 7, eLine: 0.22, eScale: 1.4 } } }
 ];
+const BEAD_TEXT = `<p><b>Herkunft.</b> Perlen sind der älteste Schmuck der Menschheit: durchbohrte Schneckenhäuser aus Blombos (Südafrika, um 75 000 Jahre) und Straußeneischeiben, später Fayence in Ägypten (Perlennetzkleider mit Rautenmuster, Altes Reich um 2400 v. Chr.), geätzte Karneolperlen der Indus-Kultur (3. Jt. v. Chr., bis Mesopotamien gehandelt), venezianische Chevron- und böhmische Glasperlen (Barovier um 1500, Gablonz 19. Jh.), die als Handelsperlen nach Afrika und Amerika gelangten und dort eigene Sprachen hervorbrachten: Zulu-Perlenbriefe <i>ubhala abuyise</i> mit Farbcode (Weiß Treue, Rot Liebe oder Zorn, Blau Treue oder Einsamkeit, Grün Zufriedenheit oder Sehnsucht), Ndebele-Geometrie auf weißem Grund, Maasai-Kragen mit Farben der Altersklassen, Yoruba-Perlenkronen, Bamileke-Perlenthrone, Krobo-Pulverglasperlen; Lakota-Webrahmenarbeit, Wixárika-/Huichol-Peyotestich auf Wachs, Dayak-Perlenarbeit auf Borneo.</p>
+<p><b>Mathematik.</b> Perlenarbeit ist Diskretisierung: ein Bild wird auf ein Gitter aus gleichen Zellen abgebildet und auf wenige Farben quantisiert – lange vor dem Pixel. Der Webrahmen ist ein Quadratgitter (Ron Eglashs <i>Virtual Bead Loom</i> lehrt damit kartesische Koordinaten und vierfache Symmetrie), Peyote- und Ziegelstich sind versetzte Reihen, also das hexagonale Gitter der dichtesten Kreispackung, Netzarbeit ein Rautengitter, Kragen ein Polarraster aus Ringen. Farbcodes machen Perlen zu einem Informationssystem; Anzahl, Reihen und Spalten sind Zählaufgaben jeder Vorlage.</p>
+<p><b>Ausprobieren.</b> Jede Ebene – Wellen, Moiré, Gewebe, Kulturmuster, 3D-Körper, Kürpig-Bleche – lässt sich perlen: Perlengröße und Farbstufen bestimmen die Auflösung, der Stich das Gitter, die Palette die Kultur. „Rund ↔ Röhrchen“ macht aus Rocailles Stiftperlen (wie in Ägypten und am Indus). Der Perlenzähler darunter nennt Reihen, Spalten und Perlenzahl für die sichtbare Fläche – PNG speichern liefert die Vorlage.</p>`;
+const CONT_ORDER = ["Afrika", "Asien", "Europa", "Amerika", "Ozeanien"];
 (function buildCatalog() {
   const c = $("catalog"); let lastCont = "";
+  catalog.sort((a, b) => CONT_ORDER.indexOf(a.cont) - CONT_ORDER.indexOf(b.cont));
   catalog.forEach((e, i) => {
     if (e.cont !== lastCont) { const h = document.createElement("div"); h.className = "cont"; h.textContent = e.cont; c.appendChild(h); lastCont = e.cont; }
     const d = document.createElement("div"); d.className = "cat";
@@ -2111,7 +2225,9 @@ const catalog = [
 /* ------------------------------------------------ Kultur-Bedienelemente */
 (function ethnoControls() {
   document.querySelectorAll(".ethnoSel").forEach((s) => fillSelect(s, ETHNO_TYPES));
-  const dicts = { MIRROR_REGIONS, TABLET_PRESETS, DRAFT_PRESETS, LACE_PRESETS, SYM_GROUPS, SASHIKO_KINDS, TAPESTRY_KINDS };
+  const dicts = { MIRROR_REGIONS, TABLET_PRESETS, DRAFT_PRESETS, LACE_PRESETS, SYM_GROUPS, SASHIKO_KINDS, TAPESTRY_KINDS, BEAD_STITCHES, BEAD_PAL_NAMES };
+  targets.filter((k) => specs[k][5] === "bead").forEach((k) => makeSlider($("sl-bead"), paramSlider(k)));
+  $("beadText").innerHTML = BEAD_TEXT;
   document.querySelectorAll(".optSel").forEach((s) => fillSelect(s, dicts[s.dataset.dict]));
   targets.filter((k) => specs[k][5] === "ethno").forEach((k) => {
     const d = paramSlider(k); const use = ETHNO_USE[k];
@@ -2747,7 +2863,7 @@ const introSlides = [
     <div class="try">Tab <b>Matrix</b>: „Muster anwenden“ verknüpft acht Ziele auf einen Schlag. <b>Mod</b> oben schaltet alles stumm, ↶ holt den vorherigen Zustand zurück.</div>` },
   { title: "6 · Ethnomathematik", scene: "sona", html: `
     <p>Muster sind Mathematik in Händen: Sona-Sandzeichnungen der Cokwe, Kolam aus Tamil Nadu, keltische Knoten, Brettchenweben aus Hallstatt, Kente, Ikat, Klöppelspitze, Ñandutí, Khipu, die Dünungskarten der Marshallinseln. Der Tab <b>Kulturen</b> macht sie als eigene Ebene erfahrbar – auf der Fläche oder auf jedem 3D-Körper, mischbar mit Wellen und Gittern, modulierbar über die Matrix.</p>
-    <p>Hinter dieser Karte: ein Sona-Raster 6 × 4. ggT(6, 4) = 2, also zwei geschlossene Kurven.</p>
+    <p>Hinter dieser Karte: ein Sona-Raster 6 × 4. ggT(6, 4) = 2, also zwei geschlossene Kurven. Unter <b>Stil → Perlen</b> wird jede Ebene zur Perlenarbeit – Zulu, Ndebele, Maasai, Lakota, Huichol, Ägypten, Indus, Venedig.</p>
     <div class="try">Tippe zwischen zwei Punkte, um einen Spiegel zu setzen – die Kurven verbinden sich neu. Im Katalog findest du über dreißig Aufbauten aus fünf Kontinenten.</div>` },
   { title: "7 · Skulpturen nach Friedhelm Kürpig", scene: "kuerpig", html: `
     <p>Der Aachener Geometer und Bildhauer <b>Friedhelm Kürpig</b> zerlegt Polyeder senkrecht zu einer Symmetrieachse in parallele Edelstahlscheiben und montiert sie mit Abständen neu. Beim Blick entlang der Achse schließen sich die Scheiben zum Körper, von der Seite erscheint er gestreckt oder löst sich auf – sein Tetraeder vor dem Mathematikum wirkt als Pyramide, Würfel oder Quader.</p>
@@ -2788,6 +2904,7 @@ const experiments = [
   { title: "Knotenlinien der Navigatoren", text: "Mattang laden: zwei Dünungen und eine Insel als Streuquelle. Die hellen und dunklen Linien in der Intensität sind die booj, die Marshall-Navigatoren im Kanu spüren. Winkel der ebenen Wellen verändern.", scene: "mattang" },
   { title: "Blickachse finden", text: "Kürpigsches Tetraeder laden, Automatische Drehung auf 0 und die Kamera drehen, bis die Scheiben zu einem geschlossenen Quadrat verschmelzen – das ist der Blick entlang der zweizähligen Achse. Dann Achse auf „Ecke“ wechseln: Die Schnitte werden zu Dreiecken.", scene: "kuerpig" },
   { title: "Moiré zwischen Blechen", text: "Unter Raum → Skulptur „Moiré im Stapel“ laden: 31 Würfelscheiben tragen dasselbe Liniengitter. Beim Blick schräg durch den Stapel überlagern sich die Gitter der Scheiben zu Moiré-Streifen, die mit der Kamera wandern.", scene: "kuerpig", after: (s) => { loadWork(works[11]); } },
+  { title: "Perlen zählen", text: "Lakota-Webrahmen aus dem Katalog laden. Unter Stil → Perlen stehen Reihen, Spalten und Perlenzahl der sichtbaren Vorlage. Perlengröße verdoppeln: Die Zahl viertelt sich – Auflösung gegen Material.", scene: "doubleslit", after: () => { const e = catalog.find((x) => x.title === "Lakota-Webrahmen"); if (e) ethnoSetup(e.cfg); showPage("style"); } },
   { title: "Eigene Modulation bauen", text: "Beliebige Szene, dann in der Matrix alle Quellen aus. LFO 1: Ziel λ, Tiefe 0,15, Rate 0,05 Hz. LFO 2: Ziel Quellen-Drehung, Dreieck, Tiefe 0,3. Beobachte Basis → Effektiv.", scene: "standing" }
 ];
 $("experiments").innerHTML = experiments.map((ex, i) => `<div class="exp"><h3>${ex.title}</h3><p>${ex.text}</p><button class="btn secondary" data-exp="${i}">Aufbau laden</button></div>`).join("");

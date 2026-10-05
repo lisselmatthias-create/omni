@@ -89,3 +89,15 @@ aus 24 Meridian- und 7 Parallelkreisen, das hyperbolische Paraboloid und das Hel
 Moiré-Feld auf jedem Blech (Moiré zwischen den Scheiben). Zwölf Werke als Schnellaufbau, Hintergrundtext, Einführungsschritt und
 Experimente („Blickachse finden“, „Moiré zwischen Blechen“). Quellen: Bridges Gallery 2013, Spektrum der Wissenschaft, Mathematikum
 Gießen, F. Kürpig „Polyedrische Zyklen“ (Springer 2016).
+
+### Perlenmodus · Beadwork
+
+Eine Render-Stufe über der gesamten Komposition (Tab *Stil → Perlen*): Jede Zelle wird eine Perle, die das darunterliegende Muster an
+ihrem Mittelpunkt abfragt und auf 2–8 Farbstufen quantisiert – das wirkt auf Wellen, Moiré, Gewebe, alle Kulturmuster, die 3D-Körper
+und die Kürpig-Bleche. Vier Stiche (Webrahmen-Quadratgitter, Peyote/Ziegel-Versatz, Netz-Sechseckgitter, Kragen-Ringe im Polarraster),
+Perlengröße, Fadenabstand, Glasglanz, Rund ↔ Röhrchen, ein Perlenzähler (Reihen × Spalten der sichtbaren Vorlage) sowie zwölf
+kulturelle Perlenpaletten: Zulu, Ndebele, Maasai, Bamileke, Yoruba, Krobo, ägyptische Fayence, Indus-Karneol, Dayak, venezianische
+Chevron, Gablonz, Lakota, Wixárika/Huichol. Der Katalog erhält zwölf Perlen-Einträge von den Perlennetzkleidern des Alten Reichs über
+Indus-Karneol und Chevron-Handelsperlen bis zu Zulu-Perlenbriefen, Maasai-Kragen, Lakota-Webrahmen (Eglashs Virtual Bead Loom) und
+Huichol-Peyotestich. Quellen: Eglash (CSDT), Krannert Art Museum (Ndebele), Petrie Museum (Perlennetz Qau), harappa.com (Karneol),
+Wikipedia/Barovier (Chevron), ethnographische Literatur zu Zulu-Farbcodes und Maasai-Altersklassen.
