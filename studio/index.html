@@ -283,6 +283,16 @@
         <h2>Material</h2>
         <div id="sl-mat" class="ctrl"></div>
       </div>
+      <div class="ctrl">
+        <h2>Skulptur <small>nach Friedhelm Kürpig</small></h2>
+        <button id="sculptOnBtn" class="btn">Kürpig-Skulptur zeigen</button>
+        <label>Werk <select data-opt="sculptKind" class="sculptSel"></select></label>
+        <label data-sculpt="poly">Symmetrieachse <select data-opt="sculptAxis" class="axisSel"></select></label>
+        <div id="sl-sculpt" class="ctrl"></div>
+        <div id="sculptStats" class="info"></div>
+        <div id="works" class="sceneGrid"></div>
+        <div id="sculptText" class="info"></div>
+      </div>
     </div>
 
     <div class="ppage hidden" data-page="matrix">
@@ -501,10 +511,19 @@ const specs = {
   eFactor: ["Skalierungsfaktor", 0.5, 1, 0.005, 0.86, "ethno"],
   eTurn: ["Drehung pro Schritt", -45, 45, 0.5, 9, "ethno"],
   eIter: ["Wiederholungen", 1, 40, 1, 16, "ethno"],
-  eRound: ["Fadenrundung", 0, 1, 0.01, 0.6, "ethno"]
+  eRound: ["Fadenrundung", 0, 1, 0.01, 0.6, "ethno"],
+  sSlices: ["Scheiben", 3, 41, 1, 19, "sculpt"],
+  sThick: ["Blechstärke", 0.004, 0.08, 0.001, 0.02, "sculpt"],
+  sSpread: ["Streckung entlang der Achse", 0.3, 3, 0.01, 1, "sculpt"],
+  sTwist: ["Verdrehung je Scheibe °", -20, 20, 0.1, 0, "sculpt"],
+  sScale: ["Größe", 0.5, 2, 0.01, 1.15, "sculpt"],
+  sCurves: ["Meridiane / Geraden", 4, 48, 1, 24, "sculpt"],
+  sRings: ["Parallelkreise", 2, 15, 1, 7, "sculpt"],
+  sBrush: ["Bürstung", 0, 1, 0.01, 0.6, "sculpt"],
+  sPattern: ["Musteranteil auf dem Blech", 0, 1, 0.01, 0, "sculpt"]
 };
 const targets = Object.keys(specs);
-const targetLabels = Object.fromEntries(targets.map((k) => [k, specs[k][0] + (specs[k][5] === "g1" ? " (Gitter 1)" : specs[k][5] === "g2" ? " (Gitter 2)" : specs[k][5] === "woven" ? " (Gewebe)" : specs[k][5] === "ethno" ? " (Kultur)" : "")]));
+const targetLabels = Object.fromEntries(targets.map((k) => [k, specs[k][0] + (specs[k][5] === "g1" ? " (Gitter 1)" : specs[k][5] === "g2" ? " (Gitter 2)" : specs[k][5] === "woven" ? " (Gewebe)" : specs[k][5] === "ethno" ? " (Kultur)" : specs[k][5] === "sculpt" ? " (Skulptur)" : "")]));
 // Welche Kultur-Regler bei welcher Technik sichtbar sind
 const ETHNO_USE = {
   eScale: "all", eLine: ["mirror", "lace", "nanduti", "symmetry", "fractal", "cornrow", "sashiko", "khipu"], eDot: ["mirror", "lace", "khipu"], eCurve: ["mirror"], eGap: ["mirror"],
@@ -520,7 +539,9 @@ const BLENDS = { multiply: "Multiplizieren", add: "Addieren", difference: "Diffe
 const FORMS = { ribbon: "Band", wire: "Draht", stitch: "Doppelstich", bead: "Perlenfaden" };
 const WEAVES = { checker: "Wechsel", warp: "Vertikal oben", weft: "Horizontal oben", light: "Lichtmischung", difference: "Differenz" };
 const PALETTES = { gray: "Graustufen", diverging: "Blau – Weiß – Rot", spectrum: "Spektrum", ocean: "Ozean", ember: "Glut", aurora: "Aurora", ice: "Eis", violet: "Violett" };
-const BODIES = { flat: "2D · Fläche", cloth: "Tuch", stack: "Schichtgewebe", torus: "Torus", sphere: "Kugel", tunnel: "Tunnel", mobius: "Möbiusband", helix: "Helix", shell: "Muschel" };
+const BODIES = { flat: "2D · Fläche", cloth: "Tuch", stack: "Schichtgewebe", torus: "Torus", sphere: "Kugel", tunnel: "Tunnel", mobius: "Möbiusband", helix: "Helix", shell: "Muschel", kuerpig: "Kürpig-Skulptur" };
+const SCULPT_KINDS = { tetra: "Tetraeder", cube: "Würfel", octa: "Oktaeder", dodeca: "Dodekaeder", icosa: "Ikosaeder", cubocta: "Kuboktaeder", icosidodeca: "Ikosidodekaeder", truncicosa: "Abgestumpftes Ikosaeder", rhombdodeca: "Rhombendodekaeder", rhombtriaconta: "Rhombentriakontaeder", sphere: "Scheibenkugel", cyclide: "Dupin-Zyklide · Kreise", hypar: "Hyperbolisches Paraboloid · Geraden", helicoid: "Helikoid · Geraden", wormsphere: "Kugel mit zwei Helikoiden" };
+const SCULPT_AXES = { vertex: "Ecke", vertexB: "Ecke (2. Art)", edge: "Kantenmitte", face: "Flächenmitte", faceB: "Flächenmitte (2. Art)" };
 const WAVEFORMS = { sine: "Sinus", tri: "Dreieck", saw: "Säge auf", fall: "Säge ab", pulse: "Puls", smooth: "Zufall weich", hold: "Sample & Hold", steps: "4 Stufen" };
 
 const ETHNO_TYPES = { mirror: "Spiegelkurven · Sona / Kolam / Knoten", tablet: "Brettchenweben", draft: "Webbindung · Patrone", kente: "Streifenweben · Kente", tapestry: "Tapisserie · Stufenmuster", ikat: "Ikat", lace: "Klöppelspitze · Torchon", nanduti: "Ñandutí · Sonnenspitze", symmetry: "Symmetriegruppen", fractal: "Fraktale Siedlung", cornrow: "Cornrow-Kurven", sashiko: "Sashiko · Kagome", khipu: "Khipu · Knotenzahlen" };
@@ -539,12 +560,14 @@ const optionSpecs = {
   wovenBlend: Object.keys(BLENDS), g1Blend: Object.keys(BLENDS), g2Blend: Object.keys(BLENDS),
   wShapeA: Object.keys(FORMS), wShapeB: Object.keys(FORMS), wWeave: Object.keys(WEAVES), wWeaveAlt: Object.keys(WEAVES),
   wField: ["0", "1", "2", "3"], paletteA: Object.keys(PALETTES), paletteB: Object.keys(PALETTES),
-  viewMode: Object.keys(BODIES), viewBlend: Object.keys(BODIES).slice(1)
+  viewMode: Object.keys(BODIES), viewBlend: Object.keys(BODIES).filter((k) => k !== "flat" && k !== "kuerpig"),
+  sculptKind: Object.keys(SCULPT_KINDS), sculptAxis: Object.keys(SCULPT_AXES)
 };
 const optionDefaults = {
   waveView: "snapshot", g1Type: "lines", g2Type: "lines", wovenBlend: "multiply", g1Blend: "multiply", g2Blend: "multiply",
   wShapeA: "ribbon", wShapeB: "wire", wWeave: "checker", wWeaveAlt: "light", wField: "0", paletteA: "diverging", paletteB: "ice",
   viewMode: "flat", viewBlend: "torus",
+  sculptKind: "tetra", sculptAxis: "edge",
   ethnoType: "mirror", ethnoBlend: "multiply", mirrorRegion: "rect", tabletPreset: "diamond", draftPreset: "twill", lacePreset: "spider", symGroup: "p6m", sashikoKind: "seigaiha", tapestryKind: "diamond",
   waveOn: true, wovenOn: false, g1On: false, g2On: false, ethnoOn: false, showSources: true, aa: true, invert: false
 };
@@ -1280,6 +1303,75 @@ const progFlat = makeProgram(vs2d, fs2d, false);
 const progBody = makeProgram(vs3d, fs3d, true);
 gl.disable(gl.CULL_FACE); gl.depthFunc(gl.LEQUAL);
 
+/* ------------------------------------------------ Skulptur-Programm */
+const vsSculpt = `#version 300 es
+precision highp float;
+in vec3 a_pos; in vec3 a_nrm; in vec3 a_loc;
+uniform float uP[${targets.length}];
+${defines}
+uniform vec2 u_res; uniform vec3 u_eye;
+out vec3 v_world; out vec3 v_nrm; out vec3 v_loc;
+void main() {
+  float ang = radians(P_sTwist) * a_loc.z;
+  float c = cos(ang), s = sin(ang);
+  vec3 p = a_pos; p.xz = vec2(c * p.x - s * p.z, s * p.x + c * p.z); p.y *= P_sSpread; p *= P_sScale;
+  vec3 n = a_nrm; n.xz = vec2(c * n.x - s * n.z, s * n.x + c * n.z); n.y /= P_sSpread; n = normalize(n);
+  v_world = p; v_nrm = n; v_loc = a_loc;
+  vec3 forward = normalize(-u_eye);
+  vec3 right = normalize(cross(forward, vec3(0.0, 1.0, 0.0)));
+  vec3 up = cross(right, forward);
+  vec3 rel = p - u_eye;
+  vec3 cam = vec3(dot(rel, right), dot(rel, up), -dot(rel, forward));
+  float f = 1.0 / tan(radians(P_fov) * 0.5);
+  float near = 0.05, far = 60.0;
+  gl_Position = vec4(cam.x * f / (u_res.x / u_res.y), cam.y * f, (far + near) / (near - far) * cam.z + 2.0 * far * near / (near - far), -cam.z);
+}`;
+const fsSculpt = `#version 300 es
+${glslCommon}
+uniform vec3 u_eye;
+uniform int u_worm;
+in vec3 v_world; in vec3 v_nrm; in vec3 v_loc; out vec4 fragColor;
+void main() {
+  if (u_worm == 1) {
+    vec3 w = v_world / max(P_sScale, 1e-3);
+    float u = (w.y / P_sSpread + 1.0) * 0.5 * TAU * 2.0;
+    for (int k = 0; k < 2; k++) { float a = u + float(k) * 3.14159265; vec2 c = vec2(cos(a), sin(a)) * 0.62; if (length(w.xz - c) < 0.24) discard; }
+  }
+  vec3 n = normalize(v_nrm);
+  vec3 vd = normalize(u_eye - v_world);
+  if (dot(n, vd) < 0.0) n = -n;
+  vec3 ld = normalize(vec3(0.6, 1.3, 0.9));
+  vec3 ld2 = normalize(vec3(-0.8, 0.2, -0.6));
+  float diff = max(0.0, dot(n, ld)) + 0.35 * max(0.0, dot(n, ld2));
+  float streak = 1.0 + (hash21(vec2(floor(v_loc.y * 520.0 + v_loc.z * 7.0), floor(v_loc.x * 3.0))) - 0.5) * 0.4 * P_sBrush;
+  vec3 h = normalize(ld + vd);
+  float spec = pow(max(0.0, dot(n, h)), 28.0) * 0.45 + pow(max(0.0, dot(n, h)), 3.0) * 0.22 * (1.0 - 0.5 * P_sBrush);
+  float edge = pow(1.0 - max(0.0, dot(n, vd)), 3.0) * P_rim * 0.6;
+  vec3 steel = vec3(0.74, 0.77, 0.81) * (0.28 + 0.6 * diff) * streak + spec * vec3(0.95, 0.97, 1.0) + edge * vec3(0.5, 0.6, 0.7);
+  vec3 col = steel;
+  if (P_sPattern > 0.001) {
+    vec2 q = toWorld(v_loc.xy * 0.5 + 0.5, 1.0);
+    float t = pattern(q);
+    col = mix(steel, shade(t, gl_FragCoord.xy) * (0.45 + 0.6 * diff) + spec * 0.5, P_sPattern);
+  }
+  col *= P_exposure;
+  vec3 bg = vec3(0.72, 1.0, 1.6) * P_background;
+  fragColor = vec4(mix(col, bg, 1.0 - exp(-length(u_eye - v_world) * P_fog)), 1.0);
+}`;
+const progSculpt = (() => {
+  const pr = gl.createProgram();
+  gl.attachShader(pr, compileShader(gl.VERTEX_SHADER, vsSculpt)); gl.attachShader(pr, compileShader(gl.FRAGMENT_SHADER, fsSculpt));
+  gl.linkProgram(pr); if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(pr));
+  const vao = gl.createVertexArray(); gl.bindVertexArray(vao);
+  const bufs = { pos: gl.createBuffer(), nrm: gl.createBuffer(), loc: gl.createBuffer() };
+  for (const [name, buf] of [["a_pos", bufs.pos], ["a_nrm", bufs.nrm], ["a_loc", bufs.loc]]) { gl.bindBuffer(gl.ARRAY_BUFFER, buf); const l = gl.getAttribLocation(pr, name); gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, 3, gl.FLOAT, false, 0, 0); }
+  const names = ["uP[0]", "u_res", "u_time", "u_fieldPhase", "u_ampNorm", "u_invert", "u_aa", "u_showSources", "u_waveView", "u_srcCount", "u_activeSrc", "u_hoverSrc",
+    "u_wField", "u_g1Type", "u_g2Type", "u_palA", "u_palB", "u_on", "u_blends", "u_wovenK", "u_srcA[0]", "u_srcB[0]", "u_eye",
+    "u_data", "u_dataSize", "u_ethnoType", "u_ethnoSub", "u_khipuN", "u_khipu[0]", "u_ethnoFlags", "u_worm"];
+  const u = {}; names.forEach((n) => { u[n.replace("[0]", "")] = gl.getUniformLocation(pr, n); });
+  return { pr, vao, bufs, u, count: 0 };
+})();
+
 const pArr = new Float32Array(targets.length);
 const srcA = new Float32Array(MAX_SRC * 4), srcB = new Float32Array(MAX_SRC * 4);
 
@@ -1358,11 +1450,22 @@ function render(forExport) {
   gl.viewport(0, vy, w, h);
   if (!forExport && vy > 0) { gl.disable(gl.SCISSOR_TEST); gl.clearColor(0.05, 0.06, 0.09, 1); gl.clear(gl.COLOR_BUFFER_BIT); }
   const spatial = S.opt.viewMode !== "flat";
-  const prog = spatial ? progBody : progFlat;
+  const sculpt = S.opt.viewMode === "kuerpig";
+  const prog = sculpt ? progSculpt : spatial ? progBody : progFlat;
   gl.useProgram(prog.pr); gl.bindVertexArray(prog.vao);
   uploadCommon(prog.u, P, w, h);
   if (forExport) gl.uniform1f(prog.u.u_showSources, 0);
-  if (spatial) {
+  if (sculpt) {
+    ensureSculpture(P);
+    gl.enable(gl.DEPTH_TEST);
+    gl.clearColor(P.background * 0.72, P.background, P.background * 1.6, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    const yaw = (P.camYaw + spinPhase) * Math.PI / 180, pitch = P.camPitch * Math.PI / 180;
+    const dist = P.distance * Math.max(1, 1.15 / (w / h));
+    gl.uniform3f(prog.u.u_eye, Math.sin(yaw) * Math.cos(pitch) * dist, Math.sin(pitch) * dist, Math.cos(yaw) * Math.cos(pitch) * dist);
+    gl.uniform1i(prog.u.u_worm, S.opt.sculptKind === "wormsphere" ? 1 : 0);
+    if (progSculpt.count > 0) gl.drawArrays(gl.TRIANGLES, 0, progSculpt.count);
+  } else if (spatial) {
     gl.enable(gl.DEPTH_TEST);
     gl.clearColor(P.background * 0.72, P.background, P.background * 1.6, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -1563,7 +1666,8 @@ function buildOptions() {
   document.querySelectorAll(".weaveSel").forEach((s) => fillSelect(s, WEAVES));
   document.querySelectorAll(".palSel").forEach((s) => fillSelect(s, PALETTES));
   fillSelect(document.querySelector(".bodySel"), BODIES);
-  fillSelect(document.querySelector(".bodySelB"), Object.fromEntries(Object.entries(BODIES).slice(1)));
+  fillSelect(document.querySelector(".bodySelB"), Object.fromEntries(Object.entries(BODIES).filter(([k]) => k !== "flat" && k !== "kuerpig")));
+  fillSelect(document.querySelector(".sculptSel"), SCULPT_KINDS); fillSelect(document.querySelector(".axisSel"), SCULPT_AXES);
   fillSelect($("inspectTarget"), targetLabels, "lambda");
   fillSelect($("xyX"), targetLabels, "g1Angle"); fillSelect($("xyY"), targetLabels, "lambda");
   document.querySelectorAll("[data-opt]").forEach((el) => {
@@ -1712,6 +1816,7 @@ const scenes = {
   sona: { name: "Sona · Spiegelkurven", opt: { waveOn: false, ethnoOn: true, ethnoType: "mirror", paletteA: "ember", paletteB: "gray", viewMode: "flat" }, base: { eRows: 4, eCols: 6, eLine: 0.16, eDot: 0.1, paletteMix: 0.2 } },
   mattang: { name: "Mattang · Dünungskarte", opt: { waveOn: true, waveView: "intensity", paletteA: "ocean", paletteB: "ice", viewMode: "flat" }, base: { lambda: 0.14, paletteMix: 0.3, damping: 0.3 }, sources: () => [mkSource(-1.3, 0, { type: "plane", angle: 0.2 }), mkSource(1.3, 0.2, { type: "plane", angle: Math.PI - 0.3, amp: 0.7 }), mkSource(0.1, -0.1, { amp: 0.6, phase: Math.PI })] },
   knotmobius: { name: "Keltischer Knoten · Möbius", opt: { waveOn: false, ethnoOn: true, ethnoType: "mirror", paletteA: "aurora", paletteB: "gray", viewMode: "mobius", viewBlend: "torus" }, base: { eRows: 4, eCols: 8, eCurve: 0.5, eGap: 0.09, eLine: 0.24, eDot: 0, eMirrors: 3, eSeed: 4, cutout: 0.2, spin: 5, rim: 0.7, paletteMix: 0.2 } },
+  kuerpig: { name: "Kürpigsches Tetraeder", opt: { waveOn: false, viewMode: "kuerpig", sculptKind: "tetra", sculptAxis: "edge", paletteA: "gray", paletteB: "ice" }, base: { sSlices: 19, sThick: 0.018, sSpread: 1.3, spin: 4, rim: 0.3, exposure: 1.1, camYaw: 32, camPitch: 18, distance: 4.2 } },
   layers: { name: "Schichten · Licht", opt: { waveOn: true, g1On: true, g1Type: "hex", g1Blend: "difference", paletteA: "violet", paletteB: "ice", viewMode: "stack", viewBlend: "cloth" }, base: { lambda: 0.18, g1Period: 0.1, separation: 0.65, camYaw: 38, spin: 2, cutout: 0.3 }, sources: () => arrangeCircle(3, 0.4), style: "space" }
 };
 function applyScene(key) {
@@ -1734,6 +1839,7 @@ function cameraHome() {
   spinPhase = 0;
   if (S.opt.viewMode === "sphere") { S.base.camYaw = 0; S.base.camPitch = 10; }
   if (S.opt.viewMode === "tunnel") { S.base.camYaw = 0; S.base.camPitch = 0; S.base.distance = 5.4; }
+  if (S.opt.viewMode === "kuerpig") { S.base.camYaw = 32; S.base.camPitch = 18; S.base.distance = 4.2; }
 }
 function resetView() { remember(); for (const k of ["zoom", "panX", "panY", "rotation"]) S.base[k] = defaults[k]; cameraHome(); needsSync = true; syncUI(); }
 
@@ -2043,6 +2149,219 @@ function toggleMirrorAt(wx, wy) {
   return true;
 }
 
+/* ------------------------------------------------ Kürpig-Skulpturen */
+const PHI = (1 + Math.sqrt(5)) / 2;
+const V = {
+  sub: (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], add: (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]],
+  mul: (a, k) => [a[0] * k, a[1] * k, a[2] * k], dot: (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2],
+  cross: (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]],
+  len: (a) => Math.hypot(a[0], a[1], a[2]), norm: (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; }
+};
+function signsOf(v) { const out = []; for (let m = 0; m < 8; m++) out.push([v[0] * (m & 1 ? -1 : 1), v[1] * (m & 2 ? -1 : 1), v[2] * (m & 4 ? -1 : 1)]); return out; }
+function cyclic(v) { return [v, [v[1], v[2], v[0]], [v[2], v[0], v[1]]]; }
+function perms(v) { return [[v[0], v[1], v[2]], [v[0], v[2], v[1]], [v[1], v[0], v[2]], [v[1], v[2], v[0]], [v[2], v[0], v[1]], [v[2], v[1], v[0]]]; }
+function dedupe(pts) { const seen = new Set(), out = []; for (const p of pts) { const k = p.map((x) => (Math.round(x * 2000) / 2000).toFixed(4)).join(","); if (!seen.has(k)) { seen.add(k); out.push(p); } } return out; }
+const flat = (arrs) => arrs.flat();
+const polyPoints = {
+  tetra: () => [[1, 1, 1], [1, -1, -1], [-1, 1, -1], [-1, -1, 1]],
+  cube: () => signsOf([1, 1, 1]),
+  octa: () => flat(perms([1, 0, 0]).map(signsOf)),
+  icosa: () => flat(cyclic([0, 1, PHI]).map(signsOf)),
+  dodeca: () => signsOf([1, 1, 1]).concat(flat(cyclic([0, 1 / PHI, PHI]).map(signsOf))),
+  cubocta: () => flat(perms([1, 1, 0]).map(signsOf)),
+  icosidodeca: () => flat(cyclic([0, 0, PHI]).map(signsOf)).concat(flat(cyclic([0.5, PHI / 2, PHI * PHI / 2]).map(signsOf))),
+  truncicosa: () => flat(cyclic([0, 1, 3 * PHI]).map(signsOf)).concat(flat(cyclic([1, 2 + PHI, 2 * PHI]).map(signsOf)), flat(cyclic([PHI, 2, PHI * PHI * PHI]).map(signsOf)))
+};
+// Konvexe Hülle: alle Stützebenen aus Punkttripeln, Flächen als geordnete Polygone
+function convexHull(ptsIn) {
+  const pts = dedupe(ptsIn), n = pts.length, planes = new Map(), eps = 1e-6;
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) for (let k = j + 1; k < n; k++) {
+    let nm = V.cross(V.sub(pts[j], pts[i]), V.sub(pts[k], pts[i])); if (V.len(nm) < 1e-9) continue; nm = V.norm(nm);
+    let d = V.dot(nm, pts[i]), pos = 0, neg = 0;
+    for (const p of pts) { const sd = V.dot(nm, p) - d; if (sd > eps) pos++; else if (sd < -eps) neg++; if (pos && neg) break; }
+    if (pos && neg) continue;
+    if (pos) { nm = V.mul(nm, -1); d = -d; }
+    const key = nm.map((x) => (Math.round(x * 300) / 300).toFixed(3)).join(",") + "|" + (Math.round(d * 300) / 300).toFixed(3);
+    if (!planes.has(key)) planes.set(key, { n: nm, d });
+  }
+  const faces = [];
+  for (const { n: nm, d } of planes.values()) {
+    const idx = []; pts.forEach((p, i) => { if (Math.abs(V.dot(nm, p) - d) < 1e-4) idx.push(i); });
+    if (idx.length < 3) continue;
+    if (faces.some((f) => f.idx.length === idx.length && f.idx.every((i) => idx.includes(i)))) continue; // dieselbe Fläche aus anderem Tripel
+    const c = idx.reduce((a, i) => V.add(a, pts[i]), [0, 0, 0]).map((x) => x / idx.length);
+    const u = V.norm(V.sub(pts[idx[0]], c)), v = V.cross(nm, u);
+    idx.sort((a, b) => Math.atan2(V.dot(V.sub(pts[a], c), v), V.dot(V.sub(pts[a], c), u)) - Math.atan2(V.dot(V.sub(pts[b], c), v), V.dot(V.sub(pts[b], c), u)));
+    faces.push({ idx, n: nm, d, c });
+  }
+  const edgeSet = new Map();
+  faces.forEach((f) => { for (let i = 0; i < f.idx.length; i++) { const a = f.idx[i], b = f.idx[(i + 1) % f.idx.length]; const k = a < b ? a + "-" + b : b + "-" + a; if (!edgeSet.has(k)) edgeSet.set(k, [a, b]); } });
+  const edges = [...edgeSet.values()];
+  const valence = new Array(n).fill(0); edges.forEach(([a, b]) => { valence[a]++; valence[b]++; });
+  return { pts, faces, edges, valence };
+}
+function dualOf(poly) { return convexHull(poly.faces.map((f) => V.mul(f.n, 1 / f.d))); }
+const polyCache = {};
+function polyhedron(kind) {
+  if (polyCache[kind]) return polyCache[kind];
+  let poly;
+  if (kind === "rhombdodeca") poly = dualOf(convexHull(polyPoints.cubocta()));
+  else if (kind === "rhombtriaconta") poly = dualOf(convexHull(polyPoints.icosidodeca()));
+  else poly = convexHull((polyPoints[kind] || polyPoints.tetra)());
+  const r = Math.max(...poly.pts.map(V.len)); poly.pts = poly.pts.map((p) => V.mul(p, 1 / r));
+  poly.faces.forEach((f) => { f.d /= r; f.c = V.mul(f.c, 1 / r); });
+  polyCache[kind] = poly; return poly;
+}
+function symmetryAxis(poly, which) {
+  const maxVal = Math.max(...poly.valence), minVal = Math.min(...poly.valence);
+  if (which === "vertex") return V.norm(poly.pts[poly.valence.indexOf(maxVal)]);
+  if (which === "vertexB") return V.norm(poly.pts[poly.valence.indexOf(minVal)]);
+  if (which === "edge") { const [a, b] = poly.edges[0]; return V.norm(V.add(poly.pts[a], poly.pts[b])); }
+  const sizes = poly.faces.map((f) => f.idx.length);
+  const target = which === "faceB" ? Math.min(...sizes) : Math.max(...sizes);
+  return V.norm(poly.faces[sizes.indexOf(target)].c);
+}
+function rotationTo(axis, target) { // Rodrigues: dreht axis auf target
+  const a = V.norm(axis), t = V.norm(target), c = V.dot(a, t);
+  if (c > 1 - 1e-9) return (p) => p;
+  if (c < -1 + 1e-9) return (p) => [-p[0], -p[1], p[2]].map((x, i) => (i === 2 ? -x : x));
+  const k = V.norm(V.cross(a, t)), s = Math.sqrt(1 - c * c);
+  return (p) => V.add(V.add(V.mul(p, c), V.mul(V.cross(k, p), s)), V.mul(k, V.dot(k, p) * (1 - c)));
+}
+function crossSection(poly, pts, h) {
+  const out = [];
+  for (const [a, b] of poly.edges) {
+    const za = pts[a][1] - h, zb = pts[b][1] - h;
+    if (Math.abs(za) < 1e-7) out.push(pts[a]);
+    if (za * zb < 0) { const t = za / (za - zb); out.push([pts[a][0] + (pts[b][0] - pts[a][0]) * t, h, pts[a][2] + (pts[b][2] - pts[a][2]) * t]); }
+  }
+  const uniq = dedupe(out); if (uniq.length < 3) return null;
+  const cx = uniq.reduce((s, p) => s + p[0], 0) / uniq.length, cz = uniq.reduce((s, p) => s + p[2], 0) / uniq.length;
+  uniq.sort((p, q) => Math.atan2(p[2] - cz, p[0] - cx) - Math.atan2(q[2] - cz, q[0] - cx));
+  return uniq;
+}
+// Mesh-Sammler: Dreiecke mit Normale und lokalen Koordinaten (x, z, Scheibenindex)
+function meshBuilder() {
+  const pos = [], nrm = [], loc = [];
+  const tri = (a, b, c, n, idx) => { for (const p of [a, b, c]) { pos.push(p[0], p[1], p[2]); nrm.push(n[0], n[1], n[2]); loc.push(p[0], p[2], idx); } };
+  const quad = (a, b, c, d, n, idx) => { tri(a, b, c, n, idx); tri(a, c, d, n, idx); };
+  const prism = (polygon, y0, y1, idx) => { // Scheibe: Polygon in der Ebene y = const, Dicke y1 - y0
+    const top = polygon.map((p) => [p[0], y1, p[2]]), bot = polygon.map((p) => [p[0], y0, p[2]]);
+    for (let i = 1; i < polygon.length - 1; i++) { tri(top[0], top[i], top[i + 1], [0, 1, 0], idx); tri(bot[0], bot[i + 1], bot[i], [0, -1, 0], idx); }
+    for (let i = 0; i < polygon.length; i++) { const j = (i + 1) % polygon.length; const e = V.sub(polygon[j], polygon[i]); const n = V.norm([e[2], 0, -e[0]]); quad(bot[i], bot[j], top[j], top[i], n, idx); }
+  };
+  const rod = (a, b, r, idx) => { // dünner Stab als Sechskantprisma
+    const d = V.norm(V.sub(b, a)); let u = V.cross(d, Math.abs(d[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0]); u = V.norm(u); const w = V.cross(d, u);
+    const ring = (p) => Array.from({ length: 6 }, (_, k) => { const an = k / 6 * TAU; return V.add(p, V.add(V.mul(u, Math.cos(an) * r), V.mul(w, Math.sin(an) * r))); });
+    const ra = ring(a), rb = ring(b);
+    for (let k = 0; k < 6; k++) { const k2 = (k + 1) % 6; const n = V.norm(V.sub(V.mul(V.add(ra[k], ra[k2]), 0.5), a)); quad(ra[k], rb[k], rb[k2], ra[k2], n, idx); }
+  };
+  const ribbon = (ptsA, ptsB, idx) => { // zwei Randkurven → zweiseitiges Band
+    for (let i = 0; i < ptsA.length - 1; i++) { const n = V.norm(V.cross(V.sub(ptsB[i], ptsA[i]), V.sub(ptsA[i + 1], ptsA[i]))); quad(ptsA[i], ptsB[i], ptsB[i + 1], ptsA[i + 1], n, idx); }
+  };
+  return { pos, nrm, loc, tri, quad, prism, rod, ribbon };
+}
+function circleFrom(p0, p1, p2) { // Umkreis dreier Raumpunkte
+  const a = V.sub(p1, p0), b = V.sub(p2, p0), axb = V.cross(a, b), l2 = V.dot(axb, axb);
+  if (l2 < 1e-12) return null;
+  const c = V.mul(V.sub(V.mul(V.cross(axb, a), V.dot(b, b)), V.mul(V.cross(axb, b), V.dot(a, a))), 1 / (2 * l2));
+  return { center: V.add(p0, c), r: V.len(c), n: V.norm(axb) };
+}
+function annulus(m, circle, width, idx) {
+  const u = V.norm(V.cross(circle.n, Math.abs(circle.n[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0])), w = V.cross(circle.n, u), seg = 64;
+  const pt = (k, r) => { const an = k / seg * TAU; return V.add(circle.center, V.add(V.mul(u, Math.cos(an) * r), V.mul(w, Math.sin(an) * r))); };
+  for (let k = 0; k < seg; k++) { const o0 = pt(k, circle.r), o1 = pt(k + 1, circle.r), i0 = pt(k, circle.r - width), i1 = pt(k + 1, circle.r - width); m.quad(o0, o1, i1, i0, circle.n, idx); m.quad(i0, i1, o1, o0, V.mul(circle.n, -1), idx); }
+}
+let sculptKey = "", sculptStats = "";
+function buildSculpture(P) {
+  const kind = S.opt.sculptKind, m = meshBuilder();
+  const N = clamp(Math.round(P.sSlices), 3, 41), thick = P.sThick, curves = clamp(Math.round(P.sCurves), 4, 48), rings = clamp(Math.round(P.sRings), 2, 15);
+  if (kind === "cyclide") {
+    const a = 1, c = 0.55, d = 0.78, b = Math.sqrt(a * a - c * c);
+    const raw = (u, v) => { const den = a - c * Math.cos(u) * Math.cos(v); return [(d * (c - a * Math.cos(u) * Math.cos(v)) + b * b * Math.cos(u)) / den, b * Math.sin(v) * (c * Math.cos(u) - d) / den, b * Math.sin(u) * (a - d * Math.cos(v)) / den]; };
+    let ext = 0; for (let i = 0; i < 24; i++) for (let j = 0; j < 24; j++) ext = Math.max(ext, V.len(raw(i / 24 * TAU, j / 24 * TAU)));
+    const pt = (u, v) => V.mul(raw(u, v), 1.15 / ext);
+    for (let i = 0; i < curves; i++) { const u = i / curves * TAU; const cir = circleFrom(pt(u, 0), pt(u, 2.1), pt(u, 4.2)); if (cir) annulus(m, cir, thick * 1.6, i); }
+    for (let j = 0; j < rings; j++) { const v = (j + 0.5) / rings * TAU; const cir = circleFrom(pt(0, v), pt(2.1, v), pt(4.2, v)); if (cir) annulus(m, cir, thick * 1.6, curves + j); }
+    sculptStats = `Dupin-Zyklide: ${curves} Meridiankreise · ${rings} Parallelkreise – beide Kurvenscharen sind ebene Kreise`;
+  } else if (kind === "hypar") {
+    for (let i = 0; i < curves; i++) { const x = -1 + 2 * (i + 0.5) / curves; m.rod([x, -x * 0.9, -1], [x, x * 0.9, 1], thick * 0.6, i); }
+    for (let i = 0; i < curves; i++) { const z = -1 + 2 * (i + 0.5) / curves; m.rod([-1, -z * 0.9, z], [1, z * 0.9, z], thick * 0.6, curves + i); }
+    sculptStats = `HP-Fläche y = 0,9·x·z: ${curves} + ${curves} Geraden – eine doppelt gekrümmte Fläche aus lauter geraden Stäben`;
+  } else if (kind === "helicoid") {
+    const turns = 1.5;
+    for (let i = 0; i < curves; i++) { const u = i / curves * turns * TAU; const y = -1 + 2 * i / (curves - 1); m.rod([-Math.cos(u), y, -Math.sin(u)], [Math.cos(u), y, Math.sin(u)], thick * 0.6, i); }
+    m.rod([0, -1.05, 0], [0, 1.05, 0], thick * 0.5, curves);
+    sculptStats = `Helikoid: ${curves} waagerechte Geraden, gleichmäßig gedreht und gehoben – die Schraubfläche als Regelfläche`;
+  } else if (kind === "sphere" || kind === "wormsphere") {
+    for (let i = 0; i < N; i++) { const y = -1 + 2 * (i + 0.5) / N; const r = Math.sqrt(Math.max(0, 1 - y * y)); const seg = 72; const poly = Array.from({ length: seg }, (_, k) => [Math.cos(k / seg * TAU) * r, y, Math.sin(k / seg * TAU) * r]); m.prism(poly, y - thick / 2, y + thick / 2, i); }
+    sculptStats = kind === "sphere" ? `Scheibenkugel: ${N} Scheiben senkrecht zur Achse – Kreisschnitte, am Pol klein, am Äquator groß` : `Kugel aus ${N} Scheiben, von zwei schraubenförmigen Gängen durchbohrt – zwei Helikoide als Fräsbahnen (nach „Worm eaten sphere“, 2010)`;
+  } else {
+    const poly = polyhedron(kind), axis = symmetryAxis(poly, S.opt.sculptAxis);
+    const R = rotationTo(axis, [0, 1, 0]); const pts = poly.pts.map(R);
+    const ys = pts.map((p) => p[1]); const y0 = Math.min(...ys), y1 = Math.max(...ys);
+    let made = 0, shapes = new Set();
+    for (let i = 0; i < N; i++) { const y = y0 + (y1 - y0) * (i + 0.5) / N; const sec = crossSection(poly, pts, y); if (!sec) continue; m.prism(sec, y - thick / 2, y + thick / 2, i); made++; shapes.add(sec.length); }
+    sculptStats = `${SCULPT_KINDS[kind]}: ${poly.pts.length} Ecken · ${poly.edges.length} Kanten · ${poly.faces.length} Flächen – ${made} Scheiben senkrecht zur Achse durch ${SCULPT_AXES[S.opt.sculptAxis]}; Schnittpolygone mit ${[...shapes].sort((a, b) => a - b).join(", ")} Ecken`;
+  }
+  gl.bindVertexArray(progSculpt.vao);
+  gl.bindBuffer(gl.ARRAY_BUFFER, progSculpt.bufs.pos); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(m.pos), gl.STATIC_DRAW);
+  gl.bindBuffer(gl.ARRAY_BUFFER, progSculpt.bufs.nrm); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(m.nrm), gl.STATIC_DRAW);
+  gl.bindBuffer(gl.ARRAY_BUFFER, progSculpt.bufs.loc); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(m.loc), gl.STATIC_DRAW);
+  progSculpt.count = m.pos.length / 3;
+  $("sculptStats").textContent = sculptStats + ` · ${Math.round(progSculpt.count / 3)} Dreiecke`;
+}
+function ensureSculpture(P) {
+  const key = JSON.stringify([S.opt.sculptKind, S.opt.sculptAxis, Math.round(P.sSlices), +P.sThick.toFixed(3), Math.round(P.sCurves), Math.round(P.sRings)]);
+  if (key === sculptKey) return; sculptKey = key; buildSculpture(P);
+}
+const SCULPT_TEXT = `<p><b>Friedhelm Kürpig</b> (geb. 1942 in Düsseldorf, lebt in Aachen) lernte Schreiner, studierte Architektur an der RWTH Aachen, war Assistent am Institut für Geometrie und Praktische Mathematik und lehrte als Professor für Darstellende Geometrie an der Hochschule für bildende Künste Hamburg. Seit über fünfzig Jahren baut er Polyeder – vom Papiermodell bis zur lasergeschnittenen Edelstahlplastik.</p>
+<p><b>Scheibenpolyeder.</b> Sein Markenzeichen: Ein regulärer oder halbregulärer Körper wird senkrecht zu einer <b>Symmetrieachse</b> durch eine Ecke, eine Kantenmitte oder eine Flächenmitte in dünne, parallele Scheiben zerlegt (1,2 mm Edelstahl, matt gebürstet, mit Abstandshaltern montiert). Die Schnitte sind regelmäßige oder achsensymmetrische Polygone; mit Abständen neu zusammengesetzt erscheint der vertraute Körper gestreckt und „überraschend verzerrt“. Beim Blick entlang der Achse schließen sich die Umrisse zum Körper, seitlich löst er sich in Linien auf. Das <b>Kürpigsche Tetraeder</b> vor dem Mathematikum Gießen (2015, 19 Scheiben) wirkt je nach Standort als Pyramide, Würfel oder liegender Quader. Für die Bridges-Konferenz 2013 entstand ein Rhombentriakontaeder (Ø 200 mm), geschnitten senkrecht zu einer zweizähligen Achse.</p>
+<p><b>Flächen aus Kurvenscharen.</b> Die <b>Dupin-Zyklide</b> (2011) besteht aus 24 Meridian- und 7 Parallelkreisen – auf dieser Fläche sind beide Kurvenscharen ebene Kreise. Das <b>hyperbolische Paraboloid</b> zeigt er als zwei Scharen gerader Stäbe, die eine doppelt gekrümmte Fläche aufspannen; die <b>„wurmzerfressene Kugel“</b> (2010) ist eine Kugel, die von zwei Helikoiden durchdrungen wird.</p>
+<p><b>Ausprobieren.</b> Achse wechseln (Ecke, Kante, Fläche) und zählen, wie viele Ecken die Schnittpolygone haben. Die Kamera entlang der Achse drehen, bis die Scheiben sich zum Körper schließen. „Streckung“ zieht den Stapel auseinander, „Verdrehung“ ist eine freie Variation über Kürpig hinaus. Mit „Musteranteil“ liegt das Wellen- oder Moiré-Feld auf jeder Scheibe – beim Blick durch den Stapel entstehen Moirés zwischen den Blechen.</p>
+<p class="info">Quellen: Bridges Gallery 2013 · Spektrum der Wissenschaft „Mathematik in Stahl“ · Mathematikum Gießen · F. Kürpig, „Polyedrische Zyklen“, in: <i>Die Basis der Vielfalt</i> (Springer 2016) · kürpig.de.</p>`;
+const works = [
+  { name: "Kürpigsches Tetraeder", opt: { sculptKind: "tetra", sculptAxis: "edge" }, base: { sSlices: 19, sThick: 0.018, sSpread: 1.3 } },
+  { name: "Rhombentriakontaeder · 2-zählig", opt: { sculptKind: "rhombtriaconta", sculptAxis: "edge" }, base: { sSlices: 25, sThick: 0.014 } },
+  { name: "Ikosaeder · 5-zählig", opt: { sculptKind: "icosa", sculptAxis: "vertex" }, base: { sSlices: 21, sThick: 0.016 } },
+  { name: "Ikosaeder · 3-zählig", opt: { sculptKind: "icosa", sculptAxis: "face" }, base: { sSlices: 21, sThick: 0.016 } },
+  { name: "Dodekaeder · Kante", opt: { sculptKind: "dodeca", sculptAxis: "edge" }, base: { sSlices: 23, sThick: 0.016 } },
+  { name: "Würfel · Raumdiagonale", opt: { sculptKind: "cube", sculptAxis: "vertex" }, base: { sSlices: 17, sThick: 0.02, sSpread: 1.4 } },
+  { name: "Fußball · 5-zählig", opt: { sculptKind: "truncicosa", sculptAxis: "faceB" }, base: { sSlices: 27, sThick: 0.012 } },
+  { name: "Dupin-Zyklide 24 · 7", opt: { sculptKind: "cyclide" }, base: { sCurves: 24, sRings: 7, sThick: 0.03 } },
+  { name: "HP-Fläche aus Geraden", opt: { sculptKind: "hypar" }, base: { sCurves: 16, sThick: 0.03 } },
+  { name: "Wurmzerfressene Kugel", opt: { sculptKind: "wormsphere" }, base: { sSlices: 15, sThick: 0.012 } },
+  { name: "Wellen auf Stahl", opt: { sculptKind: "octa", sculptAxis: "face", waveOn: true, waveView: "snapshot", paletteA: "ocean", paletteB: "ice" }, base: { sSlices: 23, sThick: 0.02, sPattern: 0.8, lambda: 0.3, sSpread: 1.5 }, sources: () => [mkSource(-0.4, 0), mkSource(0.4, 0)] },
+  { name: "Moiré im Stapel", opt: { sculptKind: "cube", sculptAxis: "face", waveOn: false, g1On: true, g1Type: "lines", paletteA: "gray", paletteB: "ice" }, base: { sSlices: 31, sThick: 0.01, sPattern: 1, g1Period: 0.08, sSpread: 2.2, cutout: 0 } }
+];
+function loadWork(w) {
+  remember(); const prev = S; S = defaultState(); S.quality = prev.quality;
+  S.opt.viewMode = "kuerpig"; S.opt.waveOn = false; S.opt.paletteA = "gray"; S.opt.paletteB = "ice";
+  Object.assign(S.opt, w.opt || {}); Object.assign(S.base, w.base || {}); if (w.sources) S.sources = w.sources();
+  S.base.spin = 4; S.base.rim = 0.3; S.base.exposure = 1.1;
+  resetPhases(); cameraHome(); S.base.camYaw = 32; S.base.camPitch = 18; sculptKey = "";
+  buildMods(); syncUI(); showPage("space"); if (narrowMQ.matches) setSheet("peek"); toast(w.name);
+}
+(function sculptControls() {
+  targets.filter((k) => specs[k][5] === "sculpt").forEach((k) => {
+    const d = paramSlider(k);
+    const polyOnly = ["sSlices", "sSpread", "sTwist"], curveOnly = ["sCurves"], ringOnly = ["sRings"];
+    d.showIf = () => { const kd = S.opt.sculptKind; const isCurve = ["cyclide", "hypar", "helicoid"].includes(kd);
+      if (polyOnly.includes(k)) return !isCurve || k !== "sSlices"; if (curveOnly.includes(k)) return isCurve; if (ringOnly.includes(k)) return kd === "cyclide"; return true; };
+    makeSlider($("sl-sculpt"), d);
+  });
+  $("sculptText").innerHTML = SCULPT_TEXT;
+  $("works").innerHTML = works.map((w, i) => `<button class="btn secondary" data-work="${i}">${w.name}</button>`).join("");
+  document.querySelectorAll("[data-work]").forEach((b) => b.addEventListener("click", () => loadWork(works[+b.dataset.work])));
+  $("sculptOnBtn").addEventListener("click", () => { remember(); S.opt.viewMode = "kuerpig"; cameraHome(); S.base.camYaw = 32; S.base.camPitch = 18; sculptKey = ""; syncUI(); toast("Kürpig-Skulptur"); });
+})();
+function syncSculptUI() {
+  const isPoly = !["cyclide", "hypar", "helicoid", "sphere", "wormsphere"].includes(S.opt.sculptKind);
+  document.querySelectorAll("[data-sculpt]").forEach((el) => el.classList.toggle("hidden", !isPoly));
+  $("sculptOnBtn").classList.toggle("active", S.opt.viewMode === "kuerpig");
+  sculptKey = "";
+}
+
 /* ------------------------------------------------------------- syncUI */
 let currentPage = "start";
 function showPage(name) {
@@ -2074,12 +2393,14 @@ function syncUI() {
   const active = S.mods.filter((m) => m.on).length;
   $("matrixInfo").textContent = `${S.mods.slice(0, 8).filter((m) => m.on).length} / 8 aktiv`;
   $("modBtn").textContent = `Mod ${active}`;
-  refreshOptions(); refreshSliders(); updateRoutes(); updateHint(); syncEthnoUI(); scheduleHash();
+  refreshOptions(); refreshSliders(); updateRoutes(); updateHint(); syncEthnoUI(); syncSculptUI(); scheduleHash();
   dataKey = ""; needsSync = true;
 }
 function updateHint() {
   const spatial = S.opt.viewMode !== "flat";
-  $("hint").textContent = spatial
+  $("hint").textContent = S.opt.viewMode === "kuerpig"
+    ? `${SCULPT_KINDS[S.opt.sculptKind]} · Ziehen = Kamera drehen · Rad = Abstand · Blick entlang der Achse schließt die Scheiben zum Körper`
+    : spatial
     ? "Ziehen = Kamera drehen · Shift+Ziehen = Muster verschieben · Rad = Abstand · Rechtsklick = Menü"
     : (S.opt.waveOn ? `Quelle ${S.activeSource + 1} · Ziehen = Bewegen / Verschieben · Doppelklick = neue Quelle · Rad = Zoom · Alt+Rad = Gitter 1 drehen` : "Ziehen = Verschieben · Rad = Zoom · Alt+Rad = Gitter 1 drehen · Rechtsklick = Menü");
 }
@@ -2428,7 +2749,11 @@ const introSlides = [
     <p>Muster sind Mathematik in Händen: Sona-Sandzeichnungen der Cokwe, Kolam aus Tamil Nadu, keltische Knoten, Brettchenweben aus Hallstatt, Kente, Ikat, Klöppelspitze, Ñandutí, Khipu, die Dünungskarten der Marshallinseln. Der Tab <b>Kulturen</b> macht sie als eigene Ebene erfahrbar – auf der Fläche oder auf jedem 3D-Körper, mischbar mit Wellen und Gittern, modulierbar über die Matrix.</p>
     <p>Hinter dieser Karte: ein Sona-Raster 6 × 4. ggT(6, 4) = 2, also zwei geschlossene Kurven.</p>
     <div class="try">Tippe zwischen zwei Punkte, um einen Spiegel zu setzen – die Kurven verbinden sich neu. Im Katalog findest du über dreißig Aufbauten aus fünf Kontinenten.</div>` },
-  { title: "7 · Szenen, Export & Experimente", scene: "wavecloth", html: `
+  { title: "7 · Skulpturen nach Friedhelm Kürpig", scene: "kuerpig", html: `
+    <p>Der Aachener Geometer und Bildhauer <b>Friedhelm Kürpig</b> zerlegt Polyeder senkrecht zu einer Symmetrieachse in parallele Edelstahlscheiben und montiert sie mit Abständen neu. Beim Blick entlang der Achse schließen sich die Scheiben zum Körper, von der Seite erscheint er gestreckt oder löst sich auf – sein Tetraeder vor dem Mathematikum wirkt als Pyramide, Würfel oder Quader.</p>
+    <p>Hinter dieser Karte: ein Tetraeder aus 19 Scheiben, geschnitten senkrecht zur Achse durch zwei gegenüberliegende Kantenmitten. Die Schnitte sind Rechtecke, die sich von einem schmalen Streifen über das Quadrat zum gedrehten Streifen wandeln.</p>
+    <div class="try">Ziehe die Kamera, bis du genau entlang der Achse blickst. Unter <b>Raum → Skulptur</b> findest du Ikosaeder, Rhombentriakontaeder, Fußball, die Dupin-Zyklide aus Kreisen und das HP-Paraboloid aus Geraden – und mit „Musteranteil“ liegen die Wellen auf dem Stahl.</div>` },
+  { title: "8 · Szenen, Export & Experimente", scene: "wavecloth", html: `
     <p><b>Start</b> hält zwölf komplette Szenen bereit und speichert eigene Presets. <b>Stil</b> mischt zwei Paletten, exportiert PNG und JSON (inklusive Matrix und Phasen) und erzeugt einen Link mit dem ganzen Zustand. <b>Info</b> liefert Messwerte, alle Gesten und Tastenkürzel sowie Experimente mit fertigem Aufbau.</p>
     <div class="try">Viel Freude beim Erforschen – diese Einführung erreichst du jederzeit über <b>?</b>.</div>` }
 ];
@@ -2461,10 +2786,12 @@ const experiments = [
   { title: "Gewebe trifft Interferenz", text: "Seide × Interferenz laden und die Mischart des Gewebes zwischen Multiplizieren, Differenz und XOR umschalten. Dann Phase von Quelle 2 auf 0° setzen.", scene: "silkwave" },
   { title: "Der ggT zählt Kurven", text: "Sona laden, dann unter Kulturen Zeilen und Spalten ändern: 6×4 → 2 Kurven, 5×3 → 1 Kurve, 6×6 → 6 Kurven. Die Messwerte zeigen den ggT daneben.", scene: "sona" },
   { title: "Knotenlinien der Navigatoren", text: "Mattang laden: zwei Dünungen und eine Insel als Streuquelle. Die hellen und dunklen Linien in der Intensität sind die booj, die Marshall-Navigatoren im Kanu spüren. Winkel der ebenen Wellen verändern.", scene: "mattang" },
+  { title: "Blickachse finden", text: "Kürpigsches Tetraeder laden, Automatische Drehung auf 0 und die Kamera drehen, bis die Scheiben zu einem geschlossenen Quadrat verschmelzen – das ist der Blick entlang der zweizähligen Achse. Dann Achse auf „Ecke“ wechseln: Die Schnitte werden zu Dreiecken.", scene: "kuerpig" },
+  { title: "Moiré zwischen Blechen", text: "Unter Raum → Skulptur „Moiré im Stapel“ laden: 31 Würfelscheiben tragen dasselbe Liniengitter. Beim Blick schräg durch den Stapel überlagern sich die Gitter der Scheiben zu Moiré-Streifen, die mit der Kamera wandern.", scene: "kuerpig", after: (s) => { loadWork(works[11]); } },
   { title: "Eigene Modulation bauen", text: "Beliebige Szene, dann in der Matrix alle Quellen aus. LFO 1: Ziel λ, Tiefe 0,15, Rate 0,05 Hz. LFO 2: Ziel Quellen-Drehung, Dreieck, Tiefe 0,3. Beobachte Basis → Effektiv.", scene: "standing" }
 ];
 $("experiments").innerHTML = experiments.map((ex, i) => `<div class="exp"><h3>${ex.title}</h3><p>${ex.text}</p><button class="btn secondary" data-exp="${i}">Aufbau laden</button></div>`).join("");
-document.querySelectorAll("[data-exp]").forEach((b) => b.addEventListener("click", () => { applyScene(experiments[+b.dataset.exp].scene); if (narrowMQ.matches) setSheet("peek"); }));
+document.querySelectorAll("[data-exp]").forEach((b) => b.addEventListener("click", () => { const ex = experiments[+b.dataset.exp]; applyScene(ex.scene); if (ex.after) ex.after(S); if (narrowMQ.matches) setSheet("peek"); }));
 
 /* ------------------------------------------------------------ Messwerte */
 function updateInfo() {
@@ -2491,7 +2818,8 @@ function updateInfo() {
   }
   if (S.opt.ethnoOn) lines.push(`Kultur: <b>${ETHNO_TYPES[S.opt.ethnoType].split(" · ")[0]}</b> · ${ethnoStats.replace(/<[^>]+>/g, "")}`);
   if (S.opt.wovenOn) lines.push(`Gewebe: Dichte <b>${P.wDensity.toFixed(0)}</b> · Wölbung <b>${P.wBulge.toFixed(2)}</b> · Band ${FORMS[S.opt.wShapeA]} → ${FORMS[S.opt.wShapeB]} (${P.wMorph.toFixed(2)})`);
-  if (S.opt.viewMode !== "flat") lines.push(`Körper: ${BODIES[S.opt.viewMode]} → ${BODIES[S.opt.viewBlend]} (${P.bodyMorph.toFixed(2)}) · Kamera ${((P.camYaw + spinPhase + 540) % 360 - 180).toFixed(0)}° / ${P.camPitch.toFixed(0)}°`);
+  if (S.opt.viewMode === "kuerpig") lines.push(`Skulptur: ${sculptStats}`);
+  else if (S.opt.viewMode !== "flat") lines.push(`Körper: ${BODIES[S.opt.viewMode]} → ${BODIES[S.opt.viewBlend]} (${P.bodyMorph.toFixed(2)}) · Kamera ${((P.camYaw + spinPhase + 540) % 360 - 180).toFixed(0)}° / ${P.camPitch.toFixed(0)}°`);
   const active = S.mods.filter((m) => m.on).length;
   lines.push(`Modulation: <b>${active}</b> Quellen aktiv${S.bypass ? " (umgangen)" : ""} · Master ${S.master.toFixed(2)} · ${S.bpm} BPM`);
   $("infoBox").innerHTML = lines.join("<br>");

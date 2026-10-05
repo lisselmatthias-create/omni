@@ -76,3 +76,16 @@ erfahrbar – mischbar mit Wellenfeld und Gittern, auf Fläche oder 3D-Körper, 
 Dazu die Dünungskarte **Mattang** der Marshallinseln als Interferenz-Szene, ein Katalog mit 32 Aufbauten nach Kontinenten,
 Hintergrundtexte (Herkunft · Mathematik · Ausprobieren), Experimente und ein Einführungsschritt. Quellen: D'Ambrosio, Ascher,
 Gerdes, Eglash, Washburn & Crowe, Zaslavsky, Ascher & Ascher, Siromoney, Hallstatt-Textilforschung.
+
+### Skulpturen nach Friedhelm Kürpig
+
+Der Raumtyp **Kürpig-Skulptur** baut die Plastiken des Aachener Geometers und Bildhauers Friedhelm Kürpig (geb. 1942, Professor für
+Darstellende Geometrie an der HfbK Hamburg) als echte 3D-Geometrie nach: Ein Polyeder wird senkrecht zu einer Symmetrieachse durch
+Ecke, Kantenmitte oder Flächenmitte in parallele Scheiben zerlegt und mit Abständen neu zusammengesetzt. Platonische Körper,
+Kuboktaeder, Ikosidodekaeder, abgestumpftes Ikosaeder sowie Rhombendodekaeder und Rhombentriakontaeder (als Dualkörper über konvexe
+Hülle und Polarität berechnet) lassen sich mit Scheibenzahl, Blechstärke, Streckung und Verdrehung variieren; dazu die Dupin-Zyklide
+aus 24 Meridian- und 7 Parallelkreisen, das hyperbolische Paraboloid und das Helikoid aus Geradenscharen, die Scheibenkugel und die
+„wurmzerfressene Kugel“ mit zwei schraubenförmigen Bohrungen. Gebürsteter Stahl als Material, optional liegt das Wellen- oder
+Moiré-Feld auf jedem Blech (Moiré zwischen den Scheiben). Zwölf Werke als Schnellaufbau, Hintergrundtext, Einführungsschritt und
+Experimente („Blickachse finden“, „Moiré zwischen Blechen“). Quellen: Bridges Gallery 2013, Spektrum der Wissenschaft, Mathematikum
+Gießen, F. Kürpig „Polyedrische Zyklen“ (Springer 2016).
