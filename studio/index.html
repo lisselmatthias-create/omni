@@ -1,0 +1,1721 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="description" content="Wellenstudio - Interferenz, Gitter-Moiré und gewebte Bänder auf Fläche oder 3D-Körper, mit Modulations-Matrix. Für Touch und Desktop.">
+<meta name="theme-color" content="#0d1016">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Wellenstudio">
+<title>Wellenstudio · Interferenz, Moiré & Raum</title>
+<style>
+  :root {
+    --bg: #0d1016; --panel: #161a22; --panel2: #1e232d; --txt: #dde3ec; --dim: #8a94a6;
+    --acc: #ffb43c; --acc2: #7fd6c2; --brd: #2b3140; --hud: rgba(18, 21, 28, 0.8);
+    --tap: 36px; --thumb: 18px; --panel-w: 350px;
+  }
+  @media (pointer: coarse) { :root { --tap: 46px; --thumb: 28px; } }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { height: 100%; height: 100dvh; overflow: hidden; overscroll-behavior: none; touch-action: none; -webkit-text-size-adjust: 100%; }
+  body {
+    background: var(--bg); color: var(--txt); font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    overflow: hidden; display: flex; height: 100vh; height: 100dvh; overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none;
+  }
+  #stage { flex: 1; position: relative; min-width: 0; min-height: 0; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: crosshair; touch-action: none; }
+  canvas.grab { cursor: grab; } canvas.grabbing { cursor: grabbing; } canvas.orbit { cursor: move; }
+
+  .hud { position: absolute; display: flex; gap: 6px; z-index: 5; }
+  #hudTop { top: calc(10px + env(safe-area-inset-top)); left: calc(10px + env(safe-area-inset-left)); right: calc(10px + env(safe-area-inset-right)); flex-wrap: wrap; pointer-events: none; }
+  #hudTop > * { pointer-events: auto; }
+  #hudSide { flex-direction: column; right: calc(10px + env(safe-area-inset-right)); bottom: calc(14px + env(safe-area-inset-bottom)); }
+  .hbtn {
+    min-width: var(--tap); min-height: var(--tap); height: var(--tap); padding: 0 12px; border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.12); background: var(--hud); color: var(--txt); font: inherit; font-size: 13px; font-weight: 600;
+    cursor: pointer; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap;
+  }
+  .hbtn.icon { padding: 0; width: var(--tap); font-size: 18px; font-weight: 400; }
+  .hbtn:hover { border-color: rgba(255,180,60,0.6); }
+  .hbtn.active, .hbtn[aria-pressed="true"] { background: var(--acc); color: #000; border-color: var(--acc); }
+  .seg { display: inline-flex; background: var(--hud); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; overflow: hidden; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  .seg button { min-height: calc(var(--tap) - 2px); padding: 0 12px; border: 0; background: transparent; color: var(--txt); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .seg button + button { border-left: 1px solid rgba(255,255,255,0.1); }
+  .seg button.active { background: var(--acc); color: #000; }
+  #hint { position: absolute; left: calc(10px + env(safe-area-inset-left)); bottom: calc(14px + env(safe-area-inset-bottom)); font-size: 12px; color: var(--dim); background: var(--hud); padding: 6px 10px; border-radius: 8px; pointer-events: none; max-width: calc(100% - 90px); z-index: 4; line-height: 1.4; }
+  #toast { position: absolute; left: 50%; top: calc(64px + env(safe-area-inset-top)); transform: translateX(-50%) translateY(-10px); background: var(--acc); color: #000; font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: 8px; opacity: 0; transition: opacity .2s, transform .2s; pointer-events: none; z-index: 8; max-width: 90%; text-align: center; }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  #popover { position: absolute; z-index: 9; background: var(--panel2); border: 1px solid var(--brd); border-radius: 12px; padding: 6px; display: flex; flex-direction: column; gap: 4px; min-width: 200px; box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+  #popover .ptitle { font-size: 11px; color: var(--dim); padding: 4px 8px 2px; }
+  #popover button { min-height: var(--tap); text-align: left; padding: 0 12px; background: transparent; color: var(--txt); border: 0; border-radius: 8px; font: inherit; font-size: 13px; cursor: pointer; }
+  #popover button:hover { background: #2a3040; } #popover button.danger { color: #ff8a7a; }
+  .hidden { display: none !important; }
+
+  #panel { width: var(--panel-w); background: var(--panel); border-left: 1px solid var(--brd); display: flex; flex-direction: column; z-index: 10; min-height: 0; transition: width .2s ease; }
+  #panel.collapsed { width: 0; border-left: 0; overflow: hidden; }
+  #panelHandle { display: none; justify-content: center; padding: 8px 0 2px; cursor: grab; touch-action: none; }
+  #panelHandle span { width: 44px; height: 5px; border-radius: 3px; background: #444c5c; }
+  #panelHead { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px 6px; padding-top: calc(12px + env(safe-area-inset-top)); }
+  #panelHead h1 { font-size: 15px; color: var(--acc); }
+  #panelHead small { color: var(--dim); font-size: 11px; font-variant-numeric: tabular-nums; }
+  .ptabs { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; padding: 4px 10px 8px; border-bottom: 1px solid var(--brd); }
+  .ptabs button { min-height: calc(var(--tap) - 4px); border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--dim); font: inherit; font-size: 11px; font-weight: 600; cursor: pointer; padding: 0 1px; }
+  .ptabs button.active { color: #000; background: var(--acc); }
+  .ptabs button.dimmed { opacity: .35; }
+  .ptabs button:not(.active):hover { color: var(--txt); border-color: var(--brd); }
+  .transport { display: grid; grid-template-columns: 1fr 1fr 1fr var(--tap); gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--brd); }
+  #pages { flex: 1; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y; padding: 14px; padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
+  .ppage { display: flex; flex-direction: column; gap: 16px; }
+  h2 { font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: var(--acc); border-bottom: 1px solid var(--brd); padding-bottom: 5px; display: flex; justify-content: space-between; align-items: baseline; }
+  h2 .value, h2 small { text-transform: none; letter-spacing: 0; font-weight: normal; color: var(--dim); font-size: 11px; }
+  .ctrl { display: flex; flex-direction: column; gap: 8px; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; } .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+  .value { color: var(--acc); font-variant-numeric: tabular-nums; }
+  .value.effective { color: var(--acc2); }
+  label { font-size: 12px; display: flex; justify-content: space-between; gap: 8px; align-items: center; min-height: 28px; }
+  select, input[type="text"], input[type="number"] { width: 100%; background: var(--bg); color: var(--txt); border: 1px solid var(--brd); padding: 0 8px; min-height: var(--tap); border-radius: 8px; font: inherit; font-size: 13px; }
+  label select, label input[type="number"] { width: 58%; }
+  button.btn { background: var(--acc); color: #000; border: none; padding: 6px 10px; cursor: pointer; border-radius: 8px; font: inherit; font-weight: 600; font-size: 12px; width: 100%; min-height: var(--tap); }
+  button.btn.secondary { background: #262c38; color: var(--txt); border: 1px solid var(--brd); }
+  button.btn.active { outline: 2px solid var(--acc); outline-offset: 1px; }
+  button.btn[aria-pressed="true"] { border-color: var(--acc2); color: var(--acc2); }
+  button.btn:hover { opacity: .85; } button.btn:disabled { opacity: .35; cursor: default; }
+  .tabs { display: flex; gap: 4px; } .tabs .btn { min-height: calc(var(--tap) - 6px); padding: 4px; }
+  .slider { display: flex; flex-direction: column; gap: 2px; } .slider label { min-height: 24px; }
+  .slider .value { background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 2px 6px; font: inherit; font-size: 12px; cursor: text; min-height: 0; }
+  .slider .value:hover { border-color: var(--brd); }
+  .srow { display: grid; grid-template-columns: var(--tap) 1fr var(--tap); gap: 6px; align-items: center; }
+  .step { min-height: var(--tap); border-radius: 8px; border: 1px solid var(--brd); background: #262c38; color: var(--txt); font-size: 18px; cursor: pointer; touch-action: none; }
+  .step:active { background: #3a4150; }
+  input[type="range"] { width: 100%; accent-color: var(--acc); height: var(--tap); margin: 0; background: transparent; -webkit-appearance: none; appearance: none; touch-action: pan-x; }
+  input[type="range"]::-webkit-slider-runnable-track { height: 4px; background: #3a4150; border-radius: 2px; }
+  input[type="range"]::-moz-range-track { height: 4px; background: #3a4150; border-radius: 2px; }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: var(--thumb); height: var(--thumb); margin-top: calc((4px - var(--thumb)) / 2); border-radius: 50%; background: var(--acc); border: 2px solid #111; box-shadow: 0 0 0 1px var(--acc); }
+  input[type="range"]::-moz-range-thumb { width: var(--thumb); height: var(--thumb); border-radius: 50%; background: var(--acc); border: 2px solid #111; }
+  .check { display: flex; gap: 10px; align-items: center; font-size: 12px; min-height: var(--tap); cursor: pointer; }
+  .check input { accent-color: var(--acc); width: 20px; height: 20px; }
+  .info { font-size: 12px; color: var(--dim); line-height: 1.55; font-variant-numeric: tabular-nums; }
+  .info b { color: var(--txt); font-weight: normal; }
+  .info kbd { display: inline-block; border: 1px solid #444c5c; border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; font-size: 11px; font-family: inherit; color: var(--txt); background: #1c212b; margin: 1px 0; }
+  table.keys { width: 100%; border-collapse: collapse; font-size: 12px; }
+  table.keys td { padding: 4px 0; vertical-align: top; color: var(--dim); border-bottom: 1px solid #262c38; }
+  table.keys td:first-child { color: var(--txt); white-space: nowrap; padding-right: 10px; }
+  .exp, .modCard { border: 1px solid var(--brd); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 6px; background: #12161e; }
+  .exp h3 { font-size: 13px; color: var(--txt); } .exp p { font-size: 12px; color: var(--dim); line-height: 1.5; }
+  .modCard.disabled { opacity: .55; }
+  .modHead { display: flex; justify-content: space-between; align-items: center; }
+  .modHead b { color: var(--acc2); font-size: 13px; }
+  .modCard label { min-height: var(--tap); }
+  .modCard details { margin-top: 2px; } .modCard summary { color: var(--dim); cursor: pointer; font-size: 12px; min-height: var(--tap); display: flex; align-items: center; }
+  .level { height: 5px; border-radius: 3px; background: #2a3040; overflow: hidden; }
+  .level i { display: block; height: 100%; width: 100%; background: var(--acc2); transform-origin: left; transform: scaleX(.5); }
+  #xyPad { height: 150px; position: relative; background: linear-gradient(90deg, transparent 49.5%, #2b3444 50%, transparent 50.5%), linear-gradient(transparent 49.5%, #2b3444 50%, transparent 50.5%), #0f131a; border: 1px solid var(--brd); border-radius: 10px; touch-action: none; cursor: crosshair; overflow: hidden; }
+  #xyDot { width: 16px; height: 16px; border-radius: 50%; background: var(--acc2); position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); pointer-events: none; box-shadow: 0 0 0 3px rgba(127,214,194,.25); }
+  .sceneGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .sceneGrid .btn { font-size: 11px; line-height: 1.25; padding: 6px 4px; }
+
+  #intro { position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-end; justify-content: center; padding: 12px; padding-bottom: calc(12px + env(safe-area-inset-bottom)); background: linear-gradient(to top, rgba(0,0,0,.75), rgba(0,0,0,.15) 60%, rgba(0,0,0,0)); pointer-events: none; }
+  #intro.hidden { display: none; }
+  .card { pointer-events: auto; width: min(580px, 100%); background: rgba(22,26,34,.96); border: 1px solid var(--brd); border-radius: 16px; padding: 18px 18px 14px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 20px 50px rgba(0,0,0,.6); touch-action: pan-y; max-height: min(70dvh, 580px); }
+  .card .ctop { display: flex; justify-content: space-between; align-items: center; } .card .ctop small { color: var(--dim); font-size: 12px; }
+  .card h2 { font-size: 18px; text-transform: none; letter-spacing: 0; border: 0; padding: 0; color: var(--acc); }
+  .card .body { font-size: 14px; line-height: 1.55; color: var(--txt); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .card .body p + p { margin-top: 8px; } .card .body ul { padding-left: 18px; margin-top: 6px; } .card .body li { margin: 3px 0; }
+  .card .body .try { margin-top: 10px; padding: 8px 10px; border-left: 3px solid var(--acc); background: rgba(255,180,60,.08); border-radius: 0 8px 8px 0; font-size: 13px; }
+  .card .nav { display: flex; align-items: center; gap: 8px; } .card .dots { flex: 1; display: flex; justify-content: center; gap: 6px; }
+  .card .dots i { width: 8px; height: 8px; border-radius: 50%; background: #444c5c; } .card .dots i.on { background: var(--acc); }
+  .card .nav .btn { width: auto; padding: 0 16px; }
+  .card .foot { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--dim); flex-wrap: wrap; gap: 8px; } .card .foot .check { min-height: 0; }
+  .xbtn { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--brd); background: transparent; color: var(--txt); font-size: 18px; cursor: pointer; }
+
+  @media (max-width: 900px) {
+    body { flex-direction: column; } #stage { flex: 1; }
+    #panel { position: fixed; left: 0; right: 0; bottom: 0; width: 100%; height: 46dvh; border-left: 0; border-top: 1px solid var(--brd); border-radius: 16px 16px 0 0; transition: height .22s ease; box-shadow: 0 -10px 30px rgba(0,0,0,.45); }
+    #panel.collapsed { width: 100%; height: 0; border-top: 0; } #panel.dragging { transition: none; }
+    #panelHandle { display: flex; } #panelHead { padding-top: 2px; }
+    #hudSide { bottom: auto; top: calc(10px + var(--tap) + 18px + env(safe-area-inset-top)); }
+    #hint { display: none; }
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="glCanvas"></canvas>
+  <div id="hudTop" class="hud">
+    <button id="panelBtn" class="hbtn icon" title="Bedienfeld ein/aus (H)" aria-label="Bedienfeld">☰</button>
+    <div class="seg" id="spaceSeg" aria-label="Fläche oder Raum">
+      <button data-space="flat" title="2D-Fläche (1)">Fläche</button>
+      <button data-space="body" title="3D-Körper (2)">Raum</button>
+    </div>
+    <button id="playBtn" class="hbtn icon" title="Pause / Weiter (Leertaste)" aria-label="Pause">⏸</button>
+    <button id="modBtn" class="hbtn" title="Modulation an/aus (M)" aria-pressed="true">Mod</button>
+    <button id="helpBtn" class="hbtn icon" title="Einführung (?)" aria-label="Einführung">?</button>
+  </div>
+  <div id="hudSide" class="hud">
+    <button id="addBtn" class="hbtn icon" title="Quelle hinzufügen (N)" aria-label="Quelle hinzufügen">+</button>
+    <button id="undoHud" class="hbtn icon" title="Rückgängig (Z)" aria-label="Rückgängig">↶</button>
+    <button id="resetViewHud" class="hbtn icon" title="Ansicht zurücksetzen (0)" aria-label="Ansicht zurücksetzen">⟲</button>
+    <button id="fsBtn" class="hbtn icon" title="Vollbild (F)" aria-label="Vollbild">⤢</button>
+  </div>
+  <div id="hint"></div>
+  <div id="toast" role="status"></div>
+  <div id="popover" class="hidden"></div>
+</div>
+
+<aside id="panel">
+  <div id="panelHandle"><span></span></div>
+  <div id="panelHead"><h1>Wellenstudio</h1><small id="fps">--</small></div>
+  <nav class="ptabs" id="ptabs">
+    <button data-page="start">Start</button>
+    <button data-page="wave">Wellen</button>
+    <button data-page="pattern">Muster</button>
+    <button data-page="space">Raum</button>
+    <button data-page="matrix">Matrix</button>
+    <button data-page="style">Stil</button>
+    <button data-page="info">Info</button>
+  </nav>
+  <div class="transport">
+    <button id="pauseBtn" class="btn secondary">Pause</button>
+    <button id="rewindBtn" class="btn secondary" title="Zeit und alle Phasen auf 0">↺ Phase</button>
+    <button id="bypassBtn" class="btn secondary" aria-pressed="false">Mod: an</button>
+    <button id="undoBtn" class="btn secondary" title="Rückgängig">↶</button>
+  </div>
+
+  <div id="pages">
+    <div class="ppage" data-page="start">
+      <div class="ctrl">
+        <h2>Szenen <small>komplette Aufbauten</small></h2>
+        <div id="sceneGrid" class="sceneGrid"></div>
+        <div class="row"><button id="randomBtn" class="btn secondary">🎲 Zufall</button><button id="introBtn" class="btn">Einführung</button></div>
+      </div>
+      <div class="ctrl">
+        <h2>Ebenen <small>was wird gezeichnet</small></h2>
+        <label class="check"><input type="checkbox" data-opt="waveOn"><span>Wellenfeld (Interferenz)</span></label>
+        <label class="check"><input type="checkbox" data-opt="wovenOn"><span>Gewebe (Bänder)</span></label>
+        <label class="check"><input type="checkbox" data-opt="g1On"><span>Gitter 1</span></label>
+        <label class="check"><input type="checkbox" data-opt="g2On"><span>Gitter 2</span></label>
+        <div class="info">Die Ebenen werden der Reihe nach gemischt. Die Mischart steht bei jeder Ebene unter <b>Muster</b>.</div>
+      </div>
+      <div class="ctrl">
+        <h2>Animation</h2>
+        <div id="sl-anim" class="ctrl"></div>
+      </div>
+      <div class="ctrl">
+        <h2>Eigene Presets</h2>
+        <select id="userPreset" aria-label="Eigenes Preset"></select>
+        <div class="row"><button id="savePresetBtn" class="btn secondary">Speichern</button><button id="deletePresetBtn" class="btn secondary">Löschen</button></div>
+      </div>
+    </div>
+
+    <div class="ppage hidden" data-page="wave">
+      <div class="ctrl">
+        <h2>Wellenfeld</h2>
+        <label>Darstellung <select data-opt="waveView">
+          <option value="snapshot">Momentaufnahme</option><option value="intensity">Intensität</option>
+          <option value="envelope">Amplitudenhülle</option><option value="phase">Phase</option><option value="contours">Höhenlinien</option>
+        </select></label>
+        <div id="sl-wave" class="ctrl"></div>
+        <label>Anordnen <select id="arrange">
+          <option value="">– wählen –</option><option value="line">Linie (Gitter)</option><option value="circle">Kreis</option>
+          <option value="pair">Doppelspalt</option><option value="random">Zufällig</option><option value="standing">Stehende Welle</option>
+        </select></label>
+        <label class="check"><input type="checkbox" data-opt="showSources"><span>Quellen anzeigen</span></label>
+      </div>
+      <div class="ctrl">
+        <h2>Quelle <span id="srcTitle" class="value">1</span></h2>
+        <div class="tabs" id="srcTabs"></div>
+        <label>Typ <select id="srcType"><option value="point">Punktquelle</option><option value="plane">Ebene Welle</option></select></label>
+        <div id="sl-src" class="ctrl"></div>
+        <label class="check"><input type="checkbox" id="srcEnabled" checked><span>Quelle aktiv</span></label>
+        <div class="row"><button id="addSrcBtn" class="btn secondary">+ Quelle</button><button id="removeSrcBtn" class="btn secondary">– Quelle</button></div>
+      </div>
+    </div>
+
+    <div class="ppage hidden" data-page="pattern">
+      <div class="ctrl">
+        <h2>Gewebe <small>Bänder &amp; Webung</small></h2>
+        <label>Mischart <select data-opt="wovenBlend" class="blendSel"></select></label>
+        <label>Raumgeometrie <select data-opt="wField"><option value="0">Gewebter Raum</option><option value="1">Ringgewebe</option><option value="2">Spiralfeld</option><option value="3">Wellenkissen</option></select></label>
+        <div class="row"><select data-opt="wShapeA" class="formSel" aria-label="Bandform A"></select><select data-opt="wShapeB" class="formSel" aria-label="Bandform B"></select></div>
+        <div class="row"><select data-opt="wWeave" class="weaveSel" aria-label="Webung A"></select><select data-opt="wWeaveAlt" class="weaveSel" aria-label="Webung B"></select></div>
+        <div id="sl-woven" class="ctrl"></div>
+      </div>
+      <div class="ctrl">
+        <h2>Gitter 1</h2>
+        <label>Muster <select data-opt="g1Type" class="gratSel"></select></label>
+        <label>Mischart <select data-opt="g1Blend" class="blendSel"></select></label>
+        <div id="sl-g1" class="ctrl"></div>
+      </div>
+      <div class="ctrl">
+        <h2>Gitter 2</h2>
+        <label>Muster <select data-opt="g2Type" class="gratSel"></select></label>
+        <label>Mischart <select data-opt="g2Blend" class="blendSel"></select></label>
+        <div id="sl-g2" class="ctrl"></div>
+        <label class="check"><input type="checkbox" data-opt="aa"><span>Kantenglättung</span></label>
+      </div>
+    </div>
+
+    <div class="ppage hidden" data-page="space">
+      <div class="ctrl">
+        <h2>Körper <small>echte Perspektive</small></h2>
+        <label>Körper A <select data-opt="viewMode" class="bodySel"></select></label>
+        <label>Körper B · Morph-Ziel <select data-opt="viewBlend" class="bodySelB"></select></label>
+        <div id="sl-body" class="ctrl"></div>
+      </div>
+      <div class="ctrl">
+        <h2>Kamera</h2>
+        <div id="sl-cam" class="ctrl"></div>
+        <div class="row"><button id="camHomeBtn" class="btn secondary">Kamera zurück</button><button id="holdCamBtn" class="btn secondary">Kamera anhalten</button></div>
+      </div>
+      <div class="ctrl">
+        <h2>Material</h2>
+        <div id="sl-mat" class="ctrl"></div>
+      </div>
+    </div>
+
+    <div class="ppage hidden" data-page="matrix">
+      <div class="ctrl">
+        <h2>Verknüpfungen <small>8 LFOs + 3 Oszillatoren</small></h2>
+        <label>Muster <select id="patchStyle">
+          <option value="interference">Interferenz-Fahrt</option><option value="moire">Moiré im Fluss</option><option value="breathe">Organisches Atmen</option>
+          <option value="weave">Gewebe im Fluss</option><option value="color">Chromatische Reise</option><option value="space">Räumliche Reise · 3D</option>
+          <option value="metamorph">Metamorphose · Körper A/B</option><option value="random">Überraschung</option>
+        </select></label>
+        <div class="row"><button id="autoPatchBtn" class="btn">Muster anwenden</button><button id="clearPatchBtn" class="btn secondary">Alle Quellen aus</button></div>
+        <div id="sl-master" class="ctrl"></div>
+        <label>Master-BPM <input id="bpm" type="number" min="20" max="300" step="1" value="120"></label>
+      </div>
+      <div class="ctrl">
+        <h2>XY-Performance</h2>
+        <div class="row"><select id="xyX" aria-label="XY Ziel X"></select><select id="xyY" aria-label="XY Ziel Y"></select></div>
+        <div id="xyPad" role="group" aria-label="XY-Steuerfläche"><i id="xyDot"></i></div>
+      </div>
+      <div class="ctrl">
+        <h2>Was steuert diesen Regler?</h2>
+        <select id="inspectTarget" aria-label="Ziel prüfen"></select>
+        <div id="routeSummary" class="info"></div>
+        <button id="removeRoutesBtn" class="btn secondary">Modulation dieses Ziels entfernen</button>
+      </div>
+      <div class="ctrl">
+        <h2>LFO-Matrix <span id="matrixInfo" class="value"></span></h2>
+        <div id="lfoGrid" class="ctrl"></div>
+      </div>
+      <div class="ctrl">
+        <h2>Kreativ-Oszillatoren <small>langsame Fahrten</small></h2>
+        <div id="oscGrid" class="ctrl"></div>
+      </div>
+    </div>
+
+    <div class="ppage hidden" data-page="style">
+      <div class="ctrl">
+        <h2>Farbe</h2>
+        <div class="row"><select data-opt="paletteA" class="palSel" aria-label="Palette A"></select><select data-opt="paletteB" class="palSel" aria-label="Palette B"></select></div>
+        <div id="sl-color" class="ctrl"></div>
+        <label class="check"><input type="checkbox" data-opt="invert"><span>Invertieren</span></label>
+      </div>
+      <div class="ctrl">
+        <h2>Ansicht</h2>
+        <div id="sl-view" class="ctrl"></div>
+        <label>Renderqualität <select id="quality"><option value="auto">Auto · adaptiv</option><option value="0.6">Sparsam · 0,6×</option><option value="1">Standard · 1×</option><option value="1.5">Fein · 1,5×</option><option value="2">Sehr fein · 2×</option></select></label>
+        <div class="row"><button id="resetViewBtn" class="btn secondary">Ansicht zurück</button><button id="fsBtn2" class="btn secondary">Vollbild</button></div>
+      </div>
+      <div class="ctrl">
+        <h2>Export</h2>
+        <div class="row"><button id="pngBtn" class="btn">PNG speichern</button><button id="linkBtn" class="btn secondary">Link kopieren</button></div>
+        <div class="row"><button id="exportBtn" class="btn secondary">JSON speichern</button><button id="importBtn" class="btn secondary">JSON öffnen</button></div>
+        <input id="file" type="file" accept=".json,application/json" hidden>
+        <div class="info">JSON enthält Ebenen, Quellen, Matrix und Phasen. Der Link enthält denselben Zustand.</div>
+      </div>
+    </div>
+
+    <div class="ppage hidden" data-page="info">
+      <div class="ctrl"><h2>Messwerte</h2><div id="infoBox" class="info"></div></div>
+      <div class="ctrl">
+        <h2>Steuerung</h2>
+        <div class="tabs"><button class="btn secondary" data-ctl="touch">Touch</button><button class="btn secondary" data-ctl="mouse">Maus &amp; Tastatur</button></div>
+        <div id="ctlTouch" class="info"><table class="keys">
+          <tr><td>Ziehen</td><td>Quelle bewegen · sonst Fläche verschieben bzw. Kamera drehen</td></tr>
+          <tr><td>Doppeltipp</td><td>neue Quelle</td></tr>
+          <tr><td>Lange drücken</td><td>Kontextmenü</td></tr>
+          <tr><td>Zwei Finger</td><td>Zoom bzw. Kameraabstand · drehen = Gitter 1 drehen</td></tr>
+          <tr><td>− / +</td><td>Regler fein, gedrückt halten für schnell · Wert antippen = eingeben</td></tr>
+          <tr><td>XY-Pad</td><td>zwei beliebige Regler gleichzeitig spielen (Matrix)</td></tr>
+        </table></div>
+        <div id="ctlMouse" class="info hidden"><table class="keys">
+          <tr><td>Ziehen</td><td>Quelle (Hand-Cursor) · sonst verschieben / Kamera · <kbd>Shift</kbd> immer verschieben</td></tr>
+          <tr><td>Doppelklick · Rechtsklick</td><td>neue Quelle · Kontextmenü</td></tr>
+          <tr><td>Mausrad</td><td>Zoom / Abstand · <kbd>Alt</kbd>+Rad: Gitter 1 drehen</td></tr>
+          <tr><td><kbd>Leertaste</kbd> <kbd>M</kbd></td><td>Pause · Modulation an/aus</td></tr>
+          <tr><td><kbd>1</kbd> <kbd>2</kbd></td><td>Fläche / Raum</td></tr>
+          <tr><td><kbd>N</kbd> <kbd>Entf</kbd> <kbd>Tab</kbd></td><td>Quelle neu / löschen / nächste</td></tr>
+          <tr><td><kbd>←↑→↓</kbd></td><td>aktive Quelle verschieben (<kbd>Shift</kbd>: grob)</td></tr>
+          <tr><td><kbd>[</kbd> <kbd>]</kbd> <kbd>,</kbd> <kbd>.</kbd></td><td>Gitter 1 drehen · Phase der Quelle</td></tr>
+          <tr><td><kbd>+</kbd> <kbd>−</kbd> <kbd>0</kbd></td><td>Zoom · Ansicht zurück</td></tr>
+          <tr><td><kbd>Z</kbd> <kbd>P</kbd> <kbd>R</kbd> <kbd>H</kbd> <kbd>F</kbd> <kbd>?</kbd></td><td>Rückgängig · PNG · Zufall · Bedienfeld · Vollbild · Einführung</td></tr>
+          <tr><td>Doppelklick auf Regler</td><td>Standardwert</td></tr>
+        </table></div>
+      </div>
+      <div class="ctrl"><h2>Experimente</h2><div id="experiments" class="ctrl"></div></div>
+    </div>
+  </div>
+</aside>
+
+<div id="intro" class="hidden">
+  <div class="card" id="introCard">
+    <div class="ctop"><small id="introStep"></small><button class="xbtn" id="introClose" aria-label="Schließen">×</button></div>
+    <h2 id="introTitle"></h2>
+    <div class="body" id="introBody"></div>
+    <div class="nav"><button class="btn secondary" id="introPrev">Zurück</button><div class="dots" id="introDots"></div><button class="btn" id="introNext">Weiter</button></div>
+    <div class="foot"><label class="check"><input type="checkbox" id="introSkip"><span>Beim Start nicht mehr zeigen</span></label><span>Wischen oder <kbd>←</kbd> <kbd>→</kbd></span></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const TAU = Math.PI * 2;
+const MAX_SRC = 8;
+const N_MOD = 11;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const mix = (a, b, t) => a + (b - a) * t;
+const COARSE = window.matchMedia("(pointer: coarse)").matches;
+const narrowMQ = window.matchMedia("(max-width: 900px)");
+
+/* ------------------------------------------------- Parameter-Spezifikation */
+// key: [Label, min, max, step, default, Gruppe]
+const specs = {
+  speed: ["Geschwindigkeit", 0, 4, 0.01, 1, "anim"],
+  lambda: ["Wellenlänge λ", 0.02, 0.8, 0.001, 0.14, "wave"],
+  omega: ["Kreisfrequenz ω", 0, 20, 0.05, 4, "wave"],
+  damping: ["Dämpfung (1/r)", 0, 2, 0.01, 0, "wave"],
+  srcSpread: ["Quellen-Abstand ×", 0.1, 3, 0.01, 1, "wave"],
+  srcRotate: ["Quellen-Drehung", -180, 180, 1, 0, "wave"],
+  srcPhaseStep: ["Phasenschritt / Quelle", -180, 180, 1, 0, "wave"],
+  contours: ["Höhenlinien", 2, 24, 1, 6, "wave"],
+  wDensity: ["Dichte", 4, 58, 1, 24, "woven"],
+  wBulge: ["Wölbung", 0, 1.45, 0.01, 0.82, "woven"],
+  wWidth: ["Bandbreite", 0.07, 0.46, 0.01, 0.31, "woven"],
+  wElastic: ["Elastizität", 0, 1, 0.01, 0.34, "woven"],
+  wTwist: ["Verdrehung", -1, 1, 0.01, 0, "woven"],
+  wMorph: ["Form-Morph A → B", 0, 1, 0.01, 0, "woven"],
+  wWeaveMix: ["Web-Morph A → B", 0, 1, 0.01, 0, "woven"],
+  wRelief: ["Band-Relief", 0, 1, 0.01, 0.35, "woven"],
+  wLight: ["Lichtposition", -180, 180, 1, 0, "woven"],
+  wMotion: ["Bewegungsstärke", 0, 1, 0.01, 0.46, "woven"],
+  wScale: ["Gewebe-Maßstab", 0.3, 3, 0.01, 1, "woven"],
+  g1Period: ["Periode", 0.004, 0.4, 0.0005, 0.05, "g1"],
+  g1Angle: ["Winkel", -180, 180, 0.1, 0, "g1"],
+  g1OffX: ["Versatz X", -1, 1, 0.001, 0, "g1"],
+  g1OffY: ["Versatz Y", -1, 1, 0.001, 0, "g1"],
+  g1Duty: ["Füllgrad", 0.02, 0.98, 0.01, 0.5, "g1"],
+  g1Soft: ["Weichheit", 0, 0.5, 0.005, 0.05, "g1"],
+  g2Period: ["Periode", 0.004, 0.4, 0.0005, 0.05, "g2"],
+  g2Angle: ["Winkel", -180, 180, 0.1, 3, "g2"],
+  g2OffX: ["Versatz X", -1, 1, 0.001, 0, "g2"],
+  g2OffY: ["Versatz Y", -1, 1, 0.001, 0, "g2"],
+  g2Duty: ["Füllgrad", 0.02, 0.98, 0.01, 0.5, "g2"],
+  g2Soft: ["Weichheit", 0, 0.5, 0.005, 0.05, "g2"],
+  zoom: ["Zoom", 0.2, 8, 0.01, 1, "view"],
+  panX: ["Position X", -3, 3, 0.01, 0, "view"],
+  panY: ["Position Y", -3, 3, 0.01, 0, "view"],
+  rotation: ["Rotation", -180, 180, 1, 0, "view"],
+  paletteMix: ["Farb-Morph A → B", 0, 1, 0.01, 0, "color"],
+  hue: ["Farbton", -180, 180, 1, 0, "color"],
+  saturation: ["Sättigung", 0, 2, 0.01, 1, "color"],
+  contrast: ["Kontrast", 0.2, 4, 0.01, 1, "color"],
+  gamma: ["Gamma", 0.3, 3, 0.01, 1, "color"],
+  grain: ["Körnung", 0, 0.3, 0.01, 0, "color"],
+  depth: ["3D-Tiefe (Verformung)", 0, 1.5, 0.01, 0.55, "body"],
+  bodyMorph: ["Körper-Morph A → B", 0, 1, 0.01, 0, "body"],
+  bodyTwist: ["Körper-Verdrillung", -2, 2, 0.01, 0, "body"],
+  separation: ["Schichtabstand", 0.1, 1.2, 0.01, 0.45, "body"],
+  cutout: ["Durchbruch", 0, 1, 0.01, 0, "body"],
+  camYaw: ["Kamera horizontal", -180, 180, 1, 25, "cam"],
+  camPitch: ["Kamera vertikal", -80, 80, 1, 20, "cam"],
+  distance: ["Kameraabstand", 2.6, 10, 0.01, 4.6, "cam"],
+  fov: ["Blickwinkel", 25, 85, 1, 48, "cam"],
+  spin: ["Automatische Drehung °/s", -30, 30, 0.1, 4, "cam"],
+  exposure: ["3D-Helligkeit", 0.3, 2.5, 0.01, 1, "mat"],
+  rim: ["Kantenlicht", 0, 1.5, 0.01, 0.25, "mat"],
+  metal: ["Glanz", 0, 1, 0.01, 0.35, "mat"],
+  fog: ["Raumnebel", 0, 0.15, 0.001, 0.012, "mat"],
+  background: ["Hintergrund", 0, 0.15, 0.005, 0.025, "mat"]
+};
+const targets = Object.keys(specs);
+const targetLabels = Object.fromEntries(targets.map((k) => [k, specs[k][0] + (specs[k][5] === "g1" ? " (Gitter 1)" : specs[k][5] === "g2" ? " (Gitter 2)" : specs[k][5] === "woven" ? " (Gewebe)" : "")]));
+const defaults = Object.fromEntries(targets.map((k) => [k, specs[k][4]]));
+
+const VIEWS = ["snapshot", "intensity", "envelope", "phase", "contours"];
+const GRATINGS = { lines: "Linien", dots: "Punktraster", hex: "Sechseck-Raster", rings: "Ringe", radial: "Strahlen", checker: "Schachbrett" };
+const BLENDS = { multiply: "Multiplizieren", add: "Addieren", difference: "Differenz", min: "Minimum", max: "Maximum", screen: "Negativ multiplizieren", xor: "XOR" };
+const FORMS = { ribbon: "Band", wire: "Draht", stitch: "Doppelstich", bead: "Perlenfaden" };
+const WEAVES = { checker: "Wechsel", warp: "Vertikal oben", weft: "Horizontal oben", light: "Lichtmischung", difference: "Differenz" };
+const PALETTES = { gray: "Graustufen", diverging: "Blau – Weiß – Rot", spectrum: "Spektrum", ocean: "Ozean", ember: "Glut", aurora: "Aurora", ice: "Eis", violet: "Violett" };
+const BODIES = { flat: "2D · Fläche", cloth: "Tuch", stack: "Schichtgewebe", torus: "Torus", sphere: "Kugel", tunnel: "Tunnel", mobius: "Möbiusband", helix: "Helix", shell: "Muschel" };
+const WAVEFORMS = { sine: "Sinus", tri: "Dreieck", saw: "Säge auf", fall: "Säge ab", pulse: "Puls", smooth: "Zufall weich", hold: "Sample & Hold", steps: "4 Stufen" };
+
+const optionSpecs = {
+  waveView: VIEWS, g1Type: Object.keys(GRATINGS), g2Type: Object.keys(GRATINGS),
+  wovenBlend: Object.keys(BLENDS), g1Blend: Object.keys(BLENDS), g2Blend: Object.keys(BLENDS),
+  wShapeA: Object.keys(FORMS), wShapeB: Object.keys(FORMS), wWeave: Object.keys(WEAVES), wWeaveAlt: Object.keys(WEAVES),
+  wField: ["0", "1", "2", "3"], paletteA: Object.keys(PALETTES), paletteB: Object.keys(PALETTES),
+  viewMode: Object.keys(BODIES), viewBlend: Object.keys(BODIES).slice(1)
+};
+const optionDefaults = {
+  waveView: "snapshot", g1Type: "lines", g2Type: "lines", wovenBlend: "multiply", g1Blend: "multiply", g2Blend: "multiply",
+  wShapeA: "ribbon", wShapeB: "wire", wWeave: "checker", wWeaveAlt: "light", wField: "0", paletteA: "diverging", paletteB: "ice",
+  viewMode: "flat", viewBlend: "torus",
+  waveOn: true, wovenOn: false, g1On: false, g2On: false, showSources: true, aa: true, invert: false
+};
+
+function mkSource(x, y, extra = {}) {
+  return Object.assign({ x, y, phase: 0, amp: 1, type: "point", angle: 0, lambdaMul: 1, enabled: true }, extra);
+}
+function mkMod(i) {
+  return {
+    id: i < 8 ? "LFO " + (i + 1) : ["Orbit", "Atem", "Glanz"][i - 8], on: false,
+    shape: i === 1 ? "tri" : "sine", rate: [0.09, 0.13, 0.045, 0.07, 0.18, 0.12, 0.23, 0.11, 0.035, 0.075, 0.16][i],
+    phase: i / N_MOD, depth: 0.2, target: ["lambda", "srcRotate", "paletteMix", "g1Angle", "wBulge", "wTwist", "zoom", "hue", "rotation", "wElastic", "wLight"][i],
+    target2: "none", depth2: 0, sync: false, beats: 8, slew: 0.18, link: -1, linkMode: "rate", linkDepth: 0.25
+  };
+}
+function defaultState() {
+  return {
+    base: { ...defaults }, opt: { ...optionDefaults },
+    sources: [mkSource(-0.35, 0), mkSource(0.35, 0)],
+    mods: Array.from({ length: N_MOD }, (_, i) => mkMod(i)),
+    bpm: 120, master: 0.65, bypass: false, paused: false, quality: "auto", activeSource: 0
+  };
+}
+
+let S = defaultState();
+let time = 0, fieldPhase = 0, spinPhase = 0;
+let needsSync = true, hoverSrc = -1;
+const cycles = new Float64Array(N_MOD), signals = new Float64Array(N_MOD), prevSignals = new Float64Array(N_MOD);
+
+/* ------------------------------------------------------------- Shader */
+const defines = targets.map((k, i) => `#define P_${k} p[${i}]`).join("\n");
+
+const glslCommon = `
+precision highp float;
+uniform float p[${targets.length}];
+${defines}
+uniform vec2 u_res;
+uniform float u_time, u_fieldPhase, u_ampNorm, u_invert, u_aa, u_showSources;
+uniform int u_waveView, u_srcCount, u_activeSrc, u_hoverSrc, u_wField, u_g1Type, u_g2Type, u_palA, u_palB;
+uniform ivec4 u_on, u_blends, u_wovenK;
+uniform vec4 u_srcA[${MAX_SRC}];
+uniform vec4 u_srcB[${MAX_SRC}];
+const float TAU = 6.28318530718;
+
+mat2 rot(float a) { float c = cos(a), s = sin(a); return mat2(c, -s, s, c); }
+
+vec2 field(vec2 q) {
+  vec2 acc = vec2(0.0);
+  for (int i = 0; i < ${MAX_SRC}; i++) {
+    if (i >= u_srcCount) break;
+    vec4 a = u_srcA[i]; vec4 b = u_srcB[i];
+    if (b.w < 0.5) continue;
+    float k = TAU / max(P_lambda * b.z, 1e-4);
+    float amp = a.w; float ph;
+    if (b.x < 0.5) { float r = length(q - a.xy); ph = k * r + a.z; amp *= pow(1.0 + r * 4.0, -P_damping); }
+    else { vec2 d = vec2(cos(b.y), sin(b.y)); ph = k * dot(q - a.xy, d) + a.z; }
+    acc += amp * vec2(cos(ph), sin(ph));
+  }
+  return acc;
+}
+float snapshot(vec2 f) { float wt = P_omega * u_time; return (f.x * cos(wt) + f.y * sin(wt)) * u_ampNorm; }
+float waveValue(vec2 q) {
+  vec2 f = field(q);
+  if (u_waveView == 0) return 0.5 + 0.5 * snapshot(f);
+  if (u_waveView == 1) { float e = length(f) * u_ampNorm; return e * e; }
+  if (u_waveView == 2) return length(f) * u_ampNorm;
+  if (u_waveView == 3) return fract((atan(f.y, f.x) - P_omega * u_time) / TAU);
+  float s = snapshot(f);
+  float g = (s + 1.0) * 0.5 * P_contours;
+  float fw = fwidth(g);
+  float line = 1.0 - smoothstep(0.0, 1.5 * fw + 0.02, abs(fract(g) - 0.5));
+  return mix(0.5 + 0.3 * s, 1.0, line * 0.9);
+}
+
+float grating(int type, vec2 q, float period, float duty, float soft) {
+  float v;
+  if (type == 0) v = 0.5 + 0.5 * cos(TAU * q.x / period);
+  else if (type == 1) { vec2 c = cos(TAU * q / period); v = 0.5 + 0.5 * min(c.x, c.y); }
+  else if (type == 2) { float a0 = cos(TAU * q.x / period); float a1 = cos(TAU * dot(q, vec2(0.5, 0.8660254)) / period); float a2 = cos(TAU * dot(q, vec2(-0.5, 0.8660254)) / period); v = (a0 + a1 + a2 + 1.5) / 4.5; }
+  else if (type == 3) v = 0.5 + 0.5 * cos(TAU * length(q) / period);
+  else if (type == 4) { float n = max(2.0, floor(1.0 / period + 0.5)); v = 0.5 + 0.5 * cos(atan(q.y, q.x) * n); }
+  else { vec2 s = sin(TAU * q / period); v = 0.5 + 0.5 * s.x * s.y / max(abs(s.x * s.y), 1e-4); soft = max(soft, 0.001); }
+  float th = 1.0 - duty;
+  float aa = u_aa * fwidth(v) * 0.7;
+  return smoothstep(th - soft - aa, th + soft + aa, v);
+}
+
+float stripe(float v, float w, float aa) { float d = abs(fract(v + 0.5) - 0.5); return 1.0 - smoothstep(w - aa, w + aa, d); }
+float band(float v, float w, int kind, float cross, float aa) {
+  if (kind == 1) return stripe(v, w * 0.42, aa);
+  if (kind == 2) return max(stripe(v - w * 0.56, w * 0.17, aa), stripe(v + w * 0.56, w * 0.17, aa));
+  if (kind == 3) return stripe(v, w * (0.62 + 0.38 * (0.5 + 0.5 * sin(cross * 7.0 + u_fieldPhase * 2.0))), aa);
+  return stripe(v, w, aa);
+}
+float weaveF(int mode, float va, float vb, float a, float b, bool up) {
+  if (mode == 3) return 1.0 - (1.0 - va * a) * (1.0 - vb * b);
+  if (mode == 4) return abs(va * a - vb * b);
+  bool top = mode == 1 || (mode == 0 && up);
+  return top ? va * a + vb * b * (1.0 - a) : vb * b + va * a * (1.0 - b);
+}
+float woven(vec2 q) {
+  q *= P_wScale;
+  float ph = u_fieldPhase;
+  float X = q.x, Y = q.y;
+  if (u_wField == 1 || u_wField == 2) { float r = length(q); float th = atan(q.y, q.x); X = r * 1.4; Y = (th / 3.14159265) * (u_wField == 1 ? 1.0 : 1.0 + r * 0.55); }
+  if (u_wField == 3) { float ox = X; X += sin(Y * 3.4) * P_wBulge * 0.18; Y += sin(ox * 3.4) * P_wBulge * 0.18; }
+  float bulge = P_wBulge * (1.0 + 0.26 * P_wMotion * sin(ph * 1.35));
+  float u = X / (1.0 + bulge * Y * Y) + P_wTwist * Y * 0.22 + P_wElastic * 0.145 * sin(Y * 8.0 + ph * 3.2) + 0.028 * P_wMotion * sin(ph * 1.7 + Y * 2.2);
+  float v = Y / (1.0 + bulge * X * X) - P_wTwist * X * 0.22 + P_wElastic * 0.145 * sin(X * 8.0 - ph * 3.2) + 0.028 * P_wMotion * cos(ph * 1.4 + X * 2.0);
+  float U = u * P_wDensity * 0.5, V = v * P_wDensity * 0.5;
+  float aw = max(0.006, fwidth(U) * 0.6), bw = max(0.006, fwidth(V) * 0.6);
+  float a = mix(band(U, P_wWidth, u_wovenK.x, V, aw), band(U, P_wWidth, u_wovenK.y, V, aw), P_wMorph);
+  float b = mix(band(V, P_wWidth, u_wovenK.x, U, bw), band(V, P_wWidth, u_wovenK.y, U, bw), P_wMorph);
+  bool top = mod(floor(U + 0.5) + floor(V + 0.5), 2.0) < 1.0;
+  float light = radians(P_wLight);
+  float va = 0.12 + 0.86 * (0.5 + 0.5 * sin(Y * 2.45 + X * 0.18 + ph * 2.1 + light));
+  float vb = 0.12 + 0.86 * (0.5 + 0.5 * sin(X * 2.45 - Y * 0.18 - ph * 2.1 + light));
+  float sa = sqrt(max(0.0, 1.0 - pow(abs(fract(U + 0.5) - 0.5) / max(0.001, P_wWidth), 2.0)));
+  float sb = sqrt(max(0.0, 1.0 - pow(abs(fract(V + 0.5) - 0.5) / max(0.001, P_wWidth), 2.0)));
+  va *= mix(1.0, 0.2 + 0.8 * sa, P_wRelief); vb *= mix(1.0, 0.2 + 0.8 * sb, P_wRelief);
+  float lum = mix(weaveF(u_wovenK.z, va, vb, a, b, top), weaveF(u_wovenK.w, va, vb, a, b, top), P_wWeaveMix);
+  return clamp(lum, 0.0, 1.0);
+}
+
+float blendOp(float a, float b, int m) {
+  if (m == 0) return a * b;
+  if (m == 1) return min(a + b, 1.0);
+  if (m == 2) return abs(a - b);
+  if (m == 3) return min(a, b);
+  if (m == 4) return max(a, b);
+  if (m == 5) return 1.0 - (1.0 - a) * (1.0 - b);
+  return a + b - 2.0 * a * b;
+}
+float pattern(vec2 q) {
+  bool first = true; float acc = 0.0;
+  if (u_on.x == 1) { acc = waveValue(q); first = false; }
+  if (u_on.y == 1) { float v = woven(q); acc = first ? v : blendOp(acc, v, u_blends.x); first = false; }
+  if (u_on.z == 1) { vec2 g = rot(radians(P_g1Angle)) * (q - vec2(P_g1OffX, P_g1OffY)); float v = grating(u_g1Type, g, max(P_g1Period, 1e-4), P_g1Duty, P_g1Soft); acc = first ? v : blendOp(acc, v, u_blends.y); first = false; }
+  if (u_on.w == 1) { vec2 g = rot(radians(P_g2Angle)) * (q - vec2(P_g2OffX, P_g2OffY)); float v = grating(u_g2Type, g, max(P_g2Period, 1e-4), P_g2Duty, P_g2Soft); acc = first ? v : blendOp(acc, v, u_blends.z); first = false; }
+  return first ? 0.5 : acc;
+}
+
+vec3 grad3(float t, vec3 c0, vec3 c1, vec3 c2) { return t < 0.5 ? mix(c0, c1, t * 2.0) : mix(c1, c2, (t - 0.5) * 2.0); }
+vec3 colorize(float t, int pal) {
+  if (pal == 0) return vec3(t);
+  if (pal == 1) return grad3(t, vec3(0.13, 0.35, 0.85), vec3(0.97), vec3(0.9, 0.2, 0.15));
+  if (pal == 2) return 0.5 + 0.5 * cos(TAU * (t + vec3(0.0, 0.33, 0.67)));
+  if (pal == 3) return grad3(t, vec3(0.01, 0.07, 0.17), vec3(0.05, 0.48, 0.61), vec3(0.85, 0.96, 1.0));
+  if (pal == 4) return grad3(t, vec3(0.07, 0.01, 0.02), vec3(0.78, 0.25, 0.1), vec3(1.0, 0.88, 0.54));
+  if (pal == 5) return grad3(t, vec3(0.04, 0.02, 0.13), vec3(0.09, 0.63, 0.52), vec3(0.78, 1.0, 0.42));
+  if (pal == 6) return grad3(t, vec3(0.03, 0.05, 0.12), vec3(0.35, 0.62, 0.85), vec3(0.93, 0.98, 1.0));
+  return grad3(t, vec3(0.08, 0.02, 0.14), vec3(0.55, 0.25, 0.75), vec3(1.0, 0.85, 0.95));
+}
+vec3 hueRotate(vec3 c, float a) { const vec3 k = vec3(0.57735); float cs = cos(a), sn = sin(a); return c * cs + cross(k, c) * sn + k * dot(k, c) * (1.0 - cs); }
+vec3 shade(float t, vec2 px) {
+  t = clamp((t - 0.5) * P_contrast + 0.5, 0.0, 1.0);
+  t = pow(t, P_gamma);
+  if (u_invert > 0.5) t = 1.0 - t;
+  float noise = fract(sin(dot(px, vec2(12.9898, 78.233))) * 43758.5453) - 0.5;
+  t = clamp(t + noise * P_grain, 0.0, 1.0);
+  vec3 col = mix(colorize(t, u_palA), colorize(t, u_palB), P_paletteMix);
+  col = hueRotate(col, radians(P_hue));
+  float l = dot(col, vec3(0.299, 0.587, 0.114));
+  return clamp(mix(vec3(l), col, P_saturation), 0.0, 1.0);
+}
+float markers(vec2 q, float px) {
+  float m = 0.0;
+  for (int i = 0; i < ${MAX_SRC}; i++) {
+    if (i >= u_srcCount) break;
+    vec4 a = u_srcA[i]; vec4 b = u_srcB[i];
+    float r = (i == u_hoverSrc ? 13.0 : 10.0) * px;
+    float d = length(q - a.xy);
+    float ring = 1.0 - smoothstep(1.2 * px, 2.4 * px, abs(d - r));
+    if (b.w < 0.5) ring *= 0.4;
+    if (i == u_activeSrc) ring = max(ring, 1.0 - smoothstep(3.0 * px, 4.5 * px, d));
+    if (b.x > 0.5) { vec2 dir = vec2(cos(b.y), sin(b.y)); vec2 rel = q - a.xy; float along = clamp(dot(rel, dir), 0.0, 40.0 * px); ring = max(ring, 1.0 - smoothstep(1.0 * px, 2.2 * px, length(rel - dir * along))); }
+    m = max(m, ring);
+  }
+  return m;
+}
+vec2 toWorld(vec2 uv, float aspect) {
+  vec2 q = (uv - 0.5) * 2.0 * vec2(aspect, 1.0) / P_zoom + vec2(P_panX, P_panY);
+  return rot(radians(P_rotation)) * q;
+}`;
+
+const vs2d = `#version 300 es
+in vec2 a_pos; out vec2 v_uv;
+void main() { v_uv = a_pos * 0.5 + 0.5; gl_Position = vec4(a_pos, 0.0, 1.0); }`;
+
+const fs2d = `#version 300 es
+${glslCommon}
+in vec2 v_uv; out vec4 fragColor;
+void main() {
+  vec2 q = toWorld(v_uv, u_res.x / u_res.y);
+  float t = pattern(q);
+  vec3 col = shade(t, gl_FragCoord.xy);
+  if (u_showSources > 0.5 && u_on.x == 1) col = mix(col, vec3(1.0, 0.7, 0.2), markers(q, 2.0 / (u_res.y * P_zoom)) * 0.9);
+  fragColor = vec4(col, 1.0);
+}`;
+
+const vs3d = `#version 300 es
+precision highp float;
+in vec2 a_pos;
+uniform float p[${targets.length}];
+${defines}
+uniform float u_fieldPhase, u_layer;
+uniform int u_mode, u_modeB;
+uniform vec2 u_res;
+uniform vec3 u_eye;
+out vec2 v_uv; out vec3 v_world;
+const float PI = 3.14159265359;
+vec3 surface(int shape) {
+  vec2 q = a_pos * 2.0 - 1.0;
+  float a = a_pos.x * 2.0 * PI, b = a_pos.y * 2.0 * PI;
+  float deform = P_depth; float phase = u_fieldPhase;
+  vec3 w;
+  if (shape == 1 || shape == 2) {
+    float z = deform * (0.28 * sin(q.x * 3.8 + phase) * cos(q.y * 3.1 - phase * 0.7) + 0.2 * (q.x * q.x - q.y * q.y));
+    w = vec3(q.x * 1.65, -q.y * 1.18, z);
+    if (shape == 2) { float turn = u_layer * 0.075; w.xy = mat2(cos(turn), -sin(turn), sin(turn), cos(turn)) * w.xy; w.z += u_layer * P_separation; }
+  } else if (shape == 3) {
+    float tube = 0.4 + deform * 0.11 * sin(3.0 * a + phase) * cos(2.0 * b - phase * 0.7);
+    w = vec3((1.0 + tube * cos(b)) * cos(a), (1.0 + tube * cos(b)) * sin(a), tube * sin(b));
+  } else if (shape == 4) {
+    float lat = a_pos.y * PI;
+    float radius = 1.22 + deform * 0.14 * sin(4.0 * a + phase) * sin(3.0 * lat - phase * 0.6) * sin(lat);
+    w = radius * vec3(sin(lat) * cos(a), cos(lat), sin(lat) * sin(a));
+  } else if (shape == 6) {
+    float strip = q.y * (0.42 + 0.12 * deform);
+    w = vec3((1.0 + strip * cos(a * 0.5)) * cos(a), (1.0 + strip * cos(a * 0.5)) * sin(a), strip * sin(a * 0.5));
+    w.z += deform * 0.07 * sin(3.0 * a + phase) * q.y * q.y;
+  } else if (shape == 7) {
+    float turn = a_pos.x * 5.0 * PI;
+    float tube = 0.2 + deform * 0.035 * sin(turn + phase);
+    w = vec3((0.85 + tube * cos(b)) * cos(turn), (a_pos.x - 0.5) * 2.6 + tube * sin(b), (0.85 + tube * cos(b)) * sin(turn));
+  } else if (shape == 8) {
+    float turn = a_pos.x * 5.5 * PI;
+    float radius = 0.16 + a_pos.x * 1.05;
+    float tube = (0.045 + a_pos.x * 0.33) * (1.0 + deform * 0.08 * sin(5.0 * b + phase));
+    w = vec3((radius + tube * cos(b)) * cos(turn), (radius + tube * cos(b)) * sin(turn), (a_pos.x - 0.5) * 1.5 + tube * sin(b));
+  } else {
+    float radius = 0.94 + deform * 0.16 * sin(a_pos.y * 12.0 - phase * 1.5) * cos(3.0 * a);
+    w = vec3(radius * cos(a), radius * sin(a), (a_pos.y - 0.5) * 4.4);
+  }
+  return w;
+}
+void main() {
+  vec3 w = mix(surface(u_mode), surface(u_modeB), P_bodyMorph);
+  float twist = w.y * P_bodyTwist;
+  w.xz = mat2(cos(twist), -sin(twist), sin(twist), cos(twist)) * w.xz;
+  v_uv = a_pos; v_world = w;
+  vec3 forward = normalize(-u_eye);
+  vec3 right = normalize(cross(forward, vec3(0.0, 1.0, 0.0)));
+  vec3 up = cross(right, forward);
+  vec3 rel = w - u_eye;
+  vec3 cam = vec3(dot(rel, right), dot(rel, up), -dot(rel, forward));
+  float f = 1.0 / tan(radians(P_fov) * 0.5);
+  float near = 0.05, far = 60.0;
+  gl_Position = vec4(cam.x * f / (u_res.x / u_res.y), cam.y * f, (far + near) / (near - far) * cam.z + 2.0 * far * near / (near - far), -cam.z);
+}`;
+
+const fs3d = `#version 300 es
+${glslCommon}
+uniform vec3 u_eye;
+in vec2 v_uv; in vec3 v_world; out vec4 fragColor;
+void main() {
+  vec2 q = toWorld(v_uv, 1.0);
+  float t = pattern(q);
+  if (t < P_cutout) discard;
+  vec3 nraw = cross(dFdx(v_world), dFdy(v_world));
+  vec3 n = nraw / max(length(nraw), 1e-6);
+  vec3 viewDir = normalize(u_eye - v_world);
+  if (dot(n, viewDir) < 0.0) n = -n;
+  float light = radians(P_wLight);
+  vec3 lightDir = normalize(vec3(sin(light) * 1.4 + 0.7, 1.4, cos(light) * 1.4 + 1.0));
+  float diffuse = max(0.0, dot(n, lightDir));
+  float specular = pow(max(0.0, dot(n, normalize(lightDir + viewDir))), mix(8.0, 88.0, P_metal)) * P_metal;
+  float edge = pow(1.0 - max(0.0, dot(n, viewDir)), 2.5) * P_rim;
+  vec3 material = shade(t, gl_FragCoord.xy);
+  if (u_showSources > 0.5 && u_on.x == 1) material = mix(material, vec3(1.0, 0.7, 0.2), markers(q, 0.004 / P_zoom) * 0.9);
+  vec3 shaded = (material * (0.45 + 0.65 * diffuse) + specular * vec3(0.8, 0.9, 1.0) + edge * mix(vec3(0.25, 0.5, 0.7), material, 0.5)) * P_exposure;
+  vec3 background = vec3(0.72, 1.0, 1.6) * P_background;
+  fragColor = vec4(mix(shaded, background, 1.0 - exp(-length(u_eye - v_world) * P_fog)), 1.0);
+}`;
+
+/* ------------------------------------------------------------ WebGL */
+const canvas = $("glCanvas");
+const gl = canvas.getContext("webgl2", { preserveDrawingBuffer: true, antialias: false });
+if (!gl) { alert("WebGL2 wird benötigt!"); throw new Error("WebGL2 not available"); }
+
+function compileShader(type, src) {
+  const sh = gl.createShader(type);
+  gl.shaderSource(sh, src); gl.compileShader(sh);
+  if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) { const log = gl.getShaderInfoLog(sh); alert("Shader-Fehler: " + log); throw new Error(log); }
+  return sh;
+}
+function makeProgram(vsrc, fsrc, mesh) {
+  const pr = gl.createProgram();
+  gl.attachShader(pr, compileShader(gl.VERTEX_SHADER, vsrc));
+  gl.attachShader(pr, compileShader(gl.FRAGMENT_SHADER, fsrc));
+  gl.linkProgram(pr);
+  if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(pr));
+  const vao = gl.createVertexArray(); gl.bindVertexArray(vao);
+  const verts = [], idx = []; const nx = 160, ny = 96;
+  if (mesh) {
+    for (let y = 0; y <= ny; y++) for (let x = 0; x <= nx; x++) verts.push(x / nx, y / ny);
+    for (let y = 0; y < ny; y++) for (let x = 0; x < nx; x++) { const a = y * (nx + 1) + x, b = a + 1, c = a + nx + 1, d = c + 1; idx.push(a, c, b, b, c, d); }
+  } else verts.push(-1, -1, 1, -1, -1, 1, 1, 1);
+  const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verts), gl.STATIC_DRAW);
+  const loc = gl.getAttribLocation(pr, "a_pos"); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+  if (mesh) { const ib = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(idx), gl.STATIC_DRAW); }
+  const names = ["p[0]", "u_res", "u_time", "u_fieldPhase", "u_ampNorm", "u_invert", "u_aa", "u_showSources", "u_waveView", "u_srcCount", "u_activeSrc", "u_hoverSrc",
+    "u_wField", "u_g1Type", "u_g2Type", "u_palA", "u_palB", "u_on", "u_blends", "u_wovenK", "u_srcA[0]", "u_srcB[0]", "u_eye", "u_layer", "u_mode", "u_modeB"];
+  const u = {}; names.forEach((n) => { u[n.replace("[0]", "")] = gl.getUniformLocation(pr, n); });
+  return { pr, vao, count: idx.length, u };
+}
+const progFlat = makeProgram(vs2d, fs2d, false);
+const progBody = makeProgram(vs3d, fs3d, true);
+gl.disable(gl.CULL_FACE); gl.depthFunc(gl.LEQUAL);
+
+const pArr = new Float32Array(targets.length);
+const srcA = new Float32Array(MAX_SRC * 4), srcB = new Float32Array(MAX_SRC * 4);
+
+let adaptiveScale = 1, qualityTicks = 0;
+function resize() {
+  const q = S.quality === "auto" ? adaptiveScale : parseFloat(S.quality);
+  const dpr = Math.min(window.devicePixelRatio || 1, 2) * q;
+  const r = canvas.getBoundingClientRect();
+  const w = Math.max(2, Math.round(r.width * dpr)), h = Math.max(2, Math.round(r.height * dpr));
+  if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+  needsSync = true;
+  if (typeof progFlat !== "undefined" && typeof parameters === "function") { try { render(false); needsSync = false; } catch (e) { /* noch nicht bereit */ } }
+}
+new ResizeObserver(resize).observe($("stage"));
+window.addEventListener("orientationchange", () => setTimeout(resize, 200));
+
+function effectiveSources(P) {
+  const rot = P.srcRotate * Math.PI / 180, c = Math.cos(rot), s = Math.sin(rot);
+  return S.sources.map((src, i) => ({
+    ...src,
+    x: (src.x * c - src.y * s) * P.srcSpread, y: (src.x * s + src.y * c) * P.srcSpread,
+    angle: src.angle + rot, phase: src.phase + i * P.srcPhaseStep * Math.PI / 180
+  }));
+}
+
+function uploadCommon(u, P, w, h) {
+  for (let i = 0; i < targets.length; i++) pArr[i] = P[targets[i]];
+  gl.uniform1fv(u.p, pArr);
+  gl.uniform2f(u.u_res, w, h);
+  gl.uniform1f(u.u_time, time); gl.uniform1f(u.u_fieldPhase, fieldPhase);
+  let ampSum = 0;
+  const eff = effectiveSources(P);
+  eff.forEach((s, i) => {
+    srcA[i * 4] = s.x; srcA[i * 4 + 1] = s.y; srcA[i * 4 + 2] = s.phase; srcA[i * 4 + 3] = s.amp;
+    srcB[i * 4] = s.type === "plane" ? 1 : 0; srcB[i * 4 + 1] = s.angle; srcB[i * 4 + 2] = s.lambdaMul; srcB[i * 4 + 3] = s.enabled ? 1 : 0;
+    if (s.enabled) ampSum += Math.abs(s.amp);
+  });
+  gl.uniform4fv(u.u_srcA, srcA); gl.uniform4fv(u.u_srcB, srcB);
+  gl.uniform1f(u.u_ampNorm, ampSum > 0 ? 1 / ampSum : 0);
+  gl.uniform1i(u.u_srcCount, S.sources.length);
+  gl.uniform1i(u.u_activeSrc, S.activeSource); gl.uniform1i(u.u_hoverSrc, hoverSrc);
+  const o = S.opt;
+  gl.uniform1f(u.u_invert, o.invert ? 1 : 0); gl.uniform1f(u.u_aa, o.aa ? 1 : 0); gl.uniform1f(u.u_showSources, o.showSources ? 1 : 0);
+  gl.uniform1i(u.u_waveView, VIEWS.indexOf(o.waveView));
+  gl.uniform1i(u.u_wField, +o.wField);
+  gl.uniform1i(u.u_g1Type, Object.keys(GRATINGS).indexOf(o.g1Type)); gl.uniform1i(u.u_g2Type, Object.keys(GRATINGS).indexOf(o.g2Type));
+  gl.uniform1i(u.u_palA, Object.keys(PALETTES).indexOf(o.paletteA)); gl.uniform1i(u.u_palB, Object.keys(PALETTES).indexOf(o.paletteB));
+  gl.uniform4i(u.u_on, o.waveOn ? 1 : 0, o.wovenOn ? 1 : 0, o.g1On ? 1 : 0, o.g2On ? 1 : 0);
+  const bk = Object.keys(BLENDS);
+  gl.uniform4i(u.u_blends, bk.indexOf(o.wovenBlend), bk.indexOf(o.g1Blend), bk.indexOf(o.g2Blend), 0);
+  const fk = Object.keys(FORMS), wk = Object.keys(WEAVES);
+  gl.uniform4i(u.u_wovenK, fk.indexOf(o.wShapeA), fk.indexOf(o.wShapeB), wk.indexOf(o.wWeave), wk.indexOf(o.wWeaveAlt));
+}
+
+// Sichtbarer Bereich in CSS-Pixeln: auf schmalen Bildschirmen liegt das Bedienfeld über der Bühne
+function visibleRect() {
+  const r = canvas.getBoundingClientRect();
+  let covered = 0;
+  if (narrowMQ.matches) { const p = $("panel"); if (!p.classList.contains("collapsed")) covered = Math.max(0, r.bottom - p.getBoundingClientRect().top); }
+  return { left: r.left, top: r.top, width: r.width, height: Math.max(40, r.height - covered), full: r.height };
+}
+function render(forExport) {
+  const P = parameters();
+  const vr = visibleRect();
+  const w = canvas.width, vh = forExport ? canvas.height : Math.max(2, Math.round(canvas.height * vr.height / vr.full));
+  const h = vh, vy = canvas.height - vh;
+  gl.viewport(0, vy, w, h);
+  if (!forExport && vy > 0) { gl.disable(gl.SCISSOR_TEST); gl.clearColor(0.05, 0.06, 0.09, 1); gl.clear(gl.COLOR_BUFFER_BIT); }
+  const spatial = S.opt.viewMode !== "flat";
+  const prog = spatial ? progBody : progFlat;
+  gl.useProgram(prog.pr); gl.bindVertexArray(prog.vao);
+  uploadCommon(prog.u, P, w, h);
+  if (forExport) gl.uniform1f(prog.u.u_showSources, 0);
+  if (spatial) {
+    gl.enable(gl.DEPTH_TEST);
+    gl.clearColor(P.background * 0.72, P.background, P.background * 1.6, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    const yaw = (P.camYaw + spinPhase) * Math.PI / 180, pitch = P.camPitch * Math.PI / 180;
+    const dist = P.distance * Math.max(1, 1.15 / (w / h));
+    gl.uniform3f(prog.u.u_eye, Math.sin(yaw) * Math.cos(pitch) * dist, Math.sin(pitch) * dist, Math.cos(yaw) * Math.cos(pitch) * dist);
+    const bodies = Object.keys(BODIES);
+    const mode = bodies.indexOf(S.opt.viewMode), modeB = bodies.indexOf(S.opt.viewBlend);
+    gl.uniform1i(prog.u.u_mode, mode); gl.uniform1i(prog.u.u_modeB, modeB);
+    const layers = (mode === 2 && P.bodyMorph < 0.999) || (modeB === 2 && P.bodyMorph > 0.001);
+    for (const layer of layers ? [-1, 0, 1] : [0]) { gl.uniform1f(prog.u.u_layer, layer); gl.drawElements(gl.TRIANGLES, prog.count, gl.UNSIGNED_INT, 0); }
+  } else {
+    gl.disable(gl.DEPTH_TEST);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+}
+
+/* -------------------------------------------------------- Modulation */
+function hashN(n, seed) { const x = Math.sin(n * 127.1 + seed * 311.7) * 43758.5453; return (x - Math.floor(x)) * 2 - 1; }
+function osc(shape, ph, seed) {
+  const f = ph - Math.floor(ph);
+  switch (shape) {
+    case "tri": return 1 - 4 * Math.abs(f - 0.5);
+    case "saw": return 2 * f - 1;
+    case "fall": return 1 - 2 * f;
+    case "pulse": return f < 0.5 ? 1 : -1;
+    case "hold": return hashN(Math.floor(ph), seed);
+    case "smooth": { const x = f * f * (3 - 2 * f); return mix(hashN(Math.floor(ph), seed), hashN(Math.floor(ph) + 1, seed), x); }
+    case "steps": return Math.floor(f * 4) / 1.5 - 1;
+    default: return Math.sin(f * TAU);
+  }
+}
+function advance(dt) {
+  prevSignals.set(signals);
+  for (let i = 0; i < N_MOD; i++) {
+    const m = S.mods[i];
+    const link = m.link >= 0 && S.mods[m.link].on ? prevSignals[m.link] : 0;
+    const hz = m.sync ? S.bpm / 60 / m.beats : m.rate;
+    cycles[i] += dt * hz * (m.linkMode === "rate" ? Math.pow(2, link * m.linkDepth * 2) : 1);
+    const amp = m.linkMode === "amp" ? clamp(1 + link * m.linkDepth, 0, 2) : 1;
+    const desired = m.on ? osc(m.shape, cycles[i] + m.phase, i + 1) * amp : 0;
+    signals[i] = mix(signals[i], desired, m.slew > 0 ? 1 - Math.exp(-dt / Math.max(0.005, m.slew)) : 1);
+  }
+  const P = parameters();
+  time += dt * P.speed;
+  fieldPhase += dt * P.speed * P.wMotion;
+  if (S.opt.viewMode !== "flat") spinPhase = (spinPhase + dt * P.spin) % 360;
+}
+function parameters() {
+  const P = { ...S.base };
+  if (!S.bypass) for (let i = 0; i < N_MOD; i++) {
+    const m = S.mods[i]; if (!m.on) continue;
+    for (const [key, depth] of [[m.target, m.depth], [m.target2, m.depth2]]) if (specs[key]) {
+      const span = (specs[key][2] - specs[key][1]) * 0.5;
+      P[key] += signals[i] * depth * S.master * span;
+    }
+  }
+  for (const k of targets) P[k] = clamp(P[k], specs[k][1], specs[k][2]);
+  return P;
+}
+function anyModActive() { return !S.bypass && S.mods.some((m) => m.on); }
+
+const patchPatterns = {
+  interference: [["lambda", "omega"], ["srcSpread", "srcRotate"], ["srcPhaseStep", "damping"], ["g1Angle", "g1Period"], ["paletteMix", "hue"], ["zoom", "rotation"], ["contrast", "gamma"], ["g2Angle", "g2OffX"]],
+  moire: [["g1Angle", "g2Angle"], ["g1Period", "g2Period"], ["g1OffX", "g2OffY"], ["g1Duty", "g2Duty"], ["rotation", "zoom"], ["paletteMix", "hue"], ["g1Soft", "g2Soft"], ["wWeaveMix", "wMorph"]],
+  breathe: [["wBulge", "wElastic"], ["wWidth", "wRelief"], ["wTwist", "g1Angle"], ["paletteMix", "wLight"], ["lambda", "srcSpread"], ["wMotion", "wMorph"], ["contrast", "saturation"], ["rotation", "zoom"]],
+  weave: [["wTwist", "wMorph"], ["wWidth", "wWeaveMix"], ["wElastic", "wScale"], ["wBulge", "g1OffX"], ["wRelief", "wLight"], ["wMorph", "wWidth"], ["g1Angle", "panX"], ["rotation", "paletteMix"]],
+  color: [["paletteMix", "hue"], ["saturation", "contrast"], ["wLight", "gamma"], ["wWeaveMix", "wMorph"], ["hue", "wLight"], ["wWidth", "wBulge"], ["g1Angle", "wTwist"], ["rotation", "paletteMix"]],
+  space: [["depth", "camPitch"], ["camYaw", "wLight"], ["distance", "paletteMix"], ["separation", "wWidth"], ["wTwist", "wMorph"], ["wElastic", "wRelief"], ["hue", "saturation"], ["spin", "lambda"]],
+  metamorph: [["bodyMorph", "depth"], ["bodyTwist", "camPitch"], ["rim", "wLight"], ["paletteMix", "hue"], ["wWidth", "wRelief"], ["wElastic", "wMorph"], ["metal", "saturation"], ["spin", "srcRotate"]]
+};
+function applyPatch(style, record = true) {
+  if (record) remember();
+  S.mods.forEach((m) => { m.on = false; m.link = -1; m.depth2 = 0; m.target2 = "none"; });
+  const pairs = patchPatterns[style] || Array.from({ length: 8 }, () => [targets[Math.floor(Math.random() * targets.length)], targets[Math.floor(Math.random() * targets.length)]]);
+  for (let i = 0; i < 8; i++) Object.assign(S.mods[i], {
+    on: true, shape: style === "random" ? ["sine", "tri", "smooth", "hold"][i % 4] : i % 3 === 2 ? "smooth" : "sine",
+    rate: [0.04, 0.065, 0.09, 0.025, 0.11, 0.055, 0.13, 0.035][i], depth: 0.2, target: pairs[i][0], target2: pairs[i][1],
+    depth2: i % 2 ? -0.12 : 0.12, phase: i / 8, slew: 0.3, sync: false, link: i > 3 ? i - 4 : -1, linkMode: i % 2 ? "amp" : "rate", linkDepth: 0.18
+  });
+  if (style === "space" && S.opt.viewMode === "flat") { S.opt.viewMode = "stack"; cameraHome(); }
+  if (style === "metamorph") { if (S.opt.viewMode === "flat") S.opt.viewMode = "torus"; S.base.bodyMorph = 0.5; S.mods[0].depth = 1; }
+  if (style === "color") { S.opt.paletteA = "violet"; S.opt.paletteB = "ice"; S.base.paletteMix = 0.5; }
+  if (style === "weave" || style === "breathe") S.opt.wovenOn = true;
+  if (style === "moire") { S.opt.g1On = true; S.opt.g2On = true; }
+  if (style === "interference") S.opt.waveOn = true;
+  S.bypass = false; signals.fill(0);
+  buildMods(); syncUI();
+  toast("Muster: " + $("patchStyle").querySelector(`[value="${style}"]`).textContent);
+}
+function resetPhases() { cycles.fill(0); signals.fill(0); fieldPhase = 0; spinPhase = 0; time = 0; needsSync = true; }
+
+/* ------------------------------------------------------------- Toast */
+let toastTimer = null;
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), 1400); }
+
+/* ---------------------------------------------------------- Undo-Verlauf */
+const history = []; let lastSig = "", lastEdit = 0;
+function snapshotState() { return JSON.parse(JSON.stringify(S)); }
+function remember() {
+  const sig = JSON.stringify(S);
+  if (sig === lastSig) return;
+  history.push(snapshotState()); if (history.length > 40) history.shift();
+  lastSig = sig; $("undoBtn").disabled = false;
+}
+function editing() { if (performance.now() - lastEdit > 450) remember(); lastEdit = performance.now(); needsSync = true; }
+function undo() {
+  const s = history.pop(); if (!s) { toast("Nichts rückgängig zu machen"); return; }
+  S = sanitizeState(s); lastSig = ""; buildMods(); syncUI(); resize(); toast("Rückgängig");
+}
+
+/* ------------------------------------------------------- Slider-Bausteine */
+const fmtNum = (v, step) => { const d = step >= 1 ? 0 : step >= 0.1 ? 1 : step >= 0.01 ? 2 : step >= 0.001 ? 3 : 4; return (+v).toFixed(d); };
+function holdRepeat(btn, fn) {
+  let t1 = null, t2 = null; const stop = () => { clearTimeout(t1); clearInterval(t2); t1 = t2 = null; };
+  btn.addEventListener("pointerdown", (e) => { e.preventDefault(); btn.setPointerCapture(e.pointerId); fn(); t1 = setTimeout(() => { t2 = setInterval(fn, 50); }, 400); });
+  ["pointerup", "pointercancel", "lostpointercapture"].forEach((ev) => btn.addEventListener(ev, stop));
+}
+const sliderRegistry = [];
+function makeSlider(container, d) {
+  const wrap = document.createElement("div"); wrap.className = "slider";
+  const label = document.createElement("label");
+  const name = document.createElement("span"); name.textContent = d.label;
+  const valueEl = document.createElement("button"); valueEl.className = "value"; valueEl.type = "button"; valueEl.title = "Antippen: Wert eingeben · Doppelklick auf Regler: Standard";
+  label.appendChild(name); label.appendChild(valueEl);
+  const srow = document.createElement("div"); srow.className = "srow";
+  const minus = document.createElement("button"); minus.className = "step"; minus.type = "button"; minus.textContent = "−";
+  const plus = document.createElement("button"); plus.className = "step"; plus.type = "button"; plus.textContent = "+";
+  const input = document.createElement("input"); input.type = "range"; input.min = d.min; input.max = d.max; input.step = d.step; input.setAttribute("aria-label", d.label);
+  const commit = (v, rec) => {
+    if (d.wrap) v = ((v - d.min) % (d.max - d.min) + (d.max - d.min)) % (d.max - d.min) + d.min;
+    v = clamp(v, d.min, d.max);
+    if (rec) remember(); else editing();
+    d.set(v); input.value = v; valueEl.textContent = fmtNum(v, d.step); needsSync = true; scheduleHash();
+  };
+  input.addEventListener("pointerdown", remember);
+  input.addEventListener("input", () => commit(parseFloat(input.value), false));
+  input.addEventListener("dblclick", () => { if (d.def !== undefined) commit(d.def, true); });
+  const nudge = (dir) => commit(d.get() + dir * Math.max(d.step, (d.max - d.min) / 200), false);
+  holdRepeat(minus, () => nudge(-1)); holdRepeat(plus, () => nudge(1));
+  valueEl.addEventListener("click", () => {
+    const raw = prompt(`${d.label} (${d.min} … ${d.max}):`, String(+d.get().toFixed(4)));
+    if (raw === null) return; const v = parseFloat(raw.replace(",", ".")); if (!isNaN(v)) commit(v, true);
+  });
+  srow.append(minus, input, plus); wrap.append(label, srow); container.appendChild(wrap);
+  sliderRegistry.push({ def: d, input, valueEl, wrap });
+}
+function paramSlider(key) {
+  const s = specs[key];
+  return { key, label: s[0], min: s[1], max: s[2], step: s[3], def: s[4], get: () => S.base[key], set: (v) => (S.base[key] = v), wrap: key.endsWith("Angle") || key === "rotation" || key === "srcRotate" || key === "wLight" || key === "hue" || key === "camYaw" };
+}
+function buildSliders() {
+  const groups = { anim: "sl-anim", wave: "sl-wave", woven: "sl-woven", g1: "sl-g1", g2: "sl-g2", view: "sl-view", color: "sl-color", body: "sl-body", cam: "sl-cam", mat: "sl-mat" };
+  for (const [g, id] of Object.entries(groups)) targets.filter((k) => specs[k][5] === g).forEach((k) => makeSlider($(id), paramSlider(k)));
+  const src = () => S.sources[S.activeSource];
+  [
+    { label: "Position X", min: -2, max: 2, step: 0.005, def: 0, get: () => src().x, set: (v) => (src().x = v) },
+    { label: "Position Y", min: -1.2, max: 1.2, step: 0.005, def: 0, get: () => src().y, set: (v) => (src().y = v) },
+    { label: "Phase φ (°)", min: 0, max: 360, step: 1, def: 0, wrap: true, get: () => src().phase * 180 / Math.PI, set: (v) => (src().phase = v * Math.PI / 180) },
+    { label: "Amplitude", min: 0, max: 2, step: 0.01, def: 1, get: () => src().amp, set: (v) => (src().amp = v) },
+    { label: "λ-Faktor", min: 0.25, max: 4, step: 0.01, def: 1, get: () => src().lambdaMul, set: (v) => (src().lambdaMul = v) },
+    { label: "Richtung (°)", min: 0, max: 360, step: 1, def: 0, wrap: true, get: () => src().angle * 180 / Math.PI, set: (v) => (src().angle = v * Math.PI / 180), showIf: () => src().type === "plane" }
+  ].forEach((d) => makeSlider($("sl-src"), d));
+  makeSlider($("sl-master"), { label: "Modulations-Master", min: 0, max: 1, step: 0.01, def: 0.65, get: () => S.master, set: (v) => (S.master = v) });
+}
+function refreshSliders() {
+  sliderRegistry.forEach(({ def, input, valueEl, wrap }) => {
+    const v = def.get(); input.value = v; valueEl.textContent = fmtNum(v, def.step); valueEl.classList.remove("effective");
+    wrap.classList.toggle("hidden", def.showIf ? !def.showIf() : false);
+  });
+}
+// Basis → Effektiv: zeigt den modulierten Wert hinter dem Reglerwert
+function refreshEffective() {
+  const P = parameters();
+  sliderRegistry.forEach(({ def, valueEl }) => {
+    if (!def.key) return;
+    const b = S.base[def.key], e = P[def.key];
+    const diff = Math.abs(b - e) > def.step * 0.45;
+    valueEl.textContent = diff ? fmtNum(b, def.step) + " → " + fmtNum(e, def.step) : fmtNum(b, def.step);
+    valueEl.classList.toggle("effective", diff);
+  });
+  meters.forEach((el) => { el.style.transform = "scaleX(" + clamp(0.5 + signals[+el.dataset.meter] * 0.5, 0, 1) + ")"; });
+  const xx = specs[$("xyX").value], yy = specs[$("xyY").value];
+  if (xx && yy) {
+    $("xyDot").style.left = (S.base[$("xyX").value] - xx[1]) / (xx[2] - xx[1]) * 100 + "%";
+    $("xyDot").style.top = (1 - (S.base[$("xyY").value] - yy[1]) / (yy[2] - yy[1])) * 100 + "%";
+  }
+}
+
+/* ------------------------------------------------------------- Optionen */
+function fillSelect(sel, dict, selected) {
+  sel.innerHTML = Object.entries(dict).map(([k, v]) => `<option value="${k}"${String(k) === String(selected) ? " selected" : ""}>${v}</option>`).join("");
+}
+function buildOptions() {
+  document.querySelectorAll(".blendSel").forEach((s) => fillSelect(s, BLENDS));
+  document.querySelectorAll(".gratSel").forEach((s) => fillSelect(s, GRATINGS));
+  document.querySelectorAll(".formSel").forEach((s) => fillSelect(s, FORMS));
+  document.querySelectorAll(".weaveSel").forEach((s) => fillSelect(s, WEAVES));
+  document.querySelectorAll(".palSel").forEach((s) => fillSelect(s, PALETTES));
+  fillSelect(document.querySelector(".bodySel"), BODIES);
+  fillSelect(document.querySelector(".bodySelB"), Object.fromEntries(Object.entries(BODIES).slice(1)));
+  fillSelect($("inspectTarget"), targetLabels, "lambda");
+  fillSelect($("xyX"), targetLabels, "g1Angle"); fillSelect($("xyY"), targetLabels, "lambda");
+  document.querySelectorAll("[data-opt]").forEach((el) => {
+    const key = el.dataset.opt;
+    el.addEventListener("change", () => {
+      remember();
+      S.opt[key] = el.type === "checkbox" ? el.checked : el.value;
+      if (key === "viewMode") cameraHome();
+      needsSync = true; syncUI();
+    });
+  });
+}
+function refreshOptions() {
+  document.querySelectorAll("[data-opt]").forEach((el) => {
+    const key = el.dataset.opt;
+    if (el.type === "checkbox") el.checked = !!S.opt[key]; else el.value = S.opt[key];
+  });
+}
+
+/* ---------------------------------------------------------- LFO-Matrix */
+let meters = [];
+function buildMods() {
+  const card = (m, i) => {
+    const choices = { none: "Kein zweites Ziel", ...targetLabels };
+    const links = { "-1": "Ungekoppelt" }; S.mods.forEach((x, j) => { if (j !== i) links[j] = x.id; });
+    const num = (key, label, min, max, step) => `<label>${label}<input data-mod="${i}" data-key="${key}" type="number" min="${min}" max="${max}" step="${step}" value="${m[key]}"></label>`;
+    const sel = (key, dict, val) => `<select data-mod="${i}" data-key="${key}">${Object.entries(dict).map(([k, v]) => `<option value="${k}"${String(k) === String(val) ? " selected" : ""}>${v}</option>`).join("")}</select>`;
+    return `<article class="modCard${m.on ? "" : " disabled"}">
+      <div class="modHead"><b>${m.id}</b><label class="check"><input type="checkbox" data-mod="${i}" data-key="on" ${m.on ? "checked" : ""}><span>Aktiv</span></label></div>
+      <label>Wellenform ${sel("shape", WAVEFORMS, m.shape)}</label>
+      <label>Takt ${sel("sync", { false: "Frei · Hz", true: "BPM-Sync" }, m.sync)}</label>
+      ${m.sync ? num("beats", "Beats / Zyklus", 0.25, 64, 0.25) : num("rate", "Rate · Hz", 0.005, 8, 0.005)}
+      <label>Ziel A ${sel("target", targetLabels, m.target)}</label>${num("depth", "Tiefe A", -1, 1, 0.01)}
+      <label>Ziel B ${sel("target2", choices, m.target2)}</label>${num("depth2", "Tiefe B", -1, 1, 0.01)}
+      <div class="level"><i data-meter="${i}"></i></div>
+      <details><summary>Phase, Glättung &amp; Kopplung</summary>
+        ${num("phase", "Phase · 0–1", 0, 1, 0.01)}${num("slew", "Glättung · s", 0, 2, 0.01)}
+        <label>Moduliert durch ${sel("link", links, m.link)}</label>
+        <label>Wirkung ${sel("linkMode", { rate: "Rate · FM", amp: "Amplitude · AM" }, m.linkMode)}</label>${num("linkDepth", "Kopplung", 0, 1, 0.01)}
+      </details></article>`;
+  };
+  $("lfoGrid").innerHTML = S.mods.slice(0, 8).map(card).join("");
+  $("oscGrid").innerHTML = S.mods.slice(8).map((m, i) => card(m, i + 8)).join("");
+  meters = Array.from(document.querySelectorAll("[data-meter]"));
+  document.querySelectorAll("[data-mod]").forEach((el) => {
+    el.addEventListener("change", () => {
+      remember();
+      const m = S.mods[+el.dataset.mod], k = el.dataset.key;
+      if (el.type === "checkbox") m[k] = el.checked;
+      else if (k === "sync") { m[k] = el.value === "true"; buildMods(); }
+      else if (el.type === "number") { const n = el.valueAsNumber; if (!Number.isFinite(n)) { el.value = m[k]; return; } m[k] = clamp(n, +el.min, +el.max); el.value = m[k]; }
+      else if (k === "link") m[k] = +el.value; else m[k] = el.value;
+      const cardEl = el.closest(".modCard"); if (cardEl) cardEl.classList.toggle("disabled", !m.on);
+      needsSync = true; syncUI();
+    });
+  });
+}
+function updateRoutes() {
+  const key = $("inspectTarget").value; if (!specs[key]) return;
+  const routes = [];
+  S.mods.forEach((m) => { if (!m.on) return; for (const [t, a] of [[m.target, m.depth], [m.target2, m.depth2]]) if (t === key && a !== 0) routes.push(`${m.id} (${a > 0 ? "+" : ""}${a.toFixed(2)})`); });
+  $("routeSummary").innerHTML = routes.length ? "<b>" + routes.join(" · ") + "</b>" + (S.bypass ? " · Modulation ist umgangen" : "") : "Keine aktive Verbindung. Der Regler steuert dieses Ziel direkt.";
+  $("removeRoutesBtn").disabled = !routes.length;
+}
+
+/* ------------------------------------------------------------ XY-Pad */
+(function xyPad() {
+  const pad = $("xyPad"); let down = false;
+  const apply = (e) => {
+    const r = pad.getBoundingClientRect(), x = clamp((e.clientX - r.left) / r.width, 0, 1), y = clamp(1 - (e.clientY - r.top) / r.height, 0, 1);
+    for (const [k, n] of [[$("xyX").value, x], [$("xyY").value, y]]) { const s = specs[k]; if (s) S.base[k] = mix(s[1], s[2], n); }
+    needsSync = true; refreshSliders(); scheduleHash();
+  };
+  pad.addEventListener("pointerdown", (e) => { remember(); down = true; pad.setPointerCapture(e.pointerId); apply(e); });
+  pad.addEventListener("pointermove", (e) => { if (down) apply(e); });
+  ["pointerup", "pointercancel"].forEach((ev) => pad.addEventListener(ev, () => { down = false; }));
+})();
+
+/* ------------------------------------------------------ Zustand / Sanitize */
+function sanitizeState(obj) {
+  const out = defaultState();
+  if (!obj || typeof obj !== "object") return out;
+  const fin = (n, a, b, f) => (typeof n === "number" && Number.isFinite(n) ? clamp(n, a, b) : f);
+  if (obj.base) for (const k of targets) out.base[k] = fin(obj.base[k], specs[k][1], specs[k][2], defaults[k]);
+  if (obj.opt) for (const [k, v] of Object.entries(optionDefaults)) {
+    if (typeof v === "boolean") out.opt[k] = typeof obj.opt[k] === "boolean" ? obj.opt[k] : v;
+    else out.opt[k] = optionSpecs[k].includes(String(obj.opt[k])) ? String(obj.opt[k]) : v;
+  }
+  if (Array.isArray(obj.sources) && obj.sources.length) out.sources = obj.sources.slice(0, MAX_SRC).map((s) => {
+    const src = mkSource(fin(s.x, -4, 4, 0), fin(s.y, -4, 4, 0));
+    src.phase = fin(s.phase, -100, 100, 0); src.amp = fin(s.amp, 0, 2, 1); src.angle = fin(s.angle, -100, 100, 0); src.lambdaMul = fin(s.lambdaMul, 0.25, 4, 1);
+    src.type = s.type === "plane" ? "plane" : "point"; src.enabled = s.enabled !== false; return src;
+  });
+  if (Array.isArray(obj.mods)) out.mods = out.mods.map((d, i) => {
+    const m = obj.mods[i]; if (!m || typeof m !== "object") return d;
+    return { ...d, on: m.on === true, shape: WAVEFORMS[m.shape] ? m.shape : "sine", target: targets.includes(m.target) ? m.target : d.target, target2: targets.includes(m.target2) ? m.target2 : "none",
+      rate: fin(m.rate, 0.005, 8, d.rate), phase: fin(m.phase, 0, 1, 0), depth: fin(m.depth, -1, 1, 0), depth2: fin(m.depth2, -1, 1, 0), sync: m.sync === true, beats: fin(m.beats, 0.25, 64, 8),
+      slew: fin(m.slew, 0, 2, 0.2), link: Number.isInteger(m.link) && m.link >= 0 && m.link < N_MOD && m.link !== i ? m.link : -1, linkMode: m.linkMode === "amp" ? "amp" : "rate", linkDepth: fin(m.linkDepth, 0, 1, 0) };
+  });
+  out.bpm = fin(obj.bpm, 20, 300, 120); out.master = fin(obj.master, 0, 1, 0.65);
+  out.bypass = obj.bypass === true; out.paused = obj.paused === true;
+  out.quality = ["auto", "0.6", "1", "1.5", "2"].includes(String(obj.quality)) ? String(obj.quality) : "auto";
+  out.activeSource = clamp(obj.activeSource | 0, 0, out.sources.length - 1);
+  return out;
+}
+function fullSnapshot() { return { format: "wellenstudio", version: 1, state: snapshotState(), clock: { time, fieldPhase, spinPhase, cycles: Array.from(cycles), signals: Array.from(signals) } }; }
+function loadSnapshot(data) {
+  if (!data || data.format !== "wellenstudio" || !data.state) throw new Error("Keine gültige Wellenstudio-Datei");
+  remember(); S = sanitizeState(data.state);
+  const c = data.clock || {}; const fin = (n, f) => (typeof n === "number" && Number.isFinite(n) ? n : f);
+  time = fin(c.time, 0); fieldPhase = fin(c.fieldPhase, 0); spinPhase = fin(c.spinPhase, 0);
+  for (let i = 0; i < N_MOD; i++) { cycles[i] = fin(c.cycles?.[i], 0); signals[i] = fin(c.signals?.[i], 0); }
+  buildMods(); syncUI(); resize();
+}
+
+/* ----------------------------------------------------------- URL-Hash */
+let hashTimer = null;
+function scheduleHash() { clearTimeout(hashTimer); hashTimer = setTimeout(writeHash, 500); }
+function writeHash() { try { window.history.replaceState(null, "", "#s=" + btoa(unescape(encodeURIComponent(JSON.stringify(S))))); } catch (e) { /* ignore */ } }
+function readHash() {
+  const m = location.hash.match(/^#s=(.+)$/); if (!m) return false;
+  try { S = sanitizeState(JSON.parse(decodeURIComponent(escape(atob(m[1]))))); return true; } catch (e) { return false; }
+}
+
+/* ------------------------------------------------------------- Szenen */
+function arrangeLine(n, spacing) { return Array.from({ length: n }, (_, i) => mkSource((i - (n - 1) / 2) * spacing, 0)); }
+function arrangeCircle(n, r) { return Array.from({ length: n }, (_, i) => mkSource(Math.cos(i / n * TAU) * r, Math.sin(i / n * TAU) * r)); }
+function arrangeStanding() { return [mkSource(-1, 0, { type: "plane" }), mkSource(1, 0, { type: "plane", angle: Math.PI })]; }
+function arrangeRandom(n) { return Array.from({ length: n }, () => mkSource((Math.random() - 0.5) * 1.6, (Math.random() - 0.5) * 1.4, { phase: Math.random() * TAU })); }
+
+const scenes = {
+  doubleslit: { name: "Doppelspalt", opt: { waveOn: true, waveView: "intensity", paletteA: "diverging", paletteB: "ember", viewMode: "flat" }, base: { lambda: 0.1 }, sources: () => [mkSource(-0.35, 0), mkSource(0.35, 0)] },
+  array: { name: "Phased Array · Strahlschwenk", opt: { waveOn: true, waveView: "intensity", paletteA: "ember", paletteB: "aurora", viewMode: "flat" }, base: { lambda: 0.09, paletteMix: 0.3 }, sources: () => arrangeLine(8, 0.1), mods: [{ i: 0, target: "srcPhaseStep", depth: 0.5, rate: 0.05, shape: "tri" }] },
+  standing: { name: "Stehende Welle", opt: { waveOn: true, waveView: "snapshot", viewMode: "flat" }, base: { lambda: 0.16 }, sources: arrangeStanding },
+  linemoire: { name: "Linien-Moiré 3°", opt: { waveOn: false, g1On: true, g2On: true, paletteA: "gray", paletteB: "gray", viewMode: "flat" }, base: { g1Period: 0.04, g2Period: 0.04, g2Angle: 3 }, mods: [{ i: 0, target: "g2Angle", depth: 0.02, rate: 0.03 }] },
+  zone: { name: "Zonenplatten", opt: { waveOn: false, g1On: true, g2On: true, g1Type: "rings", g2Type: "rings", paletteA: "gray", paletteB: "ice", viewMode: "flat" }, base: { g1Period: 0.05, g2Period: 0.05, g1OffX: -0.15, g2OffX: 0.15 }, mods: [{ i: 0, target: "g2OffX", depth: 0.25, rate: 0.04 }] },
+  woven: { name: "Gewebter Raum", opt: { waveOn: false, wovenOn: true, paletteA: "gray", paletteB: "ice", viewMode: "flat" }, base: { paletteMix: 0.4, contrast: 1.15 }, style: "breathe" },
+  wavecloth: { name: "Interferenz auf Tuch", opt: { waveOn: true, g1On: true, g1Blend: "multiply", g1Type: "lines", paletteA: "ocean", paletteB: "ice", viewMode: "cloth", viewBlend: "sphere" }, base: { lambda: 0.14, g1Period: 0.03, depth: 0.7, spin: 3, rim: 0.5 }, sources: () => arrangeCircle(3, 0.45), mods: [{ i: 0, target: "lambda", depth: 0.12, rate: 0.03 }, { i: 1, target: "camPitch", depth: 0.15, rate: 0.02, shape: "tri" }] },
+  torus: { name: "Welle auf Torus", opt: { waveOn: true, waveView: "snapshot", g2On: true, g2Type: "dots", g2Blend: "xor", paletteA: "aurora", paletteB: "ember", viewMode: "torus", viewBlend: "sphere" }, base: { lambda: 0.2, g2Period: 0.12, g2Duty: 0.3, spin: 5, metal: 0.6, rim: 0.6, cutout: 0 }, sources: () => arrangeCircle(4, 0.5), style: "metamorph" },
+  mobius: { name: "Zonenplatten-Möbius", opt: { waveOn: false, g1On: true, g2On: true, g1Type: "rings", g2Type: "rings", paletteA: "gray", paletteB: "violet", viewMode: "mobius", viewBlend: "helix" }, base: { g1Period: 0.08, g2Period: 0.08, g1OffX: -0.2, g2OffX: 0.2, cutout: 0.35, spin: 6, rim: 0.8, paletteMix: 0.5 }, mods: [{ i: 0, target: "g2OffX", depth: 0.3, rate: 0.05 }, { i: 1, target: "bodyMorph", depth: 0.5, rate: 0.015, shape: "tri" }] },
+  silkwave: { name: "Seide × Interferenz", opt: { waveOn: true, wovenOn: true, wovenBlend: "multiply", paletteA: "ember", paletteB: "ice", viewMode: "flat" }, base: { lambda: 0.22, wDensity: 18, wWidth: 0.4, paletteMix: 0.5 }, sources: () => [mkSource(-0.5, 0), mkSource(0.5, 0, { phase: Math.PI })], style: "weave" },
+  shell: { name: "Perlmutt-Muschel", opt: { waveOn: false, wovenOn: true, paletteA: "ice", paletteB: "ember", viewMode: "shell", viewBlend: "helix" }, base: { paletteMix: 0.6, wDensity: 30, wMorph: 0.25, metal: 0.85, rim: 0.4, spin: 3 }, style: "breathe" },
+  layers: { name: "Schichten · Licht", opt: { waveOn: true, g1On: true, g1Type: "hex", g1Blend: "difference", paletteA: "violet", paletteB: "ice", viewMode: "stack", viewBlend: "cloth" }, base: { lambda: 0.18, g1Period: 0.1, separation: 0.65, camYaw: 38, spin: 2, cutout: 0.3 }, sources: () => arrangeCircle(3, 0.4), style: "space" }
+};
+function applyScene(key) {
+  const sc = scenes[key]; if (!sc) return;
+  remember();
+  const prev = S;
+  S = defaultState();
+  Object.assign(S.opt, sc.opt); Object.assign(S.base, sc.base);
+  if (sc.sources) S.sources = sc.sources();
+  S.quality = prev.quality;
+  resetPhases();
+  if (sc.style) { applyPatch(sc.style, false); Object.assign(S.opt, sc.opt); Object.assign(S.base, sc.base); }
+  if (sc.mods) sc.mods.forEach((m) => Object.assign(S.mods[m.i], { on: true, rate: 0.05, depth: 0.2, phase: m.i / 8, slew: 0.3 }, m));
+  cameraHome();
+  for (const k of ["camYaw", "camPitch", "distance", "fov"]) if (sc.base[k] !== undefined) S.base[k] = sc.base[k];
+  buildMods(); syncUI(); toast(sc.name);
+}
+function cameraHome() {
+  for (const k of ["camYaw", "camPitch", "distance", "fov"]) S.base[k] = defaults[k];
+  spinPhase = 0;
+  if (S.opt.viewMode === "sphere") { S.base.camYaw = 0; S.base.camPitch = 10; }
+  if (S.opt.viewMode === "tunnel") { S.base.camYaw = 0; S.base.camPitch = 0; S.base.distance = 5.4; }
+}
+function resetView() { remember(); for (const k of ["zoom", "panX", "panY", "rotation"]) S.base[k] = defaults[k]; cameraHome(); needsSync = true; syncUI(); }
+
+/* ------------------------------------------------------ Eigene Presets */
+const USER_KEY = "wellenstudio-presets";
+function loadUserPresets() { try { return JSON.parse(localStorage.getItem(USER_KEY) || "{}"); } catch (e) { return {}; } }
+function saveUserPresets(o) { try { localStorage.setItem(USER_KEY, JSON.stringify(o)); } catch (e) { toast("Speicher blockiert – bitte JSON exportieren"); } }
+function refreshUserPresets(sel) {
+  const names = Object.keys(loadUserPresets());
+  $("userPreset").innerHTML = '<option value="">– eigenes Preset –</option>' + names.map((n) => `<option value="${n.replace(/"/g, "&quot;")}">${n}</option>`).join("");
+  if (sel) $("userPreset").value = sel;
+}
+
+/* ------------------------------------------------------------- syncUI */
+let currentPage = "start";
+function showPage(name) {
+  currentPage = name;
+  document.querySelectorAll("#ptabs button").forEach((b) => b.classList.toggle("active", b.dataset.page === name));
+  document.querySelectorAll(".ppage").forEach((p) => p.classList.toggle("hidden", p.dataset.page !== name));
+  $("pages").scrollTop = 0;
+}
+document.querySelectorAll("#ptabs button").forEach((b) => b.addEventListener("click", () => { showPage(b.dataset.page); if (narrowMQ.matches && sheetState === "peek") setSheet("half"); }));
+
+function syncUI() {
+  const spatial = S.opt.viewMode !== "flat";
+  document.querySelectorAll("#spaceSeg button").forEach((b) => b.classList.toggle("active", (b.dataset.space === "body") === spatial));
+  document.querySelector('#ptabs [data-page="wave"]').classList.toggle("dimmed", !S.opt.waveOn);
+  document.querySelector('#ptabs [data-page="space"]').classList.toggle("dimmed", !spatial);
+  $("addBtn").classList.toggle("hidden", !S.opt.waveOn);
+  $("pauseBtn").textContent = S.paused ? "▶ Weiter" : "Pause"; $("pauseBtn").classList.toggle("active", S.paused);
+  $("playBtn").textContent = S.paused ? "▶" : "⏸"; $("playBtn").classList.toggle("active", S.paused);
+  $("bypassBtn").textContent = S.bypass ? "Mod: aus" : "Mod: an"; $("bypassBtn").setAttribute("aria-pressed", String(!S.bypass));
+  $("modBtn").setAttribute("aria-pressed", String(!S.bypass));
+  $("bpm").value = S.bpm; $("quality").value = S.quality;
+  $("undoBtn").disabled = !history.length;
+  const src = S.sources[S.activeSource];
+  $("srcTitle").textContent = `${S.activeSource + 1} / ${S.sources.length}`;
+  $("srcType").value = src.type; $("srcEnabled").checked = src.enabled;
+  const tabs = $("srcTabs"); tabs.innerHTML = "";
+  S.sources.forEach((_, i) => { const b = document.createElement("button"); b.className = "btn secondary" + (i === S.activeSource ? " active" : ""); b.textContent = i + 1; b.addEventListener("click", () => { S.activeSource = i; needsSync = true; syncUI(); }); tabs.appendChild(b); });
+  $("addSrcBtn").disabled = S.sources.length >= MAX_SRC; $("removeSrcBtn").disabled = S.sources.length <= 1;
+  const active = S.mods.filter((m) => m.on).length;
+  $("matrixInfo").textContent = `${S.mods.slice(0, 8).filter((m) => m.on).length} / 8 aktiv`;
+  $("modBtn").textContent = `Mod ${active}`;
+  refreshOptions(); refreshSliders(); updateRoutes(); updateHint(); scheduleHash();
+  needsSync = true;
+}
+function updateHint() {
+  const spatial = S.opt.viewMode !== "flat";
+  $("hint").textContent = spatial
+    ? "Ziehen = Kamera drehen · Shift+Ziehen = Muster verschieben · Rad = Abstand · Rechtsklick = Menü"
+    : (S.opt.waveOn ? `Quelle ${S.activeSource + 1} · Ziehen = Bewegen / Verschieben · Doppelklick = neue Quelle · Rad = Zoom · Alt+Rad = Gitter 1 drehen` : "Ziehen = Verschieben · Rad = Zoom · Alt+Rad = Gitter 1 drehen · Rechtsklick = Menü");
+}
+
+/* ------------------------------------------------------ Bottom-Sheet */
+let sheetState = "half";
+const SHEET = { peek: 112, half: 0.46, full: 0.88 };
+const sheetPx = (st) => (SHEET[st] > 1 ? SHEET[st] : Math.round(window.innerHeight * SHEET[st]));
+function setSheet(st) { sheetState = st; const p = $("panel"); p.classList.remove("collapsed"); p.style.height = narrowMQ.matches ? sheetPx(st) + "px" : ""; $("panelBtn").setAttribute("aria-pressed", "true"); needsSync = true; setTimeout(() => { needsSync = true; }, 260); }
+function togglePanel() {
+  const p = $("panel");
+  if (narrowMQ.matches) { if (p.classList.contains("collapsed")) setSheet("half"); else { p.classList.add("collapsed"); p.style.height = ""; $("panelBtn").setAttribute("aria-pressed", "false"); } }
+  else { const col = p.classList.toggle("collapsed"); $("panelBtn").setAttribute("aria-pressed", String(!col)); }
+}
+$("panelBtn").addEventListener("click", togglePanel);
+(function sheetDrag() {
+  const handle = $("panelHandle"), panel = $("panel"); let startY = 0, startH = 0, dragging = false;
+  handle.addEventListener("pointerdown", (e) => { dragging = true; startY = e.clientY; startH = panel.getBoundingClientRect().height; panel.classList.add("dragging"); handle.setPointerCapture(e.pointerId); });
+  handle.addEventListener("pointermove", (e) => { if (dragging) { panel.style.height = Math.max(60, Math.min(window.innerHeight * 0.92, startH + (startY - e.clientY))) + "px"; needsSync = true; } });
+  const end = (e) => {
+    if (!dragging) return; dragging = false; panel.classList.remove("dragging");
+    const h = panel.getBoundingClientRect().height;
+    if (Math.abs(e.clientY - startY) <= 6) { setSheet(sheetState === "peek" ? "half" : "peek"); return; }
+    let best = "half", bd = Infinity; ["peek", "half", "full"].forEach((c) => { const d = Math.abs(sheetPx(c) - h); if (d < bd) { bd = d; best = c; } }); setSheet(best);
+  };
+  handle.addEventListener("pointerup", end); handle.addEventListener("pointercancel", end);
+})();
+narrowMQ.addEventListener("change", () => { const p = $("panel"); p.classList.remove("collapsed"); if (narrowMQ.matches) setSheet(sheetState); else p.style.height = ""; resize(); });
+window.addEventListener("resize", () => { if (narrowMQ.matches && !$("panel").classList.contains("collapsed")) setSheet(sheetState); });
+
+/* ------------------------------------------------------------ Bindings */
+function setSpace(body) {
+  remember();
+  if (body && S.opt.viewMode === "flat") { S.opt.viewMode = "torus"; cameraHome(); }
+  if (!body && S.opt.viewMode !== "flat") S.opt.viewMode = "flat";
+  syncUI();
+}
+document.querySelectorAll("#spaceSeg button").forEach((b) => b.addEventListener("click", () => setSpace(b.dataset.space === "body")));
+function togglePause() { S.paused = !S.paused; lastFrame = performance.now(); syncUI(); }
+function toggleBypass() { remember(); S.bypass = !S.bypass; syncUI(); toast(S.bypass ? "Modulation aus" : "Modulation an"); }
+$("pauseBtn").addEventListener("click", togglePause); $("playBtn").addEventListener("click", togglePause);
+$("bypassBtn").addEventListener("click", toggleBypass); $("modBtn").addEventListener("click", toggleBypass);
+$("rewindBtn").addEventListener("click", () => { remember(); resetPhases(); toast("Zeit und Phasen auf 0"); });
+$("undoBtn").addEventListener("click", undo); $("undoHud").addEventListener("click", undo);
+$("resetViewBtn").addEventListener("click", resetView); $("resetViewHud").addEventListener("click", resetView);
+$("camHomeBtn").addEventListener("click", () => { remember(); cameraHome(); syncUI(); });
+$("holdCamBtn").addEventListener("click", () => {
+  remember(); const P = parameters(), keys = ["camYaw", "camPitch", "distance", "fov", "spin"];
+  for (const k of keys) S.base[k] = P[k];
+  S.base.camYaw = ((P.camYaw + spinPhase + 540) % 360) - 180; S.base.spin = 0; spinPhase = 0;
+  for (const m of S.mods) { if (keys.includes(m.target)) m.depth = 0; if (keys.includes(m.target2)) m.depth2 = 0; }
+  buildMods(); syncUI(); toast("Kamera hält · ↶ stellt Bewegung wieder her");
+});
+$("autoPatchBtn").addEventListener("click", () => applyPatch($("patchStyle").value));
+$("clearPatchBtn").addEventListener("click", () => { remember(); S.mods.forEach((m) => (m.on = false)); signals.fill(0); buildMods(); syncUI(); toast("Alle Quellen aus"); });
+$("bpm").addEventListener("change", () => { remember(); const n = $("bpm").valueAsNumber; if (Number.isFinite(n)) S.bpm = clamp(n, 20, 300); syncUI(); });
+$("inspectTarget").addEventListener("change", updateRoutes);
+$("xyX").addEventListener("change", refreshEffective); $("xyY").addEventListener("change", refreshEffective);
+$("removeRoutesBtn").addEventListener("click", () => { const key = $("inspectTarget").value; remember(); for (const m of S.mods) { if (m.target === key) m.depth = 0; if (m.target2 === key) m.depth2 = 0; } buildMods(); syncUI(); toast("Modulation entfernt: " + specs[key][0]); });
+$("quality").addEventListener("change", () => { S.quality = $("quality").value; adaptiveScale = 1; qualityTicks = 0; resize(); });
+$("srcType").addEventListener("change", (e) => { remember(); S.sources[S.activeSource].type = e.target.value; syncUI(); });
+$("srcEnabled").addEventListener("change", (e) => { remember(); S.sources[S.activeSource].enabled = e.target.checked; syncUI(); });
+function addSource(x, y) {
+  if (S.sources.length >= MAX_SRC) { toast(`Maximal ${MAX_SRC} Quellen`); return; }
+  remember();
+  if (x === undefined) { x = (Math.random() - 0.5) * 1.2; y = (Math.random() - 0.5) * 1.0; }
+  S.sources.push(mkSource(x, y)); S.activeSource = S.sources.length - 1; S.opt.waveOn = true;
+  syncUI(); toast(`Quelle ${S.sources.length} hinzugefügt`);
+}
+function removeSource(idx) {
+  if (S.sources.length <= 1) { toast("Mindestens eine Quelle bleibt"); return; }
+  remember(); S.sources.splice(idx, 1); S.activeSource = Math.min(S.activeSource, S.sources.length - 1); syncUI(); toast("Quelle entfernt");
+}
+$("addSrcBtn").addEventListener("click", () => addSource()); $("addBtn").addEventListener("click", () => addSource());
+$("removeSrcBtn").addEventListener("click", () => removeSource(S.activeSource));
+$("arrange").addEventListener("change", (e) => {
+  const v = e.target.value; e.target.value = ""; const n = Math.max(2, S.sources.length); remember();
+  if (v === "line") S.sources = arrangeLine(n, 1.4 / Math.max(1, n - 1) * Math.min(1, (n - 1) / 4));
+  else if (v === "circle") S.sources = arrangeCircle(Math.max(3, n), 0.55);
+  else if (v === "pair") S.sources = [mkSource(-0.35, 0), mkSource(0.35, 0)];
+  else if (v === "random") S.sources = arrangeRandom(n);
+  else if (v === "standing") S.sources = arrangeStanding();
+  else return;
+  S.activeSource = 0; syncUI();
+});
+$("randomBtn").addEventListener("click", () => {
+  remember(); const pick = (a) => a[Math.floor(Math.random() * a.length)];
+  S.opt.waveOn = Math.random() < 0.7; S.opt.wovenOn = Math.random() < 0.4; S.opt.g1On = Math.random() < 0.6; S.opt.g2On = Math.random() < 0.4;
+  if (!S.opt.waveOn && !S.opt.wovenOn && !S.opt.g1On) S.opt.g1On = true;
+  S.sources = arrangeRandom(2 + Math.floor(Math.random() * 5)); S.activeSource = 0;
+  S.base.lambda = 0.06 + Math.random() * 0.25; S.opt.waveView = pick(VIEWS);
+  for (const g of ["g1", "g2"]) { S.opt[g + "Type"] = pick(Object.keys(GRATINGS)); S.opt[g + "Blend"] = pick(Object.keys(BLENDS)); S.base[g + "Period"] = 0.02 + Math.random() * 0.1; S.base[g + "Angle"] = Math.random() * 360 - 180; S.base[g + "Duty"] = 0.3 + Math.random() * 0.4; }
+  S.opt.wovenBlend = pick(Object.keys(BLENDS)); S.base.wTwist = Math.random() - 0.5; S.base.wBulge = Math.random() * 1.2;
+  S.opt.paletteA = pick(Object.keys(PALETTES)); S.opt.paletteB = pick(Object.keys(PALETTES)); S.base.paletteMix = Math.random();
+  if (Math.random() < 0.4) { S.opt.viewMode = pick(Object.keys(BODIES).slice(1)); S.opt.viewBlend = pick(Object.keys(BODIES).slice(1)); cameraHome(); } else S.opt.viewMode = "flat";
+  if (Math.random() < 0.5) applyPatch(pick(Object.keys(patchPatterns)), false);
+  buildMods(); syncUI(); toast("Zufallsszene");
+});
+$("savePresetBtn").addEventListener("click", () => { const name = prompt("Name für das Preset:", "Mein Muster"); if (!name) return; const u = loadUserPresets(); u[name] = snapshotState(); saveUserPresets(u); refreshUserPresets(name); toast("Gespeichert"); });
+$("deletePresetBtn").addEventListener("click", () => { const name = $("userPreset").value; if (!name) return; if (!confirm(`Preset „${name}“ löschen?`)) return; const u = loadUserPresets(); delete u[name]; saveUserPresets(u); refreshUserPresets(); toast("Gelöscht"); });
+$("userPreset").addEventListener("change", (e) => { const u = loadUserPresets(); if (u[e.target.value]) { remember(); S = sanitizeState(u[e.target.value]); resetPhases(); buildMods(); syncUI(); toast(e.target.value); } });
+function toggleFullscreen() {
+  const el = document.documentElement;
+  if (!document.fullscreenElement && el.requestFullscreen) el.requestFullscreen().catch(() => toast("Vollbild nicht verfügbar"));
+  else if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen();
+  else toast("Vollbild nicht verfügbar – zum Home-Bildschirm hinzufügen");
+}
+$("fsBtn").addEventListener("click", toggleFullscreen); $("fsBtn2").addEventListener("click", toggleFullscreen);
+if (!document.documentElement.requestFullscreen) $("fsBtn").classList.add("hidden");
+function download(blob, name) { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800); }
+function savePng() { render(true); canvas.toBlob((b) => { if (!b) { toast("PNG fehlgeschlagen"); return; } download(b, `wellenstudio-${Date.now()}.png`); needsSync = true; toast(`PNG · ${canvas.width} × ${canvas.height}`); }, "image/png"); }
+$("pngBtn").addEventListener("click", savePng);
+$("linkBtn").addEventListener("click", async () => { writeHash(); try { await navigator.clipboard.writeText(location.href); toast("Link kopiert"); } catch (e) { prompt("Link kopieren:", location.href); } });
+$("exportBtn").addEventListener("click", () => { download(new Blob([JSON.stringify(fullSnapshot(), null, 2)], { type: "application/json" }), "wellenstudio-patch.json"); toast("JSON exportiert"); });
+$("importBtn").addEventListener("click", () => $("file").click());
+$("file").addEventListener("change", async () => {
+  const f = $("file").files[0]; if (!f) return;
+  try { if (f.size > 800000) throw new Error("Datei zu groß"); loadSnapshot(JSON.parse(await f.text())); toast("Patch geladen"); }
+  catch (e) { toast("Import: " + e.message); } finally { $("file").value = ""; }
+});
+document.querySelectorAll("[data-ctl]").forEach((b) => b.addEventListener("click", () => {
+  document.querySelectorAll("[data-ctl]").forEach((x) => x.classList.toggle("active", x === b));
+  $("ctlTouch").classList.toggle("hidden", b.dataset.ctl !== "touch"); $("ctlMouse").classList.toggle("hidden", b.dataset.ctl !== "mouse");
+}));
+document.querySelector(`[data-ctl="${COARSE ? "touch" : "mouse"}"]`).click();
+$("sceneGrid").innerHTML = Object.entries(scenes).map(([k, v]) => `<button class="btn secondary" data-scene="${k}">${v.name}</button>`).join("");
+document.querySelectorAll("[data-scene]").forEach((b) => b.addEventListener("click", () => { applyScene(b.dataset.scene); if (narrowMQ.matches) setSheet("peek"); }));
+
+/* ---------------------------------------------------------- Interaktion */
+const pointers = new Map(); let gesture = null, longPress = null;
+function toWorld(clientX, clientY) {
+  const r = visibleRect(), aspect = r.width / r.height, b = S.base;
+  const nx = (clientX - r.left) / r.width - 0.5, ny = (clientY - r.top) / r.height - 0.5;
+  const qx = nx * 2 * aspect / b.zoom + b.panX, qy = -ny * 2 / b.zoom + b.panY;
+  const a = b.rotation * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
+  return [c * qx - s * qy, s * qx + c * qy];
+}
+// Quellen liegen vor Quellen-Drehung/-Abstand; für Treffertests in den effektiven Raum umrechnen
+function nearestSource(wx, wy) {
+  const r = visibleRect(), threshold = ((COARSE ? 34 : 24) / r.height) * 2 / S.base.zoom;
+  let best = -1, bd = threshold;
+  effectiveSources(parameters()).forEach((s, i) => { const d = Math.hypot(s.x - wx, s.y - wy); if (d < bd) { bd = d; best = i; } });
+  return best;
+}
+function worldToSource(wx, wy) {
+  const P = parameters(), rot = -P.srcRotate * Math.PI / 180, c = Math.cos(rot), s = Math.sin(rot), k = 1 / Math.max(0.01, P.srcSpread);
+  return [(wx * c - wy * s) * k, (wx * s + wy * c) * k];
+}
+const spatial = () => S.opt.viewMode !== "flat";
+function cancelLongPress() { if (longPress) { clearTimeout(longPress.timer); longPress = null; } }
+
+canvas.addEventListener("pointerdown", (e) => {
+  if (e.button === 2) return;
+  canvas.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  cancelLongPress(); remember();
+  if (pointers.size === 1) {
+    if (e.pointerType !== "mouse") longPress = { x: e.clientX, y: e.clientY, timer: setTimeout(() => { longPress = null; gesture = null; contextMenu(e.clientX, e.clientY); }, 550) };
+    const [wx, wy] = toWorld(e.clientX, e.clientY);
+    const idx = S.opt.waveOn && !e.shiftKey ? nearestSource(wx, wy) : -1;
+    if (idx >= 0) {
+      S.activeSource = idx; const [sx, sy] = worldToSource(wx, wy);
+      gesture = { kind: "source", idx, dx: S.sources[idx].x - sx, dy: S.sources[idx].y - sy }; canvas.classList.add("grabbing"); syncUI();
+    } else if (spatial() && !e.shiftKey) {
+      gesture = { kind: "orbit", x0: e.clientX, y0: e.clientY, yaw: S.base.camYaw, pitch: S.base.camPitch };
+    } else gesture = { kind: "pan", lastX: e.clientX, lastY: e.clientY };
+  } else if (pointers.size === 2) {
+    cancelLongPress(); const [a, b] = [...pointers.values()];
+    gesture = { kind: "pinch", dist: Math.hypot(a.x - b.x, a.y - b.y), angle: Math.atan2(b.y - a.y, b.x - a.x), midX: (a.x + b.x) / 2, midY: (a.y + b.y) / 2 };
+  }
+});
+canvas.addEventListener("pointermove", (e) => {
+  if (!pointers.has(e.pointerId)) {
+    if (e.pointerType === "mouse" && S.opt.waveOn) { const [wx, wy] = toWorld(e.clientX, e.clientY); const idx = nearestSource(wx, wy); if (idx !== hoverSrc) { hoverSrc = idx; needsSync = true; } canvas.classList.toggle("grab", idx >= 0); }
+    else if (hoverSrc !== -1) { hoverSrc = -1; needsSync = true; canvas.classList.remove("grab"); }
+    canvas.classList.toggle("orbit", spatial() && hoverSrc < 0 && e.pointerType === "mouse");
+    return;
+  }
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (longPress && Math.hypot(e.clientX - longPress.x, e.clientY - longPress.y) > 8) cancelLongPress();
+  if (!gesture) return;
+  const r = visibleRect(), unitPerPx = 2 / r.height / S.base.zoom, b = S.base;
+  if (gesture.kind === "source" && pointers.size === 1) {
+    const [wx, wy] = toWorld(e.clientX, e.clientY); const [sx, sy] = worldToSource(wx, wy);
+    const s = S.sources[gesture.idx]; s.x = sx + gesture.dx; s.y = sy + gesture.dy; needsSync = true; refreshSliders();
+  } else if (gesture.kind === "orbit" && pointers.size === 1) {
+    b.camYaw = ((gesture.yaw + (e.clientX - gesture.x0) * 0.35 + 540) % 360) - 180;
+    b.camPitch = clamp(gesture.pitch - (e.clientY - gesture.y0) * 0.25, -80, 80); needsSync = true; refreshSliders();
+  } else if (gesture.kind === "pan" && pointers.size === 1) {
+    const a = b.rotation * Math.PI / 180, dx = -(e.clientX - gesture.lastX) * unitPerPx, dy = (e.clientY - gesture.lastY) * unitPerPx;
+    b.panX = clamp(b.panX + dx, -3, 3); b.panY = clamp(b.panY + dy, -3, 3);
+    gesture.lastX = e.clientX; gesture.lastY = e.clientY; needsSync = true; refreshSliders(); void a;
+  } else if (gesture.kind === "pinch" && pointers.size === 2) {
+    const [p1, p2] = [...pointers.values()];
+    const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y), ang = Math.atan2(p2.y - p1.y, p2.x - p1.x), midX = (p1.x + p2.x) / 2, midY = (p1.y + p2.y) / 2;
+    let dAng = ang - gesture.angle; while (dAng > Math.PI) dAng -= TAU; while (dAng < -Math.PI) dAng += TAU;
+    if (S.opt.g1On) b.g1Angle = ((b.g1Angle - dAng * 180 / Math.PI + 180) % 360 + 360) % 360 - 180;
+    gesture.angle = ang;
+    const factor = dist / Math.max(1, gesture.dist);
+    if (spatial()) b.distance = clamp(b.distance / factor, 2.6, 10);
+    else { b.zoom = clamp(b.zoom * factor, 0.2, 8); b.panX = clamp(b.panX - (midX - gesture.midX) * unitPerPx, -3, 3); b.panY = clamp(b.panY + (midY - gesture.midY) * unitPerPx, -3, 3); }
+    gesture.dist = dist; gesture.midX = midX; gesture.midY = midY; needsSync = true; refreshSliders();
+  }
+});
+function endPointer(e) {
+  pointers.delete(e.pointerId); cancelLongPress(); canvas.classList.remove("grabbing");
+  if (pointers.size === 0) { gesture = null; scheduleHash(); }
+  else if (pointers.size === 1) { const [p] = [...pointers.values()]; gesture = { kind: "pan", lastX: p.x, lastY: p.y }; }
+}
+canvas.addEventListener("pointerup", endPointer); canvas.addEventListener("pointercancel", endPointer);
+canvas.addEventListener("pointerleave", () => { if (hoverSrc !== -1) { hoverSrc = -1; needsSync = true; } });
+canvas.addEventListener("dblclick", (e) => {
+  if (!S.opt.waveOn) { resetView(); return; }
+  const [wx, wy] = toWorld(e.clientX, e.clientY); if (nearestSource(wx, wy) >= 0) return;
+  const [sx, sy] = worldToSource(wx, wy); addSource(sx, sy);
+});
+function zoomAt(factor, clientX, clientY) {
+  const b = S.base;
+  if (spatial()) { b.distance = clamp(b.distance / factor, 2.6, 10); needsSync = true; refreshSliders(); scheduleHash(); return; }
+  const r = visibleRect();
+  const nx = ((clientX ?? r.left + r.width / 2) - r.left) / r.width - 0.5, ny = ((clientY ?? r.top + r.height / 2) - r.top) / r.height - 0.5;
+  const aspect = r.width / r.height, old = b.zoom, nz = clamp(old * factor, 0.2, 8);
+  b.panX = clamp(b.panX + nx * 2 * aspect * (1 / old - 1 / nz), -3, 3); b.panY = clamp(b.panY - ny * 2 * (1 / old - 1 / nz), -3, 3); b.zoom = nz;
+  needsSync = true; refreshSliders(); scheduleHash();
+}
+canvas.addEventListener("wheel", (e) => {
+  e.preventDefault(); editing();
+  if (e.altKey) { S.base.g1Angle = ((S.base.g1Angle + e.deltaY * 0.03 + 180) % 360 + 360) % 360 - 180; needsSync = true; refreshSliders(); scheduleHash(); }
+  else zoomAt(Math.exp(-clamp(e.deltaY, -120, 120) * 0.0015), e.clientX, e.clientY);
+}, { passive: false });
+
+/* ------------------------------------------------------------ Kontextmenü */
+function showPopover(clientX, clientY, items, title) {
+  const pop = $("popover"); pop.innerHTML = "";
+  if (title) { const t = document.createElement("div"); t.className = "ptitle"; t.textContent = title; pop.appendChild(t); }
+  items.forEach((it) => { const b = document.createElement("button"); b.textContent = it.label; if (it.danger) b.className = "danger"; b.addEventListener("click", () => { hidePopover(); it.run(); }); pop.appendChild(b); });
+  pop.classList.remove("hidden");
+  const st = $("stage").getBoundingClientRect(); let x = clientX - st.left, y = clientY - st.top;
+  if (x + pop.offsetWidth > st.width - 8) x = st.width - pop.offsetWidth - 8; if (y + pop.offsetHeight > st.height - 8) y = st.height - pop.offsetHeight - 8;
+  pop.style.left = Math.max(8, x) + "px"; pop.style.top = Math.max(8, y) + "px";
+}
+function hidePopover() { $("popover").classList.add("hidden"); }
+document.addEventListener("pointerdown", (e) => { if (!$("popover").contains(e.target)) hidePopover(); }, true);
+function contextMenu(clientX, clientY) {
+  const [wx, wy] = toWorld(clientX, clientY); const items = [];
+  if (S.opt.waveOn) {
+    const idx = nearestSource(wx, wy);
+    if (idx >= 0) {
+      const s = S.sources[idx]; S.activeSource = idx; syncUI();
+      items.push({ label: s.type === "point" ? "In ebene Welle wandeln" : "In Punktquelle wandeln", run: () => { remember(); s.type = s.type === "point" ? "plane" : "point"; syncUI(); } });
+      items.push({ label: "Phase +90°", run: () => { remember(); s.phase = (s.phase + Math.PI / 2) % TAU; syncUI(); } });
+      items.push({ label: "Phase +180°", run: () => { remember(); s.phase = (s.phase + Math.PI) % TAU; syncUI(); } });
+      items.push({ label: s.enabled ? "Stummschalten" : "Aktivieren", run: () => { remember(); s.enabled = !s.enabled; syncUI(); } });
+      items.push({ label: "Duplizieren", run: () => { if (S.sources.length < MAX_SRC) { remember(); S.sources.push(mkSource(s.x + 0.1, s.y + 0.1, s)); S.activeSource = S.sources.length - 1; syncUI(); } } });
+      items.push({ label: "Quelle löschen", danger: true, run: () => removeSource(idx) });
+      showPopover(clientX, clientY, items, `Quelle ${idx + 1}`); return;
+    }
+    const [sx, sy] = worldToSource(wx, wy);
+    items.push({ label: "Quelle hier setzen", run: () => addSource(sx, sy) });
+    items.push({ label: "Ebene Welle hier setzen", run: () => { addSource(sx, sy); S.sources[S.activeSource].type = "plane"; syncUI(); } });
+  } else items.push({ label: "Wellenfeld einschalten", run: () => { remember(); S.opt.waveOn = true; syncUI(); } });
+  if (S.opt.g1On) items.push({ label: "Gitter 1 hierher", run: () => { remember(); S.base.g1OffX = clamp(wx, -1, 1); S.base.g1OffY = clamp(wy, -1, 1); syncUI(); } });
+  if (S.opt.g2On) items.push({ label: "Gitter 2 hierher", run: () => { remember(); S.base.g2OffX = clamp(wx, -1, 1); S.base.g2OffY = clamp(wy, -1, 1); syncUI(); } });
+  items.push({ label: spatial() ? "Zur Fläche wechseln" : "In den Raum wechseln", run: () => setSpace(!spatial()) });
+  items.push({ label: "Ansicht zentrieren", run: resetView });
+  items.push({ label: S.paused ? "Weiter" : "Pause", run: togglePause });
+  showPopover(clientX, clientY, items, spatial() ? BODIES[S.opt.viewMode] : "Fläche");
+}
+canvas.addEventListener("contextmenu", (e) => { e.preventDefault(); contextMenu(e.clientX, e.clientY); });
+
+/* ------------------------------------------------------------- Tastatur */
+document.addEventListener("keydown", (e) => {
+  const tag = (e.target.tagName || "").toLowerCase();
+  const isText = tag === "textarea" || (tag === "input" && !["checkbox", "range"].includes(e.target.type));
+  if (isText || e.metaKey || e.ctrlKey) return;
+  if (!$("intro").classList.contains("hidden")) {
+    if (e.key === "ArrowRight" || e.key === "Enter") { $("introNext").click(); e.preventDefault(); }
+    else if (e.key === "ArrowLeft") { $("introPrev").click(); e.preventDefault(); }
+    else if (e.key === "Escape") closeIntro();
+    return;
+  }
+  if (tag === "input" || tag === "select") return;
+  const fine = e.shiftKey ? 0.05 : 0.01, src = S.sources[S.activeSource], b = S.base; let handled = true;
+  switch (e.key) {
+    case " ": togglePause(); break;
+    case "m": case "M": toggleBypass(); break;
+    case "1": setSpace(false); break;
+    case "2": setSpace(true); break;
+    case "n": case "N": addSource(); break;
+    case "Delete": case "Backspace": if (S.opt.waveOn) removeSource(S.activeSource); break;
+    case "Tab": S.activeSource = (S.activeSource + 1) % S.sources.length; syncUI(); break;
+    case "ArrowLeft": remember(); src.x -= fine; break;
+    case "ArrowRight": remember(); src.x += fine; break;
+    case "ArrowUp": remember(); src.y += fine; break;
+    case "ArrowDown": remember(); src.y -= fine; break;
+    case "[": remember(); b.g1Angle = ((b.g1Angle - (e.shiftKey ? 5 : 0.5) + 180) % 360 + 360) % 360 - 180; break;
+    case "]": remember(); b.g1Angle = ((b.g1Angle + (e.shiftKey ? 5 : 0.5) + 180) % 360 + 360) % 360 - 180; break;
+    case ",": remember(); src.phase = ((src.phase - Math.PI / 12) % TAU + TAU) % TAU; break;
+    case ".": remember(); src.phase = ((src.phase + Math.PI / 12) % TAU + TAU) % TAU; break;
+    case "+": case "=": zoomAt(1.2); break;
+    case "-": case "_": zoomAt(1 / 1.2); break;
+    case "0": resetView(); break;
+    case "z": case "Z": undo(); break;
+    case "p": case "P": savePng(); break;
+    case "r": case "R": $("randomBtn").click(); break;
+    case "h": case "H": togglePanel(); break;
+    case "f": case "F": toggleFullscreen(); break;
+    case "?": openIntro(0); break;
+    case "Escape": hidePopover(); break;
+    default: handled = false;
+  }
+  if (handled) { e.preventDefault(); needsSync = true; refreshSliders(); scheduleHash(); }
+});
+
+/* ------------------------------------------------------------ Einführung */
+const INTRO_KEY = "wellenstudio-intro-seen";
+const W = COARSE ? { drag: "Ziehen", dbl: "Doppeltipp", rot: "Zwei Finger drehen", zoom: "Zwei Finger", menu: "Lange drücken" } : { drag: "Ziehen", dbl: "Doppelklick", rot: "Alt + Mausrad", zoom: "Mausrad", menu: "Rechtsklick" };
+const introSlides = [
+  { title: "Willkommen im Wellenstudio", scene: "doubleslit", html: `
+    <p>Vier Bausteine, frei kombinierbar: ein physikalisches <b>Wellenfeld</b> mit bis zu acht Quellen, ein <b>Gewebe</b> aus Bändern, zwei <b>Gitter</b> für Moiré – gezeichnet auf einer Fläche oder auf einem <b>3D-Körper</b>. Eine <b>Matrix</b> aus elf Oszillatoren kann jeden Regler bewegen.</p>
+    <ul><li><b>Oben:</b> Fläche/Raum, Pause, Modulation, Einführung.</li><li><b>${narrowMQ.matches ? "Unten" : "Rechts"}:</b> das Bedienfeld mit sieben Tabs${narrowMQ.matches ? " – am Griff hoch- und runterziehen" : " – mit ☰ ein- und ausblenden"}.</li><li><b>Im Bild:</b> ${W.drag} bewegt Quellen, ${W.dbl} setzt neue, ${W.menu} öffnet ein Menü.</li></ul>
+    <div class="try">Zieh einen der orangen Ringe hinter dieser Karte – das Interferenzmuster folgt sofort.</div>` },
+  { title: "1 · Wellen & Interferenz", scene: "array", html: `
+    <p>Jede Quelle sendet Wellen mit Wellenlänge <b>λ</b> und Kreisfrequenz <b>ω</b>. Wo Berge zusammentreffen, verstärken sie sich; Berg auf Tal löscht aus. Die Ansicht <b>Intensität</b> zeigt das zeitliche Mittel – helle Keulen und dunkle Knotenlinien.</p>
+    <p>Hier: acht Quellen in einer Reihe. Der <b>Phasenschritt</b> zwischen den Quellen wird von LFO 1 bewegt – die Hauptkeule schwenkt wie bei einer Radar-Antenne.</p>
+    <div class="try">Tab <b>Wellen</b>: ändere λ oder den Quellen-Abstand. <b>Info</b> zeigt d/λ und die Zahl der Maxima.</div>` },
+  { title: "2 · Gitter & Moiré", scene: "linemoire", html: `
+    <p>Zwei feine Gitter übereinander erzeugen grobe Streifen, die es in keinem Gitter gibt: <b>Moiré</b>, eine räumliche Schwebung. Für Linien gilt p<sub>M</sub> = p₁p₂ / √(p₁² + p₂² − 2p₁p₂·cos Δφ).</p>
+    <p>Unter <b>Muster</b> wählst du pro Gitter Linien, Punkte, Sechsecke, Ringe, Strahlen oder Schachbrett und die <b>Mischart</b>, mit der es auf die darunterliegenden Ebenen trifft.</p>
+    <div class="try">${W.rot}: Gitter 1 drehen. Je kleiner der Winkel, desto größer die Streifen – <b>Info</b> rechnet die Moiré-Periode live.</div>` },
+  { title: "3 · Gewebe", scene: "woven", html: `
+    <p>Das <b>Gewebe</b> flicht zwei Bandscharen übereinander: Bandform (Band, Draht, Doppelstich, Perlenfaden), Webung (Wechsel, Vertikal, Horizontal, Licht, Differenz), <b>Wölbung</b>, <b>Verdrehung</b> und <b>Elastizität</b> verbiegen den Raum, auf dem gewebt wird.</p>
+    <p>Hier atmet das Gewebe bereits: das Verknüpfungsmuster „Organisches Atmen“ bewegt acht Parameter gleichzeitig.</p>
+    <div class="try">Tab <b>Muster</b>: morphe von Band zu Draht. Schalte unter <b>Start</b> zusätzlich das Wellenfeld ein – Interferenz und Gewebe mischen sich.</div>` },
+  { title: "4 · Raum", scene: "torus", html: `
+    <p>Dasselbe Muster liegt jetzt auf einem <b>Torus</b>. Unter <b>Raum</b> stehen Tuch, Schichtgewebe, Kugel, Tunnel, Möbiusband, Helix und Muschel; <b>Körper-Morph</b> blendet stetig von Körper A zu Körper B, <b>Durchbruch</b> schneidet dunkle Stellen heraus, sodass du hindurchsiehst.</p>
+    <ul><li>${COARSE ? "Ziehen" : "Ziehen"} dreht die Kamera, ${W.zoom} ändert den Abstand.</li><li>Material: Glanz, Kantenlicht, Raumnebel, Helligkeit.</li></ul>
+    <div class="try">Erhöhe <b>Durchbruch</b> auf 0,4 und schau durch das Gitter hindurch auf die Rückseite.</div>` },
+  { title: "5 · Matrix", scene: "mobius", html: `
+    <p>Acht <b>LFOs</b> und drei langsame <b>Oszillatoren</b> steuern je zwei Ziele mit eigener Tiefe – Sinus, Dreieck, Säge, Puls, Zufall, Sample &amp; Hold oder Stufen, frei in Hz oder zum <b>BPM</b> synchron. Ein Oszillator kann einen anderen in Rate (FM) oder Amplitude (AM) modulieren.</p>
+    <p>Reglerwerte zeigen <b>Basis → Effektiv</b>: der Regler bleibt unangetastet, der modulierte Wert erscheint dahinter. Das <b>XY-Pad</b> spielt zwei beliebige Ziele mit einem Finger.</p>
+    <div class="try">Tab <b>Matrix</b>: „Muster anwenden“ verknüpft acht Ziele auf einen Schlag. <b>Mod</b> oben schaltet alles stumm, ↶ holt den vorherigen Zustand zurück.</div>` },
+  { title: "6 · Szenen, Export & Experimente", scene: "wavecloth", html: `
+    <p><b>Start</b> hält zwölf komplette Szenen bereit und speichert eigene Presets. <b>Stil</b> mischt zwei Paletten, exportiert PNG und JSON (inklusive Matrix und Phasen) und erzeugt einen Link mit dem ganzen Zustand. <b>Info</b> liefert Messwerte, alle Gesten und Tastenkürzel sowie Experimente mit fertigem Aufbau.</p>
+    <div class="try">Viel Freude beim Erforschen – diese Einführung erreichst du jederzeit über <b>?</b>.</div>` }
+];
+let introIdx = 0;
+function openIntro(idx = 0) { introIdx = idx; $("intro").classList.remove("hidden"); if (narrowMQ.matches) { $("panel").classList.add("collapsed"); $("panel").style.height = ""; } renderIntro(); }
+function closeIntro() { $("intro").classList.add("hidden"); try { if ($("introSkip").checked) localStorage.setItem(INTRO_KEY, "1"); } catch (e) { /* ignore */ } if (narrowMQ.matches) setSheet("peek"); }
+function renderIntro() {
+  const s = introSlides[introIdx];
+  $("introStep").textContent = `Schritt ${introIdx + 1} von ${introSlides.length}`; $("introTitle").textContent = s.title; $("introBody").innerHTML = s.html;
+  $("introPrev").disabled = introIdx === 0; $("introNext").textContent = introIdx === introSlides.length - 1 ? "Los geht's" : "Weiter";
+  $("introDots").innerHTML = introSlides.map((_, i) => `<i class="${i === introIdx ? "on" : ""}"></i>`).join("");
+  if (s.scene) { applyScene(s.scene); $("toast").classList.remove("show"); }
+}
+$("introBtn").addEventListener("click", () => openIntro(0)); $("helpBtn").addEventListener("click", () => openIntro(0));
+$("introClose").addEventListener("click", closeIntro);
+$("introPrev").addEventListener("click", () => { if (introIdx > 0) { introIdx--; renderIntro(); } });
+$("introNext").addEventListener("click", () => { if (introIdx < introSlides.length - 1) { introIdx++; renderIntro(); } else closeIntro(); });
+(function introSwipe() {
+  const card = $("introCard"); let sx = 0, sy = 0, id = null;
+  card.addEventListener("pointerdown", (e) => { sx = e.clientX; sy = e.clientY; id = e.pointerId; });
+  card.addEventListener("pointerup", (e) => { if (e.pointerId !== id) return; const dx = e.clientX - sx, dy = e.clientY - sy; if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) { if (dx < 0) $("introNext").click(); else $("introPrev").click(); } });
+})();
+
+/* ---------------------------------------------------------- Experimente */
+const experiments = [
+  { title: "Zahl der Maxima", text: "Doppelspalt laden, eine Quelle nach außen ziehen und die hellen Keulen zählen. Unter Messwerte steht d/λ – jede volle Wellenlänge mehr bringt zwei Maxima.", scene: "doubleslit" },
+  { title: "Strahlschwenk abschalten", text: "Phased Array laden, dann unter Matrix LFO 1 ausschalten und den Phasenschritt von Hand drehen: Der Winkel der Hauptkeule folgt sin θ = Δφ·λ / (2π·d).", scene: "array" },
+  { title: "Moiré-Periode messen", text: "Linien-Moiré laden, Modulation mit Mod aus, Winkel von Gitter 2 auf 2°, 4°, 8° stellen und die Streifenbreite mit der berechneten Periode vergleichen.", scene: "linemoire" },
+  { title: "Durchbruch im Raum", text: "Zonenplatten-Möbius laden, Durchbruch zwischen 0 und 0,6 variieren. Das Hyperbelmuster wird zum Gitter, durch das man die Rückseite sieht.", scene: "mobius" },
+  { title: "Gewebe trifft Interferenz", text: "Seide × Interferenz laden und die Mischart des Gewebes zwischen Multiplizieren, Differenz und XOR umschalten. Dann Phase von Quelle 2 auf 0° setzen.", scene: "silkwave" },
+  { title: "Eigene Modulation bauen", text: "Beliebige Szene, dann in der Matrix alle Quellen aus. LFO 1: Ziel λ, Tiefe 0,15, Rate 0,05 Hz. LFO 2: Ziel Quellen-Drehung, Dreieck, Tiefe 0,3. Beobachte Basis → Effektiv.", scene: "standing" }
+];
+$("experiments").innerHTML = experiments.map((ex, i) => `<div class="exp"><h3>${ex.title}</h3><p>${ex.text}</p><button class="btn secondary" data-exp="${i}">Aufbau laden</button></div>`).join("");
+document.querySelectorAll("[data-exp]").forEach((b) => b.addEventListener("click", () => { applyScene(experiments[+b.dataset.exp].scene); if (narrowMQ.matches) setSheet("peek"); }));
+
+/* ------------------------------------------------------------ Messwerte */
+function updateInfo() {
+  const P = parameters(), lines = [];
+  if (S.opt.waveOn) {
+    const k = TAU / P.lambda, T = P.omega > 0 ? TAU / P.omega : Infinity;
+    lines.push(`Einheit: halbe Bildhöhe = 1 · t = <b>${time.toFixed(1)} s</b>`);
+    lines.push(`λ = <b>${P.lambda.toFixed(3)}</b> · k = <b>${k.toFixed(2)}</b> · ω = <b>${P.omega.toFixed(2)}</b> · T = <b>${isFinite(T) ? T.toFixed(2) + " s" : "∞"}</b>`);
+    const pts = effectiveSources(P).filter((s) => s.enabled && s.type === "point");
+    if (pts.length >= 2) {
+      const d = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y), n = Math.floor(d / P.lambda);
+      lines.push(`Abstand Q1–Q2: d = <b>${d.toFixed(3)}</b> = <b>${(d / P.lambda).toFixed(2)} λ</b> → <b>${2 * n + 1}</b> Maxima (Fernfeld)`);
+      if (pts.length >= 3 && Math.abs(P.srcPhaseStep) > 0.01) {
+        const dStep = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y), sinT = (P.srcPhaseStep / 360) * P.lambda / dStep;
+        lines.push(`Phasenschritt ${P.srcPhaseStep.toFixed(0)}° → Hauptkeule bei θ = <b>${Math.abs(sinT) <= 1 ? (Math.asin(sinT) * 180 / Math.PI).toFixed(1) + "°" : "–"}</b>`);
+      }
+    }
+  }
+  if (S.opt.g1On && S.opt.g2On) {
+    const p1 = P.g1Period, p2 = P.g2Period, th = (P.g1Angle - P.g2Angle) * Math.PI / 180;
+    const pm = p1 * p2 / Math.sqrt(Math.max(1e-12, p1 * p1 + p2 * p2 - 2 * p1 * p2 * Math.cos(th)));
+    lines.push(`Gitter 1 ↔ 2: Δφ = <b>${(((P.g1Angle - P.g2Angle) % 360) + 360) % 360 < 180 ? ((((P.g1Angle - P.g2Angle) % 360) + 360) % 360).toFixed(2) : (360 - (((P.g1Angle - P.g2Angle) % 360) + 360) % 360).toFixed(2)}°</b> · p₁ = ${p1.toFixed(4)} · p₂ = ${p2.toFixed(4)}`);
+    lines.push(`Moiré-Periode (Linien): <b>${isFinite(pm) ? pm.toFixed(3) : "∞"}</b> ≈ <b>${isFinite(pm) ? (pm / p1).toFixed(1) : "∞"}×</b> p₁`);
+  }
+  if (S.opt.wovenOn) lines.push(`Gewebe: Dichte <b>${P.wDensity.toFixed(0)}</b> · Wölbung <b>${P.wBulge.toFixed(2)}</b> · Band ${FORMS[S.opt.wShapeA]} → ${FORMS[S.opt.wShapeB]} (${P.wMorph.toFixed(2)})`);
+  if (S.opt.viewMode !== "flat") lines.push(`Körper: ${BODIES[S.opt.viewMode]} → ${BODIES[S.opt.viewBlend]} (${P.bodyMorph.toFixed(2)}) · Kamera ${((P.camYaw + spinPhase + 540) % 360 - 180).toFixed(0)}° / ${P.camPitch.toFixed(0)}°`);
+  const active = S.mods.filter((m) => m.on).length;
+  lines.push(`Modulation: <b>${active}</b> Quellen aktiv${S.bypass ? " (umgangen)" : ""} · Master ${S.master.toFixed(2)} · ${S.bpm} BPM`);
+  $("infoBox").innerHTML = lines.join("<br>");
+}
+
+/* ------------------------------------------------------------------ Loop */
+let lastFrame = performance.now(), fpsAcc = 0, fpsN = 0, fpsT = 0, uiT = 0, drawCount = 0;
+function frame(now) {
+  const dt = clamp((now - lastFrame) / 1000, 0, 0.1); lastFrame = now;
+  const P = S.base;
+  const animating = !S.paused && ((S.opt.waveOn && P.omega > 0 && P.speed > 0) || (S.opt.wovenOn && P.wMotion > 0 && P.speed > 0) || (S.opt.viewMode !== "flat" && P.spin !== 0) || anyModActive());
+  if (!S.paused && !document.hidden) { let rem = dt; while (rem > 0) { const step = Math.min(rem, 1 / 120); advance(step); rem -= step; } }
+  if (animating || needsSync) { render(false); needsSync = false; drawCount++; }
+  fpsAcc += dt; fpsN++;
+  if (now - fpsT > 1000) {
+    const fps = fpsAcc > 0 ? Math.round(drawCount / fpsAcc) : 0;
+    $("fps").textContent = S.paused ? "Pause" : animating ? fps + " fps" : "Ruhe";
+    if (animating && S.quality === "auto") {
+      qualityTicks++; let next = adaptiveScale;
+      if (fps < 40) next = Math.max(0.4, adaptiveScale * 0.8); else if (fps > 58 && qualityTicks >= 6) next = Math.min(1, adaptiveScale * 1.08);
+      if (next !== adaptiveScale) { adaptiveScale = next; qualityTicks = 0; resize(); }
+    }
+    fpsAcc = 0; fpsN = 0; drawCount = 0; fpsT = now;
+  }
+  if (now - uiT > 150) { refreshEffective(); updateInfo(); uiT = now; }
+  requestAnimationFrame(frame);
+}
+canvas.addEventListener("webglcontextlost", (e) => { e.preventDefault(); toast("Grafikkontext unterbrochen – bitte Seite neu laden"); });
+
+/* ------------------------------------------------------------------ Init */
+buildSliders(); buildOptions(); buildMods(); refreshUserPresets();
+const fromHash = readHash();
+if (!fromHash) { S = defaultState(); applyScene("doubleslit"); history.length = 0; }
+showPage("start");
+if (narrowMQ.matches) setSheet("half");
+resize(); syncUI();
+requestAnimationFrame(frame);
+let introSeen = false; try { introSeen = localStorage.getItem(INTRO_KEY) === "1"; } catch (e) { /* ignore */ }
+if (!introSeen && !fromHash) openIntro(0);
+</script>
+</body>
+</html>
