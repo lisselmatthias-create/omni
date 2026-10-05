@@ -51,3 +51,28 @@ Die **Matrix** aus 8 LFOs und 3 Kreativ-Oszillatoren (Sinus, Dreieck, Sägen, Pu
 je zwei Ziele, Glättung, FM/AM-Kopplung) kann jeden der 55 Parameter bewegen. Regler zeigen *Basis → Effektiv*. Dazu XY-Pad,
 Verknüpfungsmuster, Routing-Inspektion, Undo-Verlauf, 12 Szenen, Experimente, eigene Presets, JSON-Export/-Import inklusive Phasen,
 PNG, teilbarer Link, adaptive Renderqualität sowie die Einführung und die Touch/Desktop-Bedienung aus dem Wellenlabor.
+
+### Ethnomathematik · Kulturmuster
+
+Eine eigene Ebene „Kulturmuster“ (Tab *Kulturen*) macht Muster aus Web-, Flecht-, Klöppel- und Zeichentraditionen aller Kontinente
+erfahrbar – mischbar mit Wellenfeld und Gittern, auf Fläche oder 3D-Körper, modulierbar über die Matrix. Dreizehn Generatoren:
+
+| Technik | Kulturen (Auswahl) | Mathematik |
+| --- | --- | --- |
+| Spiegelkurven | Sona (Cokwe), Kolam (Tamil Nadu), keltische Knoten, Lunda | Reflexion, ggT(m, n) = Kurvenzahl, alternierende Knoten; Spiegel per Antippen setzen |
+| Brettchenweben | Hallstatt, Hochdorf, Oseberg, Kaukasus, Zentralasien | Zähler modulo 4, S/Z-Einzug, Drehfolgen |
+| Webbindung · Patrone | Leinwand, Köper, Fischgrat, Atlas, Rosengang, Mönchsgürtel, Korbflechten (Makonde, Ye'kuana) | Einzug × Aufknüpfung × Trittfolge als Matrixprodukt |
+| Streifenweben | Kente (Asante, Ewe) | Blockrhythmus, Translation mit Versatz |
+| Tapisserie | Diné/Navajo, Amazigh, Kelim, Maya-Brokat, Tukutuku | Diskretisierung in Schussreihen (Stufung) |
+| Ikat | Patola, Sumba, Usbekistan, Kasuri, Jaspe | Vorkodierung auf Fäden, stochastischer Versatz |
+| Klöppelspitze | Torchon (Erzgebirge, Flandern, Le Puy, Idrija), Renda de bilro, Beeralu | 45°-Gitter mit Zuständen, Zopfgruppen |
+| Ñandutí · Sol | Paraguay, Teneriffa | Polarkoordinaten, Parität Ring + Speiche |
+| Symmetriegruppen | Alhambra, Kuba-Raffia, Adire, Girih, Kōwhaiwhai, Siapo, Mäander | 7 Fries- und 17 Flächengruppen (Washburn & Crowe) |
+| Fraktale Siedlung | Ba-ila (Sambia), Mokoulek | rekursive Skalierung (Eglash) |
+| Cornrow-Kurven | Flechtfrisuren der Diaspora | iterierte Transformation, log. Spirale |
+| Sashiko · Kagome | Seigaiha, Asanoha, Shippō, Korbgeflecht (Japan u. a.) | Kreisfamilien, Dreiecksgitter, Kagome-Gitter |
+| Khipu | Inka | positionelles Dezimalsystem in Knoten; eigene Zahlen eingeben |
+
+Dazu die Dünungskarte **Mattang** der Marshallinseln als Interferenz-Szene, ein Katalog mit 32 Aufbauten nach Kontinenten,
+Hintergrundtexte (Herkunft · Mathematik · Ausprobieren), Experimente und ein Einführungsschritt. Quellen: D'Ambrosio, Ascher,
+Gerdes, Eglash, Washburn & Crowe, Zaslavsky, Ascher & Ascher, Siromoney, Hallstatt-Textilforschung.

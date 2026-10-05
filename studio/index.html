@@ -59,7 +59,7 @@
   #panelHead { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px 6px; padding-top: calc(12px + env(safe-area-inset-top)); }
   #panelHead h1 { font-size: 15px; color: var(--acc); }
   #panelHead small { color: var(--dim); font-size: 11px; font-variant-numeric: tabular-nums; }
-  .ptabs { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; padding: 4px 10px 8px; border-bottom: 1px solid var(--brd); }
+  .ptabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; padding: 4px 10px 8px; border-bottom: 1px solid var(--brd); }
   .ptabs button { min-height: calc(var(--tap) - 4px); border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--dim); font: inherit; font-size: 11px; font-weight: 600; cursor: pointer; padding: 0 1px; }
   .ptabs button.active { color: #000; background: var(--acc); }
   .ptabs button.dimmed { opacity: .35; }
@@ -113,6 +113,15 @@
   #xyPad { height: 150px; position: relative; background: linear-gradient(90deg, transparent 49.5%, #2b3444 50%, transparent 50.5%), linear-gradient(transparent 49.5%, #2b3444 50%, transparent 50.5%), #0f131a; border: 1px solid var(--brd); border-radius: 10px; touch-action: none; cursor: crosshair; overflow: hidden; }
   #xyDot { width: 16px; height: 16px; border-radius: 50%; background: var(--acc2); position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); pointer-events: none; box-shadow: 0 0 0 3px rgba(127,214,194,.25); }
   .sceneGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .cat { border: 1px solid var(--brd); border-radius: 10px; padding: 10px; background: #12161e; display: flex; flex-direction: column; gap: 5px; }
+  .cat h3 { font-size: 13px; color: var(--txt); display: flex; justify-content: space-between; gap: 8px; }
+  .cat h3 small { color: var(--acc2); font-weight: normal; font-size: 11px; white-space: nowrap; }
+  .cat p { font-size: 12px; color: var(--dim); line-height: 1.5; }
+  .cat .math { color: var(--txt); }
+  .cont { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--acc); margin-top: 6px; }
+  #ethnoText { font-size: 12px; line-height: 1.55; color: var(--dim); }
+  #ethnoText b { color: var(--txt); font-weight: 600; }
+  #ethnoText p + p { margin-top: 6px; }
   .sceneGrid .btn { font-size: 11px; line-height: 1.25; padding: 6px 4px; }
 
   #intro { position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-end; justify-content: center; padding: 12px; padding-bottom: calc(12px + env(safe-area-inset-bottom)); background: linear-gradient(to top, rgba(0,0,0,.75), rgba(0,0,0,.15) 60%, rgba(0,0,0,0)); pointer-events: none; }
@@ -172,6 +181,7 @@
     <button data-page="pattern">Muster</button>
     <button data-page="space">Raum</button>
     <button data-page="matrix">Matrix</button>
+    <button data-page="culture">Kulturen</button>
     <button data-page="style">Stil</button>
     <button data-page="info">Info</button>
   </nav>
@@ -195,6 +205,7 @@
         <label class="check"><input type="checkbox" data-opt="wovenOn"><span>Gewebe (Bänder)</span></label>
         <label class="check"><input type="checkbox" data-opt="g1On"><span>Gitter 1</span></label>
         <label class="check"><input type="checkbox" data-opt="g2On"><span>Gitter 2</span></label>
+        <label class="check"><input type="checkbox" data-opt="ethnoOn"><span>Kulturmuster (Ethnomathematik)</span></label>
         <div class="info">Die Ebenen werden der Reihe nach gemischt. Die Mischart steht bei jeder Ebene unter <b>Muster</b>.</div>
       </div>
       <div class="ctrl">
@@ -304,6 +315,38 @@
       <div class="ctrl">
         <h2>Kreativ-Oszillatoren <small>langsame Fahrten</small></h2>
         <div id="oscGrid" class="ctrl"></div>
+      </div>
+    </div>
+
+    <div class="ppage hidden" data-page="culture">
+      <div class="ctrl">
+        <h2>Kulturmuster <small>Ethnomathematik</small></h2>
+        <label>Technik <select data-opt="ethnoType" class="ethnoSel"></select></label>
+        <label>Mischart <select data-opt="ethnoBlend" class="blendSel"></select></label>
+        <label data-for="mirror">Grundfläche <select data-opt="mirrorRegion" class="optSel" data-dict="MIRROR_REGIONS"></select></label>
+        <label data-for="tablet">Einzug &amp; Drehung <select data-opt="tabletPreset" class="optSel" data-dict="TABLET_PRESETS"></select></label>
+        <label data-for="draft">Bindung <select data-opt="draftPreset" class="optSel" data-dict="DRAFT_PRESETS"></select></label>
+        <label data-for="lace">Grund &amp; Motiv <select data-opt="lacePreset" class="optSel" data-dict="LACE_PRESETS"></select></label>
+        <label data-for="symmetry">Gruppe <select data-opt="symGroup" class="optSel" data-dict="SYM_GROUPS"></select></label>
+        <label data-for="sashiko">Muster <select data-opt="sashikoKind" class="optSel" data-dict="SASHIKO_KINDS"></select></label>
+        <label data-for="tapestry">Motiv <select data-opt="tapestryKind" class="optSel" data-dict="TAPESTRY_KINDS"></select></label>
+        <label data-for="khipu">Zahlen <input id="khipuInput" type="text" inputmode="numeric" placeholder="5, 23, 101"></label>
+        <div class="row" data-for="mirror"><button id="mirrorClearBtn" class="btn secondary">Spiegel löschen</button><button id="mirrorRandomBtn" class="btn secondary">Zufallsspiegel</button></div>
+        <div id="sl-ethno" class="ctrl"></div>
+        <div id="ethnoStats" class="info"></div>
+      </div>
+      <div class="ctrl">
+        <h2>Hintergrund <small>Herkunft · Mathematik · Ausprobieren</small></h2>
+        <div id="ethnoText"></div>
+      </div>
+      <div class="ctrl">
+        <h2>Katalog <small>Kontinente &amp; Kulturen</small></h2>
+        <div class="info">Jede Karte lädt einen vollständigen Aufbau. Die Bezeichnungen folgen der Selbstbezeichnung der jeweiligen Gemeinschaften, wo sie bekannt ist.</div>
+        <div id="catalog" class="ctrl"></div>
+      </div>
+      <div class="ctrl">
+        <h2>Quellen</h2>
+        <div class="info">U. D'Ambrosio (Begriff „Ethnomathematik“, 1985) · M. Ascher, <i>Ethnomathematics</i> (1991) und <i>Mathematics Elsewhere</i> (2002) · P. Gerdes, <i>Lunda Geometry</i>, <i>Sona Geometry</i> · R. Eglash, <i>African Fractals</i> (1999) · D. Washburn &amp; D. Crowe, <i>Symmetries of Culture</i> (1988) · C. Zaslavsky, <i>Africa Counts</i> (1973) · M. &amp; R. Ascher, <i>Code of the Quipu</i> (1981) · G. Siromoney, Kolam-Array-Grammatiken (1970er) · Hallstatt-Textilforschung (Grömer u. a.).</div>
       </div>
     </div>
 
@@ -440,10 +483,35 @@ const specs = {
   rim: ["Kantenlicht", 0, 1.5, 0.01, 0.25, "mat"],
   metal: ["Glanz", 0, 1, 0.01, 0.35, "mat"],
   fog: ["Raumnebel", 0, 0.15, 0.001, 0.012, "mat"],
-  background: ["Hintergrund", 0, 0.15, 0.005, 0.025, "mat"]
+  background: ["Hintergrund", 0, 0.15, 0.005, 0.025, "mat"],
+  eScale: ["Maßstab", 0.2, 4, 0.01, 1, "ethno"],
+  eLine: ["Linienstärke", 0.02, 0.5, 0.005, 0.14, "ethno"],
+  eDot: ["Punktgröße", 0, 0.3, 0.005, 0.08, "ethno"],
+  eCurve: ["Gerade ↔ Bogen", 0, 1, 0.01, 0, "ethno"],
+  eGap: ["Knoten-Lücke", 0, 0.3, 0.005, 0, "ethno"],
+  eRows: ["Zeilen", 1, 12, 1, 4, "ethno"],
+  eCols: ["Spalten", 1, 12, 1, 6, "ethno"],
+  eMirrors: ["Innere Spiegel", 0, 14, 1, 0, "ethno"],
+  eSeed: ["Saat", 0, 99, 1, 7, "ethno"],
+  eCount: ["Fäden / Elemente", 2, 48, 1, 16, "ethno"],
+  eStep: ["Stufung", 2, 40, 1, 12, "ethno"],
+  eBlur: ["Verwischung", 0, 1, 0.01, 0.35, "ethno"],
+  eA: ["Motiv A", 0, 1, 0.01, 0.3, "ethno"],
+  eB: ["Motiv B", 0, 1, 0.01, 0.6, "ethno"],
+  eFactor: ["Skalierungsfaktor", 0.5, 1, 0.005, 0.86, "ethno"],
+  eTurn: ["Drehung pro Schritt", -45, 45, 0.5, 9, "ethno"],
+  eIter: ["Wiederholungen", 1, 40, 1, 16, "ethno"],
+  eRound: ["Fadenrundung", 0, 1, 0.01, 0.6, "ethno"]
 };
 const targets = Object.keys(specs);
-const targetLabels = Object.fromEntries(targets.map((k) => [k, specs[k][0] + (specs[k][5] === "g1" ? " (Gitter 1)" : specs[k][5] === "g2" ? " (Gitter 2)" : specs[k][5] === "woven" ? " (Gewebe)" : "")]));
+const targetLabels = Object.fromEntries(targets.map((k) => [k, specs[k][0] + (specs[k][5] === "g1" ? " (Gitter 1)" : specs[k][5] === "g2" ? " (Gitter 2)" : specs[k][5] === "woven" ? " (Gewebe)" : specs[k][5] === "ethno" ? " (Kultur)" : "")]));
+// Welche Kultur-Regler bei welcher Technik sichtbar sind
+const ETHNO_USE = {
+  eScale: "all", eLine: ["mirror", "lace", "nanduti", "symmetry", "fractal", "cornrow", "sashiko", "khipu"], eDot: ["mirror", "lace", "khipu"], eCurve: ["mirror"], eGap: ["mirror"],
+  eRows: ["mirror", "symmetry"], eCols: ["mirror"], eMirrors: ["mirror"], eSeed: ["mirror", "tablet", "kente", "ikat", "symmetry", "draft"], eCount: ["tablet", "draft", "kente", "ikat", "nanduti", "fractal", "khipu"],
+  eStep: ["tapestry", "ikat"], eBlur: ["ikat", "kente"], eA: ["tapestry", "ikat", "symmetry", "lace", "nanduti", "sashiko", "kente"], eB: ["tapestry", "symmetry", "sashiko", "lace"],
+  eFactor: ["fractal", "cornrow"], eTurn: ["cornrow"], eIter: ["fractal", "cornrow", "nanduti"], eRound: ["tablet", "draft", "kente", "ikat", "tapestry"]
+};
 const defaults = Object.fromEntries(targets.map((k) => [k, specs[k][4]]));
 
 const VIEWS = ["snapshot", "intensity", "envelope", "phase", "contours"];
@@ -455,7 +523,18 @@ const PALETTES = { gray: "Graustufen", diverging: "Blau – Weiß – Rot", spec
 const BODIES = { flat: "2D · Fläche", cloth: "Tuch", stack: "Schichtgewebe", torus: "Torus", sphere: "Kugel", tunnel: "Tunnel", mobius: "Möbiusband", helix: "Helix", shell: "Muschel" };
 const WAVEFORMS = { sine: "Sinus", tri: "Dreieck", saw: "Säge auf", fall: "Säge ab", pulse: "Puls", smooth: "Zufall weich", hold: "Sample & Hold", steps: "4 Stufen" };
 
+const ETHNO_TYPES = { mirror: "Spiegelkurven · Sona / Kolam / Knoten", tablet: "Brettchenweben", draft: "Webbindung · Patrone", kente: "Streifenweben · Kente", tapestry: "Tapisserie · Stufenmuster", ikat: "Ikat", lace: "Klöppelspitze · Torchon", nanduti: "Ñandutí · Sonnenspitze", symmetry: "Symmetriegruppen", fractal: "Fraktale Siedlung", cornrow: "Cornrow-Kurven", sashiko: "Sashiko · Kagome", khipu: "Khipu · Knotenzahlen" };
+const MIRROR_REGIONS = { rect: "Rechteck (Sona)", diamond: "Raute (Kolam)", round: "Oval" };
+const TABLET_PRESETS = { diag: "Diagonalen", chevron: "Chevron (S/Z gespiegelt)", diamond: "Rauten (4 vor, 4 zurück)", eyes: "Augen · Ñawi", zigzag: "Zickzack", random: "Zufall" };
+const DRAFT_PRESETS = { plain: "Leinwandbindung", twill: "Köper 2/2", twill31: "Köper 3/1", herring: "Fischgrat", diamond: "Gänseauge · Rauten", satin: "Atlas 5-bindig", rosepath: "Rosengang", monk: "Mönchsgürtel · Blöcke", plait: "Flechtwerk 2/2 (Korb)" };
+const LACE_PRESETS = { net: "Netzgrund", half: "Halbschlag-Grund", rose: "Rosengrund", cloth: "Leinenschlag-Rauten", spider: "Spinnen-Rauten", fan: "Fächer & Spinnen" };
+const SYM_GROUPS = { "f-p1": "Fries · Hüpfen (p1)", "f-p11g": "Fries · Schritt (p11g)", "f-p1m1": "Fries · Seitwärts (p1m1)", "f-p2": "Fries · Drehhüpfen (p2)", "f-p2mg": "Fries · Drehseitwärts (p2mg)", "f-p11m": "Fries · Sprung (p11m)", "f-p2mm": "Fries · Drehsprung (p2mm)",
+  p1: "p1", p2: "p2", pm: "pm", pg: "pg", cm: "cm", pmm: "pmm", pmg: "pmg", pgg: "pgg", cmm: "cmm", p4: "p4", p4m: "p4m", p4g: "p4g", p3: "p3", p3m1: "p3m1", p31m: "p31m", p6: "p6", p6m: "p6m" };
+const SASHIKO_KINDS = { seigaiha: "Seigaiha · Wellen", asanoha: "Asanoha · Hanfblatt", shippo: "Shippo · Sieben Schätze", kagome: "Kagome · Korbgeflecht" };
+const TAPESTRY_KINDS = { diamond: "Rauten (Diné · Berber)", zigzag: "Zickzack (Kelim · Maya)", steps: "Treppen · Poutama", eyes: "Augen · Kreuze" };
 const optionSpecs = {
+  ethnoType: Object.keys(ETHNO_TYPES), ethnoBlend: Object.keys(BLENDS), mirrorRegion: Object.keys(MIRROR_REGIONS), tabletPreset: Object.keys(TABLET_PRESETS), draftPreset: Object.keys(DRAFT_PRESETS),
+  lacePreset: Object.keys(LACE_PRESETS), symGroup: Object.keys(SYM_GROUPS), sashikoKind: Object.keys(SASHIKO_KINDS), tapestryKind: Object.keys(TAPESTRY_KINDS),
   waveView: VIEWS, g1Type: Object.keys(GRATINGS), g2Type: Object.keys(GRATINGS),
   wovenBlend: Object.keys(BLENDS), g1Blend: Object.keys(BLENDS), g2Blend: Object.keys(BLENDS),
   wShapeA: Object.keys(FORMS), wShapeB: Object.keys(FORMS), wWeave: Object.keys(WEAVES), wWeaveAlt: Object.keys(WEAVES),
@@ -466,7 +545,8 @@ const optionDefaults = {
   waveView: "snapshot", g1Type: "lines", g2Type: "lines", wovenBlend: "multiply", g1Blend: "multiply", g2Blend: "multiply",
   wShapeA: "ribbon", wShapeB: "wire", wWeave: "checker", wWeaveAlt: "light", wField: "0", paletteA: "diverging", paletteB: "ice",
   viewMode: "flat", viewBlend: "torus",
-  waveOn: true, wovenOn: false, g1On: false, g2On: false, showSources: true, aa: true, invert: false
+  ethnoType: "mirror", ethnoBlend: "multiply", mirrorRegion: "rect", tabletPreset: "diamond", draftPreset: "twill", lacePreset: "spider", symGroup: "p6m", sashikoKind: "seigaiha", tapestryKind: "diamond",
+  waveOn: true, wovenOn: false, g1On: false, g2On: false, ethnoOn: false, showSources: true, aa: true, invert: false
 };
 
 function mkSource(x, y, extra = {}) {
@@ -485,7 +565,8 @@ function defaultState() {
     base: { ...defaults }, opt: { ...optionDefaults },
     sources: [mkSource(-0.35, 0), mkSource(0.35, 0)],
     mods: Array.from({ length: N_MOD }, (_, i) => mkMod(i)),
-    bpm: 120, master: 0.65, bypass: false, paused: false, quality: "auto", activeSource: 0
+    bpm: 120, master: 0.65, bypass: false, paused: false, quality: "auto", activeSource: 0,
+    mirrorEdits: [], khipu: [5, 23, 101, 342, 1200, 7]
   };
 }
 
@@ -495,11 +576,11 @@ let needsSync = true, hoverSrc = -1;
 const cycles = new Float64Array(N_MOD), signals = new Float64Array(N_MOD), prevSignals = new Float64Array(N_MOD);
 
 /* ------------------------------------------------------------- Shader */
-const defines = targets.map((k, i) => `#define P_${k} p[${i}]`).join("\n");
+const defines = targets.map((k, i) => `#define P_${k} uP[${i}]`).join("\n");
 
 const glslCommon = `
 precision highp float;
-uniform float p[${targets.length}];
+uniform float uP[${targets.length}];
 ${defines}
 uniform vec2 u_res;
 uniform float u_time, u_fieldPhase, u_ampNorm, u_invert, u_aa, u_showSources;
@@ -598,12 +679,425 @@ float blendOp(float a, float b, int m) {
   if (m == 5) return 1.0 - (1.0 - a) * (1.0 - b);
   return a + b - 2.0 * a * b;
 }
+/* ---------------------------------------------------------- Kulturmuster */
+uniform sampler2D u_data;
+uniform ivec2 u_dataSize;
+uniform int u_ethnoType, u_ethnoSub, u_khipuN;
+uniform float u_khipu[12];
+uniform ivec4 u_ethnoFlags; // x: Mischart, y: frei, z: frei, w: frei
+
+float hash21(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float lineV(float d, float w) { float aa = fwidth(d) * 0.8 + 1e-4; return 1.0 - smoothstep(w - aa, w + aa, d); }
+float threadShade(float c, float r) { return mix(1.0, sqrt(max(0.0, 1.0 - c * c * 4.0)), r); }
+float levelOf(float idx) { return 0.18 + 0.27 * idx; }
+
+// 1 · Spiegelkurven (Sona, Kolam, keltische Knoten)
+float ethMirror(vec2 q) {
+  float cols = float(u_dataSize.x), rows = float(u_dataSize.y) * 0.5;
+  vec2 g = q * 3.0 * P_eScale + vec2(cols, rows) * 0.5 - 0.5;
+  vec2 cell = floor(g + 0.5);
+  if (cell.x < 0.0 || cell.y < 0.0 || cell.x >= cols || cell.y >= rows) return 0.0;
+  vec4 ids = texelFetch(u_data, ivec2(cell), 0) * 255.0;
+  vec4 flags = texelFetch(u_data, ivec2(int(cell.x), int(cell.y) + int(rows)), 0) * 255.0;
+  if (flags.b < 0.5) return 0.0;
+  vec2 l = g - cell;
+  vec2 al = abs(l);
+  float id = (l.x > 0.0) ? (l.y > 0.0 ? ids.r : ids.b) : (l.y > 0.0 ? ids.g : ids.a);
+  float dStraight = abs(al.x + al.y - 0.5) * 0.7071;
+  float dArc = abs(length(l) - 0.5);
+  float d = mix(dStraight, dArc, P_eCurve);
+  float w = P_eLine * 0.5;
+  float t = 0.0;
+  if (id > 0.5) {
+    float v = lineV(d, w);
+    float tone = 0.3 + 0.7 * fract(id * 0.6180339);
+    // Knoten: Unterstrang an Kreuzungen (Kantenmitten ohne Spiegel) unterbrechen
+    if (P_eGap > 0.001) {
+      bool vert = al.x > al.y;
+      vec2 E = vert ? vec2(sign(l.x) * 0.5, 0.0) : vec2(0.0, sign(l.y) * 0.5);
+      bool backslash = (l.x > 0.0) == (l.y > 0.0); // NE/SW-Ecken tragen Steigung -1
+      bool under = vert ? backslash : !backslash;
+      bool mirrorHere;
+      if (vert) mirrorHere = l.x > 0.0 ? flags.r > 0.5 : (cell.x < 0.5 ? true : texelFetch(u_data, ivec2(int(cell.x) - 1, int(cell.y) + int(rows)), 0).r * 255.0 > 0.5);
+      else mirrorHere = l.y > 0.0 ? flags.g > 0.5 : (cell.y < 0.5 ? true : texelFetch(u_data, ivec2(int(cell.x), int(cell.y) - 1 + int(rows)), 0).g * 255.0 > 0.5);
+      if (under && !mirrorHere && length(l - E) < P_eGap + w * 1.2) v = 0.0;
+    }
+    t = v * tone;
+  }
+  if (P_eDot > 0.001) t = max(t, lineV(length(l), P_eDot * 0.5));
+  return t;
+}
+
+// 2 · Brettchenweben
+float ethTablet(vec2 q) {
+  float n = float(u_dataSize.x);
+  vec2 g = q * 6.0 * P_eScale;
+  g.x += n * 0.5;
+  if (g.x < 0.0 || g.x >= n) return 0.0;
+  vec2 cell = floor(g);
+  vec4 tx = texelFetch(u_data, ivec2(int(cell.x), int(mod(cell.y, float(u_dataSize.y)))), 0) * 255.0;
+  vec2 l = fract(g) - 0.5;
+  float slant = tx.g > 0.5 ? 1.0 : -1.0;
+  float d = abs(l.x - slant * l.y * 0.6) * 0.85;
+  float shade = threadShade(d, P_eRound);
+  return levelOf(tx.r) * mix(0.75, 1.0, shade);
+}
+
+// 3 · Webbindung (Patrone → Bildmuster)
+float ethDraft(vec2 q) {
+  vec2 g = q * 8.0 * P_eScale;
+  vec2 cell = floor(g);
+  vec4 tx = texelFetch(u_data, ivec2(int(mod(cell.x, float(u_dataSize.x))), int(mod(cell.y, float(u_dataSize.y)))), 0) * 255.0;
+  vec2 l = fract(g) - 0.5;
+  bool up = tx.r > 0.5;
+  float c = up ? l.x : l.y;
+  float shade = threadShade(c, P_eRound);
+  float col = up ? tx.g : tx.b;
+  return levelOf(col) * mix(0.7, 1.0, shade) * (up ? 1.0 : 0.92);
+}
+
+// 4 · Streifenweben (Kente)
+float ethKente(vec2 q) {
+  vec2 g = q * 2.2 * P_eScale;
+  float strip = floor(g.y);
+  float seam = lineV(abs(fract(g.y) - 0.5) - 0.48, 0.0);
+  float blockLen = 1.2 + P_eA * 2.5;
+  float bx = g.x / blockLen + hash21(vec2(strip, 3.1)) * 2.0;
+  float block = floor(bx);
+  float h = hash21(vec2(strip * 7.0, block));
+  float colA = floor(hash21(vec2(strip, 1.0)) * 4.0);
+  float colB = floor(hash21(vec2(block, strip + 9.0)) * 4.0);
+  float t;
+  if (h < 0.5 + P_eBlur * 0.3) {
+    float stripes = floor(fract(g.x * float(u_dataSize.x) * 0.25) * 2.0);
+    float c = mod(colA + stripes, 4.0);
+    float shade = threadShade(fract(g.x * float(u_dataSize.x) * 0.5) - 0.5, P_eRound);
+    t = levelOf(c) * mix(0.75, 1.0, shade);
+  } else {
+    float bands = floor(fract(g.y * 6.0) * 2.0);
+    float c = mod(colB + bands, 4.0);
+    float shade = threadShade(fract(g.y * 12.0) - 0.5, P_eRound);
+    t = levelOf(c) * mix(0.75, 1.0, shade);
+  }
+  return t * (1.0 - 0.6 * seam);
+}
+
+// 5 · Tapisserie (Diné, Anden, Kelim): Stufenkanten durch Schussreihen
+float ethTapestry(vec2 q) {
+  vec2 g = q * 1.4 * P_eScale;
+  float yq = floor(g.y * P_eStep) / P_eStep;
+  float xq = floor(g.x * P_eStep * 2.0) / (P_eStep * 2.0);
+  float v;
+  if (u_ethnoSub == 0) v = abs(xq) + abs(yq);
+  else if (u_ethnoSub == 1) v = abs(fract(xq * 0.75) - 0.5) * 2.0 + yq * 1.6 * (0.6 + P_eA);
+  else if (u_ethnoSub == 2) v = floor(xq * 3.0) / 3.0 + floor(yq * 3.0) / 3.0;
+  else v = max(abs(xq), abs(yq)) * (1.0 + 0.5 * P_eA) + 0.25 * sin(xq * 12.0) * sin(yq * 12.0);
+  float level = floor(fract(v * (0.8 + P_eA)) * 4.0);
+  float shade = threadShade(fract(g.y * P_eStep) - 0.5, P_eRound);
+  return levelOf(level) * mix(0.8, 1.0, shade);
+}
+
+// 6 · Ikat: Kettfäden tragen das vorgefärbte Muster leicht verschoben
+float ethIkat(vec2 q) {
+  vec2 g = q * 1.5 * P_eScale;
+  float warp = floor(g.x * float(u_dataSize.x));
+  float jitter = (hash21(vec2(warp, P_eSeed)) - 0.5) * P_eBlur * 0.5;
+  float jx = (hash21(vec2(floor(g.y * P_eStep), P_eSeed + 1.0)) - 0.5) * P_eBlur * 0.25 * P_eA;
+  vec2 d = vec2(g.x + jx, g.y + jitter);
+  float design = abs(fract(d.x) - 0.5) + abs(fract(d.y) - 0.5);
+  float band = step(0.5, fract(design * 2.0 + P_eA * 0.5));
+  float stripes = step(0.5, fract(d.x * 0.5 + 0.25));
+  float v = mix(band, 1.0 - band, stripes * 0.0);
+  float shade = threadShade(fract(g.x * float(u_dataSize.x)) - 0.5, P_eRound);
+  return mix(0.2, 0.95, v) * mix(0.75, 1.0, shade);
+}
+
+// 7 · Klöppelspitze · Torchon (45°-Gitter aus Fadenpaaren)
+float ethLace(vec2 q) {
+  vec2 g = mat2(0.7071, 0.7071, -0.7071, 0.7071) * q * 4.0 * P_eScale;
+  vec2 cell = floor(g);
+  vec2 hw = floor(vec2(u_dataSize) * 0.5);
+  vec4 tx = texelFetch(u_data, ivec2(int(mod(cell.x + hw.x, float(u_dataSize.x))), int(mod(cell.y + hw.y, float(u_dataSize.y)))), 0) * 255.0;
+  int kind = int(tx.r + 0.5);
+  vec2 l = fract(g);
+  float w = P_eLine * 0.2;
+  float edge = min(min(l.x, 1.0 - l.x), min(l.y, 1.0 - l.y));
+  float pair = min(lineV(edge - 0.035, w), 1.0) * 0.9 + lineV(edge + 0.035, w) * 0.9; // gezwirnte Paare
+  float t = min(pair, 1.0);
+  float pin = lineV(length(min(l, 1.0 - l)), P_eDot * 0.6);
+  if (kind == 1) { // Leinenschlag: dichte Querfäden
+    float f = abs(fract((l.x - l.y) * 4.0) - 0.5) / 4.0;
+    t = max(t, lineV(f, w * 0.8) * 0.85);
+  } else if (kind == 2) { // Halbschlag
+    t = max(t, lineV(abs(l.x + l.y - 1.0) * 0.7071, w) * 0.8);
+  } else if (kind == 3) { // Spinne
+    vec2 c = l - 0.5; float a = atan(c.y, c.x); float r = length(c);
+    float spoke = abs(sin(a * 4.0)) * r;
+    t = max(t, lineV(spoke, w) * smoothstep(0.08, 0.14, r));
+    t = max(t, lineV(r, 0.11));
+    t = max(t, lineV(abs(r - 0.3), w * 0.7) * 0.7);
+  } else if (kind == 4) { // Loch
+    t = pair * 0.5;
+  }
+  return max(t, pin * 0.6);
+}
+
+// 8 · Ñandutí / Sol: radiale Räder mit gewebten Ringen
+float ethNanduti(vec2 q) {
+  vec2 g = q * 1.1 * P_eScale;
+  vec2 c = fract(g) - 0.5;
+  float r = length(c), a = atan(c.y, c.x);
+  float n = float(u_dataSize.x);
+  float sector = 6.2831853 / n;
+  float ai = mod(a + 3.14159265, sector) - sector * 0.5;
+  float spokeIdx = floor((a + 3.14159265) / sector);
+  float dSpoke = r * abs(sin(ai));
+  float w = P_eLine * 0.12;
+  float t = lineV(dSpoke, w) * step(r, 0.47);
+  float rings = max(2.0, floor(P_eIter * 0.6));
+  float ringIdx = floor(r * rings * 2.0);
+  float dRing = abs(fract(r * rings * 2.0) - 0.5) / (rings * 2.0);
+  float woven = mod(ringIdx + spokeIdx, 2.0);
+  float ring = lineV(dRing, w * (0.8 + 1.2 * P_eA)) * step(r, 0.47) * step(0.06, r);
+  t = max(t, ring * mix(0.55, 1.0, woven));
+  t = max(t, lineV(r, 0.05));
+  float petal = lineV(abs(r - 0.47 + 0.03 * cos(a * n)), w * 1.3);
+  return max(t, petal);
+}
+
+// 9 · Symmetriegruppen: Motiv in die Fundamentalzelle falten
+float segD(vec2 p, vec2 a, vec2 b) { vec2 ab = b - a; float h = clamp(dot(p - a, ab) / dot(ab, ab), 0.0, 1.0); return length(p - a - ab * h); }
+float motif(vec2 p) {
+  vec2 a = vec2(P_eA, P_eB) * 0.8 + 0.1;
+  vec2 b = vec2(0.5 + 0.35 * sin(P_eSeed), 0.5 + 0.35 * cos(P_eSeed * 1.3));
+  vec2 c = vec2(0.9 - P_eB * 0.6, 0.15 + P_eA * 0.6);
+  float d = min(min(segD(p, a, b), segD(p, b, c)), min(segD(p, vec2(0.0, a.y), a), segD(p, c, vec2(c.x, 0.0))));
+  float w = P_eLine * 0.14;
+  float t = lineV(d, w);
+  float dot1 = lineV(length(p - a) - 0.05, 0.015);
+  float ring = lineV(abs(length(p - c) - 0.09), w * 0.8);
+  return max(max(t, dot1), ring * 0.8);
+}
+vec2 rot2(vec2 p, float a) { return rot(a) * p; }
+float ethSymmetry(vec2 q) {
+  vec2 p = q * 1.2 * P_eScale;
+  int g = u_ethnoSub;
+  if (g < 7) { // Friesgruppen entlang x
+    float band = abs(p.y);
+    if (band > 0.5) return 0.0;
+    p.y += 0.5;
+    if (g == 0) p.x = fract(p.x);
+    else if (g == 1) { p.x = fract(p.x * 0.5) * 2.0; if (p.x > 1.0) { p.x -= 1.0; p.y = 1.0 - p.y; } }
+    else if (g == 2) { p.x = fract(p.x); p.x = min(p.x, 1.0 - p.x) * 2.0; }
+    else if (g == 3) { p.x = fract(p.x); if (p.y > 0.5) { p = vec2(1.0 - p.x, 1.0 - p.y); } p.y *= 2.0; }
+    else if (g == 4) { p.x = fract(p.x * 0.5) * 2.0; if (p.x > 1.0) { p.x -= 1.0; p.y = 1.0 - p.y; } p.x = min(p.x, 1.0 - p.x) * 2.0; }
+    else if (g == 5) { p.x = fract(p.x); p.y = abs(p.y * 2.0 - 1.0); }
+    else { p.x = fract(p.x); p.x = min(p.x, 1.0 - p.x) * 2.0; p.y = abs(p.y * 2.0 - 1.0); }
+    return motif(p);
+  }
+  int w = g - 7;
+  if (w >= 12) { // Hexagonale Gruppen
+    vec2 a1 = vec2(1.0, 0.0), a2 = vec2(0.5, 0.8660254);
+    mat2 inv = mat2(1.0, 0.0, -0.57735, 1.1547);
+    vec2 uv = inv * p; vec2 base = floor(uv);
+    vec2 best = vec2(0.0); float bd = 1e9;
+    for (int i = 0; i <= 1; i++) for (int j = 0; j <= 1; j++) { vec2 c = (base.x + float(i)) * a1 + (base.y + float(j)) * a2; float d = length(p - c); if (d < bd) { bd = d; best = c; } }
+    vec2 r = p - best; float ang = atan(r.y, r.x), rad = length(r);
+    float sec = (w == 15 || w == 16) ? 1.0471976 : 2.0943951;
+    float a = mod(ang, sec), aMax = sec;
+    if (w == 13) { a = min(a, sec - a); aMax = sec * 0.5; }
+    if (w == 14) { a = mod(a + sec * 0.25, sec); a = abs(a - sec * 0.5); aMax = sec * 0.5; }
+    if (w == 16) { a = min(a, sec - a); aMax = sec * 0.5; }
+    // Keil polar auf die Motivzelle abbilden: Radius → x, Winkel → y
+    return motif(vec2(clamp(rad / 0.58, 0.0, 1.0), a / aMax));
+  }
+  vec2 c = fract(p);
+  if (w == 0) {}
+  else if (w == 1) { if (c.y > 0.5) c = 1.0 - c; c.y *= 2.0; }
+  else if (w == 2) { c.y = abs(c.y * 2.0 - 1.0); }
+  else if (w == 3) { if (c.y > 0.5) { c.y -= 0.5; c.x = 1.0 - c.x; } c.y *= 2.0; }
+  else if (w == 4) { if (c.y > 0.5) { c.y -= 0.5; c.x = fract(c.x + 0.5); } c.y = abs(c.y * 4.0 - 1.0); }
+  else if (w == 5) { c = abs(c * 2.0 - 1.0); }
+  else if (w == 6) { if (c.y > 0.5) { c.y = 1.0 - c.y; c.x = fract(c.x + 0.5); } c.x = abs(c.x * 2.0 - 1.0); c.y *= 2.0; }
+  else if (w == 7) { if (c.y > 0.5) c = 1.0 - c; if (c.x > 0.5) { c.x -= 0.5; c.y = 0.5 - c.y; } c *= 2.0; }
+  else if (w == 8) { c = abs(c * 2.0 - 1.0); if (c.x + c.y > 1.0) c = 1.0 - c; }
+  else if (w >= 9) { c -= 0.5; if (c.y < 0.0) c = -c; if (c.x < 0.0) c = vec2(c.y, -c.x); if (w == 10 && c.x > c.y) c = c.yx; if (w == 11 && c.x + c.y > 0.5) c = vec2(0.5 - c.y, 0.5 - c.x); c *= 2.0; }
+  return motif(c);
+}
+
+// 10 · Fraktale Siedlung (Ba-ila): Ringe aus Ringen
+float ethFractal(vec2 q) {
+  vec2 p = q * 1.0 * P_eScale;
+  float n = max(3.0, floor(float(u_dataSize.x) * 0.5));
+  float t = 0.0, scale = 1.0, R = 0.8;
+  int depth = int(clamp(P_eIter * 0.25, 1.0, 4.0));
+  for (int lvl = 0; lvl < 4; lvl++) {
+    if (lvl >= depth) break;
+    float r = length(p), a = atan(p.y, p.x);
+    float ring = lineV(abs(r - R) * scale, P_eLine * (lvl == 0 ? 0.08 : 0.18));
+    float gate = smoothstep(0.25, 0.4, abs(mod(a + 3.14159265, 6.2831853) - 3.14159265) ); // Eingang vorn offen
+    t = max(t, ring * mix(0.35, 1.0, gate) * (1.0 - float(lvl) * 0.12));
+    float k = floor((a + 3.14159265) / (6.2831853 / n) + 0.5);
+    float ca = k * (6.2831853 / n) - 3.14159265;
+    vec2 c = vec2(cos(ca), sin(ca)) * R;
+    float f = P_eFactor * 0.42;
+    p = (p - c) / f; scale *= 1.0 / f;
+    R = 0.8;
+  }
+  return t;
+}
+
+// 11 · Cornrow-Kurven (Eglash): Zopfglied wiederholt verschoben, gedreht, verkleinert
+float ethCornrow(vec2 q) {
+  vec2 p = q * 1.3 * P_eScale;
+  float t = 0.0;
+  float f = P_eFactor, turn = radians(P_eTurn);
+  int n = int(clamp(P_eIter, 1.0, 40.0));
+  for (int side = 0; side < 2; side++) {
+    float sgn = side == 0 ? 1.0 : -1.0;
+    vec2 pos = vec2(0.0, -0.9); float ang = 1.5707963 * 1.0; float sc = 0.22;
+    for (int i = 0; i < 40; i++) {
+      if (i >= n) break;
+      vec2 l = rot(-ang * sgn + (side == 1 ? 3.14159265 : 0.0)) * (p - pos * vec2(sgn, 1.0)) / sc;
+      // Zopfglied: zwei Schenkel eines V
+      vec2 v1 = vec2(-0.6, -0.5), v2 = vec2(0.6, -0.5), apex = vec2(0.0, 0.5);
+      vec2 e1 = apex - v1; float h1 = clamp(dot(l - v1, e1) / dot(e1, e1), 0.0, 1.0); float d1 = length(l - v1 - e1 * h1);
+      vec2 e2 = apex - v2; float h2 = clamp(dot(l - v2, e2) / dot(e2, e2), 0.0, 1.0); float d2 = length(l - v2 - e2 * h2);
+      float d = min(d1, d2) * sc;
+      t = max(t, lineV(d, P_eLine * 0.18 * sc / 0.22 + 0.004) * (0.55 + 0.45 * float(n - i) / float(n)));
+      pos += rot(ang) * vec2(0.0, sc * 1.1) * vec2(1.0, 1.0);
+      ang += turn; sc *= f;
+    }
+  }
+  return t;
+}
+
+// 12 · Sashiko & Kagome
+float ethSashiko(vec2 q) {
+  vec2 p = q * 2.0 * P_eScale;
+  float w = P_eLine * 0.12;
+  if (u_ethnoSub == 0) { // Seigaiha
+    for (int k = 0; k < 3; k++) {
+      float row = floor(p.y * 2.0) - float(k);
+      float cx = floor(p.x - 0.5 * mod(row, 2.0) + 0.5) + 0.5 * mod(row, 2.0);
+      vec2 c = vec2(cx, row * 0.5);
+      float r = length(p - c);
+      if (r < 1.0) {
+        float rings = 3.0 + floor(P_eA * 4.0);
+        float d = abs(fract(r * rings) - 0.5) / rings;
+        return max(lineV(d, w), lineV(abs(r - 1.0), w * 1.4));
+      }
+    }
+    return 0.0;
+  }
+  if (u_ethnoSub == 1) { // Asanoha: sechs Linienscharen
+    float t = 0.0;
+    for (int k = 0; k < 6; k++) {
+      float a = float(k) * 0.5235988;
+      vec2 d = vec2(cos(a), sin(a));
+      float sp = (k % 2 == 0) ? 1.0 : 0.5773503;
+      float v = dot(p, d) / sp;
+      t = max(t, lineV(abs(fract(v) - 0.5) * sp, w));
+    }
+    return t;
+  }
+  if (u_ethnoSub == 2) { // Shippo
+    float t = 0.0;
+    vec2 c0 = floor(p);
+    for (int i = 0; i <= 1; i++) for (int j = 0; j <= 1; j++) {
+      vec2 c = c0 + vec2(float(i), float(j));
+      t = max(t, lineV(abs(length(p - c) - 0.7071), w));
+      t = max(t, lineV(abs(length(p - c - 0.5) - 0.7071), w) * 0.0);
+    }
+    vec2 cc = floor(p - 0.5) + 0.5;
+    for (int i = 0; i <= 1; i++) for (int j = 0; j <= 1; j++) t = max(t, lineV(abs(length(p - cc - vec2(float(i), float(j))) - 0.7071), w));
+    return t;
+  }
+  // Kagome: drei Streifenscharen, zyklisch über/unter
+  float t = 0.0; float best = -1.0;
+  float sw = 0.28 + P_eA * 0.3;
+  float cover[3]; float pos[3];
+  for (int k = 0; k < 3; k++) {
+    float a = float(k) * 1.0471976;
+    vec2 d = vec2(cos(a), sin(a));
+    float v = fract(dot(p, d));
+    cover[k] = 1.0 - smoothstep(sw * 0.5 - 0.01, sw * 0.5 + 0.01, abs(v - 0.5));
+    pos[k] = v - 0.5;
+  }
+  float parity = mod(floor(p.x + p.y * 0.5773503) + floor(p.y * 1.1547), 3.0);
+  float val = 0.0;
+  for (int k = 0; k < 3; k++) {
+    int kk = int(mod(float(k) + parity, 3.0));
+    if (cover[kk] > 0.01) { val = (0.45 + 0.25 * float(kk)) * threadShade(pos[kk] / sw, P_eRound) * cover[kk]; }
+  }
+  return val;
+}
+
+// 13 · Khipu: Dezimalzahlen als Knotengruppen an Hängeschnüren
+float khipuKnots(vec2 l, float digit, float tier, float w) {
+  float t = 0.0;
+  if (digit < 0.5) return 0.0;
+  if (tier < 0.5) { // Einer: langer Knoten mit n Windungen (1 = Achterknoten)
+    float h = 0.045 * digit + 0.06;
+    vec2 c = l - vec2(0.0, -0.55 - h * 0.5);
+    float body = lineV(length(c * vec2(1.0, 0.7 / max(h, 0.06) * 0.5)) - 0.03, 0.03);
+    float ridges = (digit > 1.5) ? step(0.5, fract((c.y + h * 0.5) / 0.045)) : 0.0;
+    t = max(t, body * mix(1.0, 0.6, ridges));
+    if (digit < 1.5) t = max(t, lineV(length(c - vec2(0.0, 0.03)) - 0.025, 0.012) + lineV(length(c + vec2(0.0, 0.03)) - 0.025, 0.012));
+  } else { // Zehner, Hunderter, Tausender: n einfache Knoten
+    float base = tier == 1.0 ? -0.1 : (tier == 2.0 ? 0.3 : 0.65);
+    for (int i = 0; i < 9; i++) {
+      if (float(i) >= digit) break;
+      vec2 c = l - vec2(0.0, base - float(i) * 0.05);
+      t = max(t, lineV(length(c) - 0.028, 0.012));
+    }
+  }
+  return t;
+}
+float ethKhipu(vec2 q) {
+  vec2 p = q * 1.0 * P_eScale;
+  float n = float(u_khipuN);
+  float spacing = 0.28;
+  float w = P_eLine * 0.08;
+  float t = lineV(abs(p.y - 0.95), w * 1.6) * step(abs(p.x), (n * 0.5 + 0.3) * spacing); // Hauptschnur
+  float k = floor(p.x / spacing + n * 0.5);
+  if (k < 0.0 || k >= n) return t;
+  float cx = (k - n * 0.5 + 0.5) * spacing;
+  vec2 l = p - vec2(cx, 0.0);
+  float cord = lineV(abs(l.x), w) * step(-0.95, l.y) * step(l.y, 0.95);
+  t = max(t, cord * 0.55);
+  float v = u_khipu[int(k)];
+  float d0 = mod(v, 10.0), d1 = mod(floor(v / 10.0), 10.0), d2 = mod(floor(v / 100.0), 10.0), d3 = mod(floor(v / 1000.0), 10.0);
+  t = max(t, khipuKnots(l, d0, 0.0, w)); t = max(t, khipuKnots(l, d1, 1.0, w));
+  t = max(t, khipuKnots(l, d2, 2.0, w)); t = max(t, khipuKnots(l, d3, 3.0, w));
+  // Positionsmarken (Ebenen) schwach andeuten
+  t = max(t, 0.12 * lineV(abs(l.y - 0.3), 0.002) + 0.12 * lineV(abs(l.y + 0.1), 0.002));
+  return t;
+}
+
+float ethno(vec2 q) {
+  if (u_ethnoType == 0) return ethMirror(q);
+  if (u_ethnoType == 1) return ethTablet(q);
+  if (u_ethnoType == 2) return ethDraft(q);
+  if (u_ethnoType == 3) return ethKente(q);
+  if (u_ethnoType == 4) return ethTapestry(q);
+  if (u_ethnoType == 5) return ethIkat(q);
+  if (u_ethnoType == 6) return ethLace(q);
+  if (u_ethnoType == 7) return ethNanduti(q);
+  if (u_ethnoType == 8) return ethSymmetry(q);
+  if (u_ethnoType == 9) return ethFractal(q);
+  if (u_ethnoType == 10) return ethCornrow(q);
+  if (u_ethnoType == 11) return ethSashiko(q);
+  return ethKhipu(q);
+}
+
 float pattern(vec2 q) {
   bool first = true; float acc = 0.0;
   if (u_on.x == 1) { acc = waveValue(q); first = false; }
   if (u_on.y == 1) { float v = woven(q); acc = first ? v : blendOp(acc, v, u_blends.x); first = false; }
   if (u_on.z == 1) { vec2 g = rot(radians(P_g1Angle)) * (q - vec2(P_g1OffX, P_g1OffY)); float v = grating(u_g1Type, g, max(P_g1Period, 1e-4), P_g1Duty, P_g1Soft); acc = first ? v : blendOp(acc, v, u_blends.y); first = false; }
   if (u_on.w == 1) { vec2 g = rot(radians(P_g2Angle)) * (q - vec2(P_g2OffX, P_g2OffY)); float v = grating(u_g2Type, g, max(P_g2Period, 1e-4), P_g2Duty, P_g2Soft); acc = first ? v : blendOp(acc, v, u_blends.z); first = false; }
+  if (u_blends.w == 1) { float v = ethno(q); acc = first ? v : blendOp(acc, v, u_ethnoFlags.x); first = false; }
   return first ? 0.5 : acc;
 }
 
@@ -668,7 +1162,7 @@ void main() {
 const vs3d = `#version 300 es
 precision highp float;
 in vec2 a_pos;
-uniform float p[${targets.length}];
+uniform float uP[${targets.length}];
 ${defines}
 uniform float u_fieldPhase, u_layer;
 uniform int u_mode, u_modeB;
@@ -776,8 +1270,9 @@ function makeProgram(vsrc, fsrc, mesh) {
   const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verts), gl.STATIC_DRAW);
   const loc = gl.getAttribLocation(pr, "a_pos"); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
   if (mesh) { const ib = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(idx), gl.STATIC_DRAW); }
-  const names = ["p[0]", "u_res", "u_time", "u_fieldPhase", "u_ampNorm", "u_invert", "u_aa", "u_showSources", "u_waveView", "u_srcCount", "u_activeSrc", "u_hoverSrc",
-    "u_wField", "u_g1Type", "u_g2Type", "u_palA", "u_palB", "u_on", "u_blends", "u_wovenK", "u_srcA[0]", "u_srcB[0]", "u_eye", "u_layer", "u_mode", "u_modeB"];
+  const names = ["uP[0]", "u_res", "u_time", "u_fieldPhase", "u_ampNorm", "u_invert", "u_aa", "u_showSources", "u_waveView", "u_srcCount", "u_activeSrc", "u_hoverSrc",
+    "u_wField", "u_g1Type", "u_g2Type", "u_palA", "u_palB", "u_on", "u_blends", "u_wovenK", "u_srcA[0]", "u_srcB[0]", "u_eye", "u_layer", "u_mode", "u_modeB",
+    "u_data", "u_dataSize", "u_ethnoType", "u_ethnoSub", "u_khipuN", "u_khipu[0]", "u_ethnoFlags"];
   const u = {}; names.forEach((n) => { u[n.replace("[0]", "")] = gl.getUniformLocation(pr, n); });
   return { pr, vao, count: idx.length, u };
 }
@@ -812,7 +1307,7 @@ function effectiveSources(P) {
 
 function uploadCommon(u, P, w, h) {
   for (let i = 0; i < targets.length; i++) pArr[i] = P[targets[i]];
-  gl.uniform1fv(u.p, pArr);
+  gl.uniform1fv(u.uP, pArr);
   gl.uniform2f(u.u_res, w, h);
   gl.uniform1f(u.u_time, time); gl.uniform1f(u.u_fieldPhase, fieldPhase);
   let ampSum = 0;
@@ -837,6 +1332,15 @@ function uploadCommon(u, P, w, h) {
   gl.uniform4i(u.u_blends, bk.indexOf(o.wovenBlend), bk.indexOf(o.g1Blend), bk.indexOf(o.g2Blend), 0);
   const fk = Object.keys(FORMS), wk = Object.keys(WEAVES);
   gl.uniform4i(u.u_wovenK, fk.indexOf(o.wShapeA), fk.indexOf(o.wShapeB), wk.indexOf(o.wWeave), wk.indexOf(o.wWeaveAlt));
+  gl.uniform4i(u.u_blends, bk.indexOf(o.wovenBlend), bk.indexOf(o.g1Blend), bk.indexOf(o.g2Blend), o.ethnoOn ? 1 : 0);
+  if (o.ethnoOn) ensureEthnoData(P);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, dataTex); gl.uniform1i(u.u_data, 0);
+  gl.uniform2i(u.u_dataSize, dataSize[0], dataSize[1]);
+  gl.uniform1i(u.u_ethnoType, Object.keys(ETHNO_TYPES).indexOf(o.ethnoType));
+  gl.uniform1i(u.u_ethnoSub, ethnoSub());
+  gl.uniform4i(u.u_ethnoFlags, bk.indexOf(o.ethnoBlend), 0, 0, 0);
+  khipuArr.fill(0); S.khipu.forEach((n, i) => { if (i < 12) khipuArr[i] = n; });
+  gl.uniform1fv(u.u_khipu, khipuArr); gl.uniform1i(u.u_khipuN, Math.min(12, S.khipu.length));
 }
 
 // Sichtbarer Bereich in CSS-Pixeln: auf schmalen Bildschirmen liegt das Bedienfeld über der Bühne
@@ -1163,6 +1667,9 @@ function sanitizeState(obj) {
   out.bypass = obj.bypass === true; out.paused = obj.paused === true;
   out.quality = ["auto", "0.6", "1", "1.5", "2"].includes(String(obj.quality)) ? String(obj.quality) : "auto";
   out.activeSource = clamp(obj.activeSource | 0, 0, out.sources.length - 1);
+  if (Array.isArray(obj.mirrorEdits)) out.mirrorEdits = obj.mirrorEdits.filter((e) => Array.isArray(e) && e.length === 3).slice(0, 200).map((e) => [e[0] | 0, e[1] | 0, e[2] ? 1 : 0]);
+  if (Array.isArray(obj.khipu)) out.khipu = obj.khipu.slice(0, 12).map((n) => clamp(Math.abs(n | 0), 0, 9999));
+  if (!out.khipu.length) out.khipu = [1];
   return out;
 }
 function fullSnapshot() { return { format: "wellenstudio", version: 1, state: snapshotState(), clock: { time, fieldPhase, spinPhase, cycles: Array.from(cycles), signals: Array.from(signals) } }; }
@@ -1202,6 +1709,9 @@ const scenes = {
   mobius: { name: "Zonenplatten-Möbius", opt: { waveOn: false, g1On: true, g2On: true, g1Type: "rings", g2Type: "rings", paletteA: "gray", paletteB: "violet", viewMode: "mobius", viewBlend: "helix" }, base: { g1Period: 0.08, g2Period: 0.08, g1OffX: -0.2, g2OffX: 0.2, cutout: 0.35, spin: 6, rim: 0.8, paletteMix: 0.5 }, mods: [{ i: 0, target: "g2OffX", depth: 0.3, rate: 0.05 }, { i: 1, target: "bodyMorph", depth: 0.5, rate: 0.015, shape: "tri" }] },
   silkwave: { name: "Seide × Interferenz", opt: { waveOn: true, wovenOn: true, wovenBlend: "multiply", paletteA: "ember", paletteB: "ice", viewMode: "flat" }, base: { lambda: 0.22, wDensity: 18, wWidth: 0.4, paletteMix: 0.5 }, sources: () => [mkSource(-0.5, 0), mkSource(0.5, 0, { phase: Math.PI })], style: "weave" },
   shell: { name: "Perlmutt-Muschel", opt: { waveOn: false, wovenOn: true, paletteA: "ice", paletteB: "ember", viewMode: "shell", viewBlend: "helix" }, base: { paletteMix: 0.6, wDensity: 30, wMorph: 0.25, metal: 0.85, rim: 0.4, spin: 3 }, style: "breathe" },
+  sona: { name: "Sona · Spiegelkurven", opt: { waveOn: false, ethnoOn: true, ethnoType: "mirror", paletteA: "ember", paletteB: "gray", viewMode: "flat" }, base: { eRows: 4, eCols: 6, eLine: 0.16, eDot: 0.1, paletteMix: 0.2 } },
+  mattang: { name: "Mattang · Dünungskarte", opt: { waveOn: true, waveView: "intensity", paletteA: "ocean", paletteB: "ice", viewMode: "flat" }, base: { lambda: 0.14, paletteMix: 0.3, damping: 0.3 }, sources: () => [mkSource(-1.3, 0, { type: "plane", angle: 0.2 }), mkSource(1.3, 0.2, { type: "plane", angle: Math.PI - 0.3, amp: 0.7 }), mkSource(0.1, -0.1, { amp: 0.6, phase: Math.PI })] },
+  knotmobius: { name: "Keltischer Knoten · Möbius", opt: { waveOn: false, ethnoOn: true, ethnoType: "mirror", paletteA: "aurora", paletteB: "gray", viewMode: "mobius", viewBlend: "torus" }, base: { eRows: 4, eCols: 8, eCurve: 0.5, eGap: 0.09, eLine: 0.24, eDot: 0, eMirrors: 3, eSeed: 4, cutout: 0.2, spin: 5, rim: 0.7, paletteMix: 0.2 } },
   layers: { name: "Schichten · Licht", opt: { waveOn: true, g1On: true, g1Type: "hex", g1Blend: "difference", paletteA: "violet", paletteB: "ice", viewMode: "stack", viewBlend: "cloth" }, base: { lambda: 0.18, g1Period: 0.1, separation: 0.65, camYaw: 38, spin: 2, cutout: 0.3 }, sources: () => arrangeCircle(3, 0.4), style: "space" }
 };
 function applyScene(key) {
@@ -1237,6 +1747,302 @@ function refreshUserPresets(sel) {
   if (sel) $("userPreset").value = sel;
 }
 
+/* ------------------------------------------------------ Kulturmuster-Daten */
+const dataTex = gl.createTexture();
+gl.bindTexture(gl.TEXTURE_2D, dataTex);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+let dataKey = "", dataSize = [1, 1], ethnoStats = "";
+const khipuArr = new Float32Array(12);
+
+function uploadData(w, h, bytes) {
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, dataTex);
+  gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, bytes);
+  dataSize = [w, h];
+}
+function lcg(seed) { let h = (seed * 7919 + 17) >>> 0; return () => { h = (h * 1664525 + 1013904223) >>> 0; return h / 4294967296; }; }
+function gcd(a, b) { while (b) [a, b] = [b, a % b]; return a; }
+
+// Spiegelkurven: Strahl im 45°-Winkel, Reflexion an Rand und Spiegeln (Gerdes)
+function buildMirrorData(P) {
+  const cols = clamp(Math.round(P.eCols), 1, 12), rows = clamp(Math.round(P.eRows), 1, 12), region = S.opt.mirrorRegion;
+  const inR = (i, j) => {
+    if (i < 0 || j < 0 || i >= cols || j >= rows) return false;
+    if (region === "rect") return true;
+    const u = (i - (cols - 1) / 2) / (cols / 2), v = (j - (rows - 1) / 2) / (rows / 2);
+    return region === "diamond" ? Math.abs(u) + Math.abs(v) <= 1.0001 : u * u + v * v <= 1.0001;
+  };
+  const mirrors = new Set(); const rnd = lcg(Math.round(P.eSeed)); const nM = Math.round(P.eMirrors);
+  for (let k = 0; k < nM; k++) for (let tries = 0; tries < 30; tries++) {
+    const i = Math.floor(rnd() * cols), j = Math.floor(rnd() * rows), d = rnd() < 0.5 ? 0 : 1;
+    if (inR(i, j) && inR(d ? i : i + 1, d ? j + 1 : j)) { mirrors.add(`${i},${j},${d}`); break; }
+  }
+  for (const [i, j, d] of S.mirrorEdits) { const key = `${i},${j},${d}`; if (mirrors.has(key)) mirrors.delete(key); else mirrors.add(key); }
+  const hasMirror = (i, j, d) => { const a = inR(i, j), b = inR(d ? i : i + 1, d ? j + 1 : j); if (a !== b || (!a && !b)) return true; return mirrors.has(`${i},${j},${d}`); };
+  const bytes = new Uint8Array(cols * rows * 2 * 4);
+  for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) { const o = ((rows + j) * cols + i) * 4; bytes[o] = hasMirror(i, j, 0) ? 255 : 0; bytes[o + 1] = hasMirror(i, j, 1) ? 255 : 0; bytes[o + 2] = inR(i, j) ? 255 : 0; bytes[o + 3] = 255; }
+  const reflect = (px, py, dx, dy) => { if (px % 2 !== 0) { if (hasMirror((px - 1) / 2, py / 2, 0)) dx = -dx; } else { if (hasMirror(px / 2, (py - 1) / 2, 1)) dy = -dy; } return [dx, dy]; };
+  const key = (px, py, dx, dy) => { const [rx, ry] = reflect(px, py, dx, dy); return `${px},${py},${rx},${ry}`; };
+  const visited = new Set(); let curveId = 0;
+  const starts = [];
+  for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) { if (!inR(i, j)) continue; starts.push([2 * i + 1, 2 * j], [2 * i - 1, 2 * j], [2 * i, 2 * j + 1], [2 * i, 2 * j - 1]); }
+  for (const [sx, sy] of starts) for (const [dx0, dy0] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+    if (visited.has(key(sx, sy, dx0, dy0))) continue;
+    let px = sx, py = sy, dx = dx0, dy = dy0, steps = 0, drew = false; const id = curveId + 1;
+    while (steps++ < 5000) {
+      const k = key(px, py, dx, dy); if (visited.has(k) && steps > 1) break; visited.add(k);
+      [dx, dy] = reflect(px, py, dx, dy);
+      const nx = px + dx, ny = py + dy, mx = (px + nx) / 4, my = (py + ny) / 4, ci = Math.round(mx), cj = Math.round(my);
+      if (!inR(ci, cj)) break;
+      const corner = (mx > ci ? 0 : 1) + (my > cj ? 0 : 2);
+      bytes[(cj * cols + ci) * 4 + corner] = Math.min(255, id); drew = true;
+      visited.add(`${nx},${ny},${-dx},${-dy}`); // Rückwärtslauf derselben Kurve
+      px = nx; py = ny;
+    }
+    if (drew) curveId++;
+  }
+  uploadData(cols, rows * 2, bytes);
+  const g = gcd(cols, rows);
+  ethnoStats = `${cols} × ${rows} Punkte · <b>${curveId}</b> geschlossene Kurve${curveId === 1 ? "" : "n"}` + (region === "rect" && nM === 0 && !S.mirrorEdits.length ? ` · ggT(${cols}, ${rows}) = <b>${g}</b>` : ` · ${mirrors.size} Spiegel`) + (S.opt.viewMode === "flat" ? " · Tippen zwischen zwei Punkte setzt einen Spiegel" : "");
+}
+
+// Brettchenweben: 4 Löcher je Brettchen, Drehfolge bestimmt das sichtbare Loch
+function buildTabletData(P) {
+  const N = clamp(Math.round(P.eCount), 2, 48), R = 32, preset = S.opt.tabletPreset, rnd = lcg(Math.round(P.eSeed));
+  const mirrorT = (t) => (t < N / 2 ? t : N - 1 - t);
+  const randHoles = Array.from({ length: N }, () => [0, 1, 2, 3].map(() => Math.floor(rnd() * 4)));
+  const randDir = Array.from({ length: N }, () => rnd() < 0.5);
+  const hole = (t, h) => {
+    if (preset === "diag") return (h + t) % 4 < 2 ? 0 : 1;
+    if (preset === "chevron" || preset === "diamond") return (h + mirrorT(t)) % 4 < 2 ? 0 : 1;
+    if (preset === "eyes") { const m = Math.abs(t - (N - 1) / 2); return m < N / 6 ? ((h + Math.floor(m)) % 4 < 2 ? 2 : 3) : ((h + Math.floor(m)) % 4 < 2 ? 0 : 1); }
+    if (preset === "zigzag") return (h + t) % 4 < 2 ? 0 : 3;
+    return randHoles[t][h];
+  };
+  const dirS = (t) => (preset === "chevron" || preset === "diamond" || preset === "eyes" ? t < N / 2 : preset === "random" ? randDir[t] : true);
+  const seq = preset === "diamond" ? [1, 1, 1, 1, -1, -1, -1, -1] : preset === "zigzag" ? [1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1, -1] : preset === "eyes" ? [1, 1, -1, -1] : [1];
+  const pos = new Array(N).fill(0), bytes = new Uint8Array(N * R * 4);
+  for (let r = 0; r < R; r++) {
+    const turn = seq[r % seq.length];
+    for (let t = 0; t < N; t++) {
+      const o = (r * N + t) * 4;
+      bytes[o] = hole(t, ((pos[t] % 4) + 4) % 4); bytes[o + 1] = (dirS(t) !== (turn < 0)) ? 255 : 0; bytes[o + 2] = 0; bytes[o + 3] = 255;
+      pos[t] += turn;
+    }
+  }
+  uploadData(N, R, bytes);
+  ethnoStats = `${N} Brettchen · 4 Löcher · Drehfolge ${seq.map((v) => (v > 0 ? "v" : "z")).join("")} · Einzug ${preset === "diag" || preset === "zigzag" ? "nur S" : "S | Z gespiegelt"}`;
+}
+
+// Webbindung: Einzug · Aufknüpfung · Trittfolge → Bildpatrone
+function buildDraftData(P) {
+  const preset = S.opt.draftPreset, rnd = lcg(Math.round(P.eSeed)); const W = 32, H = 32;
+  const twill = (n, k) => Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => ((j - i + n) % n) < k ? 1 : 0));
+  const defs = {
+    plain: { th: [0, 1], tie: [[1, 0], [0, 1]], tr: [0, 1] },
+    twill: { th: [0, 1, 2, 3], tie: twill(4, 2), tr: [0, 1, 2, 3] },
+    twill31: { th: [0, 1, 2, 3], tie: twill(4, 3), tr: [0, 1, 2, 3] },
+    herring: { th: [0, 1, 2, 3, 2, 1], tie: twill(4, 2), tr: [0, 1, 2, 3] },
+    diamond: { th: [0, 1, 2, 3, 2, 1], tie: twill(4, 2), tr: [0, 1, 2, 3, 2, 1] },
+    satin: { th: [0, 1, 2, 3, 4], tie: Array.from({ length: 5 }, (_, i) => Array.from({ length: 5 }, (_, j) => ((j * 2) % 5) === i ? 1 : 0)), tr: [0, 1, 2, 3, 4] },
+    rosepath: { th: [0, 1, 2, 3, 0, 3, 2, 1], tie: twill(4, 2), tr: [0, 1, 2, 3, 0, 3, 2, 1] },
+    monk: { th: [0, 1, 0, 1, 2, 3, 2, 3], tie: [[1, 1, 0, 0], [1, 1, 0, 0], [0, 0, 1, 1], [0, 0, 1, 1]], tr: [0, 1, 0, 1, 2, 3, 2, 3, 0, 1, 2, 3] },
+    plait: { th: [0, 1, 2, 3], tie: twill(4, 2), tr: [0, 1, 2, 3] }
+  };
+  const d = defs[preset] || defs.plain;
+  const warpCol = (x) => (preset === "plait" ? Math.floor(x / 2) % 2 : preset === "monk" ? (Math.floor(x / 8) % 2 ? 2 : 0) : preset === "rosepath" ? (x % 8 < 4 ? 0 : 1) : Math.floor(rnd() * 1.6 + Math.floor(x / 4) % 2) % 4);
+  const weftCol = (y) => (preset === "plait" ? 1 + Math.floor(y / 2) % 2 : preset === "monk" ? (Math.floor(y / 6) % 2 ? 3 : 1) : preset === "rosepath" ? 2 : 1 + Math.floor(y / 8) % 2);
+  const bytes = new Uint8Array(W * H * 4);
+  const wc = Array.from({ length: W }, (_, x) => warpCol(x));
+  for (let y = 0; y < H; y++) { const tread = d.tr[y % d.tr.length]; for (let x = 0; x < W; x++) { const shaft = d.th[x % d.th.length]; const up = d.tie[shaft] && d.tie[shaft][tread] ? 1 : 0; const o = (y * W + x) * 4; bytes[o] = up ? 255 : 0; bytes[o + 1] = wc[x]; bytes[o + 2] = weftCol(y); bytes[o + 3] = 255; } }
+  uploadData(W, H, bytes);
+  ethnoStats = `${Math.max(...d.th) + 1} Schäfte · Einzug ${d.th.join("")} · Trittfolge ${d.tr.join("")} · Rapport ${d.th.length} × ${d.tr.length}`;
+}
+
+// Klöppelspitze: Kachelplan je Rautenzelle (0 Grund, 1 Leinen, 2 Halbschlag, 3 Spinne, 4 Loch)
+function buildLaceData() {
+  const n = 8, preset = S.opt.lacePreset, bytes = new Uint8Array(n * n * 4);
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+    const di = Math.abs(i - 3.5), dj = Math.abs(j - 3.5), m = di + dj; let k = 0;
+    if (preset === "half") k = 2;
+    else if (preset === "rose") k = (i + j) % 2 ? 2 : 4;
+    else if (preset === "cloth") k = m <= 2.5 ? 1 : (m <= 3.5 ? 2 : 0);
+    else if (preset === "spider") k = (di < 1 && dj < 1) ? 3 : (m <= 2.5 ? 2 : (m <= 3.5 ? 1 : 0));
+    else if (preset === "fan") k = j < 2 ? 1 : (j === 2 ? 4 : ((i === 5 && j === 5) ? 3 : (Math.abs(i - 5) + Math.abs(j - 5) <= 2 ? 2 : 0)));
+    const o = (j * n + i) * 4; bytes[o] = k; bytes[o + 3] = 255;
+  }
+  uploadData(n, n, bytes);
+  ethnoStats = `Torchon-Grund auf 45°-Gitter · Rapport ${n} × ${n} Rauten · Fadenpaare kreuzen und drehen sich an jeder Nadel`;
+}
+
+function ethnoSub() {
+  const o = S.opt;
+  switch (o.ethnoType) {
+    case "mirror": return Object.keys(MIRROR_REGIONS).indexOf(o.mirrorRegion);
+    case "tapestry": return Object.keys(TAPESTRY_KINDS).indexOf(o.tapestryKind);
+    case "symmetry": return Object.keys(SYM_GROUPS).indexOf(o.symGroup);
+    case "sashiko": return Object.keys(SASHIKO_KINDS).indexOf(o.sashikoKind);
+    default: return 0;
+  }
+}
+function ensureEthnoData(P) {
+  const t = S.opt.ethnoType;
+  const key = JSON.stringify([t, S.opt.mirrorRegion, S.opt.tabletPreset, S.opt.draftPreset, S.opt.lacePreset, Math.round(P.eRows), Math.round(P.eCols), Math.round(P.eMirrors), Math.round(P.eSeed), Math.round(P.eCount), S.mirrorEdits, S.opt.viewMode]);
+  if (key === dataKey) return;
+  dataKey = key;
+  if (t === "mirror") buildMirrorData(P);
+  else if (t === "tablet") buildTabletData(P);
+  else if (t === "draft") buildDraftData(P);
+  else if (t === "lace") buildLaceData();
+  else { dataSize = [clamp(Math.round(P.eCount), 2, 48), 1]; ethnoStats = { kente: "Streifen aus dem schmalen Trittwebstuhl, blockweise kett- oder schussbetont · Saat und Motiv A variieren die Blockfolge", tapestry: "Schussbetonte Tapisserie · Stufung = Schussdichte: je gröber, desto treppiger die Diagonalen", ikat: "Kettfäden vor dem Weben abgebunden und gefärbt · Verwischung = Versatz beim Aufbäumen", nanduti: `${dataSize[0]} Speichen · Ringe werden über/unter die Speichen gewebt`, symmetry: `Gruppe ${SYM_GROUPS[S.opt.symGroup]} · Motiv A/B und Saat formen die Grundfigur`, fractal: `${Math.max(3, Math.floor(dataSize[0] / 2))} Gehöfte je Ring · Tiefe ${clamp(Math.round(P.eIter / 4), 1, 4)} · Skalierung ${(P.eFactor * 0.42).toFixed(2)}`, cornrow: `${Math.round(P.eIter)} Zopfglieder · Faktor ${P.eFactor.toFixed(3)} · ${P.eTurn.toFixed(1)}° je Schritt`, sashiko: SASHIKO_KINDS[S.opt.sashikoKind], khipu: `Pendelschnüre: ${S.khipu.join(", ")} · Summe ${S.khipu.reduce((a, b) => a + b, 0)} · Ebenen von unten: Einer (langer Knoten), Zehner, Hunderter, Tausender` }[t] || ""; }
+  $("ethnoStats").innerHTML = ethnoStats;
+}
+
+/* ------------------------------------------------------ Hintergrundtexte */
+const ETHNO_TEXT = {
+  mirror: `<p><b>Herkunft.</b> <b>Sona</b> (Sing. lusona) zeichnen Erzähler der Cokwe/Chokwe in Nordost-Angola, der DR Kongo und Sambia mit dem Finger in den Sand: erst ein Punktraster, dann in einem Zug eine Linie, die zwischen den Punkten hindurchläuft. <b>Kolam</b> (Tamil Nadu, Südindien) streuen Frauen morgens aus Reismehl vor die Schwelle – Punkte (pulli) und eine Schlinge, die jeden Punkt umrundet; das <i>kambi kolam</i> besteht aus genau einer geschlossenen Kurve. <b>Keltische Knoten</b> (Book of Kells, um 800) und <b>Lunda-Muster</b> folgen derselben Konstruktion.</p>
+  <p><b>Mathematik.</b> Paulus Gerdes beschrieb alle drei als <b>Spiegelkurven</b>: ein Lichtstrahl läuft im 45°-Winkel durch das Raster und wird an den Rändern und an inneren Spiegeln reflektiert. Für ein Rechteck ohne innere Spiegel gilt: Zahl der geschlossenen Kurven = <b>ggT(Spalten, Zeilen)</b>. Jede Kurve ist ein alternierender Knoten (über, unter, über …), Gift Siromoney beschrieb Kolam mit zweidimensionalen Array-Grammatiken.</p>
+  <p><b>Ausprobieren.</b> Zeilen und Spalten ändern und die Kurvenzahl mit dem ggT vergleichen. Auf der Fläche zwischen zwei Punkte tippen: ein Spiegel entsteht und verbindet oder trennt Kurven – so entstehen Tiere und Figuren der Sona. „Gerade ↔ Bogen“ macht aus Sona ein Kolam, „Knoten-Lücke“ einen keltischen Knoten. Mit „Raum“ auf einen Torus oder ein Möbiusband legen.</p>`,
+  tablet: `<p><b>Herkunft.</b> Beim <b>Brettchenweben</b> laufen die Kettfäden durch vier Löcher kleiner Täfelchen; durch Drehen der Brettchen entsteht das Fach, der Schuss fixiert jede Vierteldrehung. Älteste Funde: Bronzezeit und Hallstattzeit in Hallstatt (ab ca. 800 v. Chr.), das Fürstengrab von Hochdorf (um 530 v. Chr.), die Oseberg-Schiffsbestattung (834) mit über zehn Bändern. Die Technik ist von Nordafrika über Anatolien, den Kaukasus und Zentralasien bis Tibet und Burma belegt.</p>
+  <p><b>Mathematik.</b> Jedes Brettchen ist ein Zähler modulo 4: die Drehfolge (vorwärts/zurück) bestimmt, welches Loch oben liegt. S- und Z-Einzug spiegeln die Fadenschräge; Vorwärts/Rückwärts-Sequenzen erzeugen Chevrons, Rauten und „Augen“. Das Muster ist eine Funktion (Brettchen, Reihe) → Lochfarbe – ein frühes Beispiel programmierten Webens.</p>
+  <p><b>Ausprobieren.</b> Einzug wechseln, Fäden-Zahl erhöhen, mit „Zufall“ und Saat neue Bänder würfeln. Die Fadenrundung zeigt die Schräge der sichtbaren Fäden.</p>`,
+  draft: `<p><b>Herkunft.</b> Die <b>Patrone</b> (Weave Draft) notiert eine Bindung in vier Feldern: Einzug (welcher Schaft hebt welchen Kettfaden), Aufknüpfung (welche Schäfte ein Tritt hebt), Trittfolge und das daraus folgende Bild. Leinwand und Köper sind weltweit seit dem Neolithikum belegt; Fischgrat kennt man aus Hallstatt und China; Atlas (Satin) kam aus China über die Seidenstraße; Rosengang und Gänseauge sind skandinavische und mitteleuropäische Bauernbindungen; das Mönchsgürtel-Blockmuster stammt aus Schweden. Im Korbflechten (Makonde in Mosambik, Ye'kuana in Venezuela, Japan, Amazonas) wird dieselbe 2/2-Köperbindung mit breiten Streifen geflochten – Gerdes zeigte, wie Flechter damit Symmetrien konstruieren.</p>
+  <p><b>Mathematik.</b> Das Bild ist ein Matrixprodukt: Bindung = Einzug × Aufknüpfung × Trittfolge über dem Körper {0,1}. Rapporte, Spiegelungen (Spitz-Einzug) und Verschiebungen (Köperversatz) sind Operationen auf Zahlenfolgen; Ada Lovelace verglich die Analytical Engine mit dem Jacquard-Webstuhl.</p>
+  <p><b>Ausprobieren.</b> Bindungen durchschalten und beobachten, wie Spitz-Einzug (Fischgrat) und Spitz-Tritt (Gänseauge) Spiegelachsen erzeugen. Saat würfelt Kettstreifen.</p>`,
+  kente: `<p><b>Herkunft.</b> <b>Kente</b> der Asante und Ewe (Ghana, Togo) wird auf schmalen Trittwebstühlen in etwa 8–10 cm breiten Streifen gewebt und anschließend zu Tüchern zusammengenäht. Jeder Streifen wechselt zwischen kettbetonten Längsstreifen und schussbetonten Blöcken; versetzte Blöcke ergeben die typische Schachbrett-Verschiebung. Streifenweberei gibt es in ganz Westafrika (Bogolan in Mali, Aso Oke der Yoruba).</p>
+  <p><b>Mathematik.</b> Zwei Rhythmen: der Block-Rhythmus entlang des Streifens und der Versatz zwischen Streifen – ein Muster aus Verschiebungen (Translationen) mit bewusst gebrochener Periodizität. Namen der Muster kodieren Sprichwörter, und Blockfolgen bilden eine Art Zahlensystem der Weber.</p>
+  <p><b>Ausprobieren.</b> Verwischung regelt das Verhältnis Kett- zu Schussblöcken, Motiv A die Blocklänge, Saat die Versätze. Mit Palette „Glut“ oder „Aurora“ die typischen Gold-, Rot- und Grüntöne wählen.</p>`,
+  tapestry: `<p><b>Herkunft.</b> In <b>schussbetonter Tapisserie</b> deckt der Schuss die Kette ganz ab; Diagonalen entstehen nur als Treppen aus Schussreihen. So weben Diné/Navajo (Two Grey Hills, Ganado), Amazigh/Berber-Frauen im Atlas, Kelim-Weberinnen in Anatolien und dem Kaukasus sowie Maya-Weberinnen auf dem Hüftwebstuhl (Brokat der Huipiles). Die Māori-Flechtpaneele <b>Tukutuku</b> zeigen das Treppenmotiv Poutama.</p>
+  <p><b>Mathematik.</b> Diskretisierung: eine kontinuierliche Form (Raute, Zickzack) wird auf ein Gitter aus Kettfäden × Schussreihen abgebildet. Die Stufung ist die Auflösung – je feiner der Schuss, desto glatter die Diagonale. Diné-Weberinnen planen Symmetrien (meist pmm oder p2mm im Fries) im Kopf, ohne Vorlage.</p>
+  <p><b>Ausprobieren.</b> Stufung von 4 bis 40 verändern. Motiv wechseln, Motiv A verdichtet die Rauten. Auf dem „Tuch“-Körper wirkt das Muster wie ein hängender Teppich.</p>`,
+  ikat: `<p><b>Herkunft.</b> Beim <b>Ikat</b> (malaiisch <i>mengikat</i>, „abbinden“) werden die Fäden vor dem Weben partienweise abgebunden und gefärbt; beim Aufbäumen verschieben sie sich leicht, daher die verwischten Kanten. Kett-Ikat: Sumba und Flores (Indonesien), Pochampally (Indien), Abr/Adras in Usbekistan, Kasuri in Japan, Jaspe in Guatemala. Doppel-Ikat (Kette und Schuss): Patola aus Patan (Gujarat) und Geringsing auf Bali.</p>
+  <p><b>Mathematik.</b> Das Motiv wird als Funktion auf den Fäden kodiert, bevor das Gewebe existiert – jede Abbindung ist eine Vorberechnung. Die Unschärfe ist ein stochastischer Versatz pro Faden; Doppel-Ikat verlangt, dass zwei unabhängige Kodierungen am Kreuzungspunkt übereinstimmen.</p>
+  <p><b>Ausprobieren.</b> Verwischung von 0 (perfekte Kanten) bis 1 erhöhen; Motiv A mischt Schuss-Versatz hinzu (Doppel-Ikat). Fäden-Zahl verändert die Kettfeinheit.</p>`,
+  lace: `<p><b>Herkunft.</b> <b>Klöppelspitze</b> entstand im 16. Jahrhundert in Flandern und Oberitalien (Genua, Venedig) und wanderte ins Erzgebirge (Legende der Barbara Uthmann, Annaberg um 1560), nach Le Puy, Brügge, Honiton, Idrija (Slowenien), Chantilly. Fadenpaare auf Klöppeln werden über einen Klöppelbrief gekreuzt und gedreht, Nadeln halten die Kreuzungen. Portugiesische Händler brachten sie nach Sri Lanka (Beeralu-Spitze), Spanier nach Brasilien (Renda de bilro, Ceará) und Paraguay.</p>
+  <p><b>Mathematik.</b> Der <b>Torchon-Grund</b> ist ein 45°-Gitter, auf dem jede Raute einen Zustand trägt: Netzgrund (Paar kreuzt und dreht), Halbschlag (Kreuzen–Drehen), Leinenschlag (Kreuzen–Drehen–Kreuzen, dicht wie Leinwand), Spinne (acht Paare treffen sich). Zöpfe und Fadenwege lassen sich als Zopfgruppen-Wörter (Artin) schreiben: Kreuzen = σ, Drehen = σ⁻¹.</p>
+  <p><b>Ausprobieren.</b> Grund und Motiv wechseln, Linienstärke als Garnstärke, Punktgröße als Nadellöcher. „Spinnen-Rauten“ zeigt die klassische Torchon-Aufteilung.</p>`,
+  nanduti: `<p><b>Herkunft.</b> <b>Ñandutí</b> (Guaraní: „Spinnennetz“) aus Itauguá, Paraguay: auf einen gespannten Stoff werden Speichen gespannt, dann in Kreisen gewebt – eine Weiterentwicklung der spanischen <b>Sol-Spitze</b> (Sonnenspitze) von Teneriffa, die im 17./18. Jahrhundert nach Südamerika kam. Verwandte Radspitzen: Tenerife-Spitze, bolivianische und brasilianische Varianten.</p>
+  <p><b>Mathematik.</b> Polarkoordinaten statt kartesischer: n Speichen teilen den Vollwinkel, Ringe sind Kreise um das Zentrum, die über/unter die Speichen gewebt werden – eine Parität (Ring + Speiche) mod 2. Zusammengesetzte Räder bilden ein Gitter aus Kreisen.</p>
+  <p><b>Ausprobieren.</b> Fäden-Zahl = Speichen, Wiederholungen = Ringe, Motiv A = Ringbreite. Mit Maßstab Räder verkleinern, bis ein Netz entsteht.</p>`,
+  symmetry: `<p><b>Herkunft.</b> Dorothy Washburn und Donald Crowe zeigten in <i>Symmetries of Culture</i> (1988), dass sich Muster aller Kulturen nach ihren Symmetrien klassifizieren lassen: sieben <b>Friesgruppen</b> (Bänder) und siebzehn <b>Flächengruppen</b>. Beispiele: Alhambra (Granada) mit nahezu allen 17 Gruppen; Kuba-Raffia (DR Kongo) oft pgg und p4g; Adire der Yoruba pmm; Inka-Tocapu pmm/p4; Māori-Kōwhaiwhai als Friese; Tapa/Siapo (Samoa, Tonga) in Rasterfeldern.</p>
+  <p><b>Mathematik.</b> Eine Symmetriegruppe ist die Menge aller Bewegungen (Verschiebung, Drehung, Spiegelung, Gleitspiegelung), die ein Muster in sich überführen. Hier wird ein asymmetrisches Motiv in die Fundamentalzelle gelegt und per Faltung vervielfältigt; die Gruppe bestimmt, wie viele Kopien und in welcher Lage.</p>
+  <p><b>Ausprobieren.</b> Gruppen durchschalten und Spiegelachsen, Drehzentren und Gleitspiegelungen suchen. Motiv A/B und Saat verändern die Grundfigur, Zeilen den Maßstab. Kuba-Stil: pgg mit „Spektrum“ und niedrigem Kontrast.</p>`,
+  fractal: `<p><b>Herkunft.</b> Ron Eglash (<i>African Fractals</i>, 1999) dokumentierte <b>rekursive Skalierung</b> in afrikanischer Architektur und Gestaltung: das Ba-ila-Dorf in Sambia ist ein Ring aus Gehöften, jedes Gehöft ein Ring aus Häusern, der Hauptwohnsitz hinten wieder ein kleinerer Ring. Ähnlich: Mokoulek (Kamerun), Logone-Birni-Paläste, äthiopische Prozessionskreuze, Senufo-Textilien.</p>
+  <p><b>Mathematik.</b> Selbstähnlichkeit: dieselbe Regel (Ring mit offenem Eingang vorn, Größenordnung hinten) wird auf jeder Stufe angewandt; die Skalierung r und die Anzahl n je Stufe ergeben eine fraktale Dimension D = log n / log(1/r).</p>
+  <p><b>Ausprobieren.</b> Wiederholungen = Tiefe (1–4), Fäden-Zahl = Gehöfte je Ring, Skalierungsfaktor = Verkleinerung. Mit „Raum“ auf die Kugel legen.</p>`,
+  cornrow: `<p><b>Herkunft.</b> <b>Cornrows</b> (Flechtfrisuren) der afrikanischen Diaspora: Zopfglieder, die sich entlang einer Kurve stetig verkleinern und drehen. Eglashs „Cornrow Curves“ machte daraus ein Lernwerkzeug; Vorbilder sind Frisuren aus Westafrika, dem Sudan und der Karibik sowie Flechtornamente der Yoruba und Fulbe.</p>
+  <p><b>Mathematik.</b> Eine iterierte Transformation: jedes Glied entsteht aus dem vorigen durch Verschiebung, Drehung um einen festen Winkel und Skalierung um einen festen Faktor – eine geometrische Folge im Raum. Mit Faktor &lt; 1 konvergiert die Kurve zu einer logarithmischen Spirale.</p>
+  <p><b>Ausprobieren.</b> Drehung pro Schritt (±45°), Skalierungsfaktor und Wiederholungen. Zwei gespiegelte Zöpfe bilden das symmetrische Grundbild.</p>`,
+  sashiko: `<p><b>Herkunft.</b> <b>Sashiko</b> (Japan, Edo-Zeit, Nordregionen Tsugaru und Shōnai) verstärkt Arbeitskleidung mit laufenden Stichen in geometrischen Rastern: <b>Seigaiha</b> („blaue Meereswellen“, überlappende Bögen), <b>Asanoha</b> (Hanfblatt, sechsstrahliger Stern), <b>Shippō</b> (sieben Schätze, sich schneidende Kreise). <b>Kagome</b> ist das dreiachsige Korbgeflecht aus Bambus, das auch in Afrika, Südostasien und am Amazonas vorkommt.</p>
+  <p><b>Mathematik.</b> Seigaiha ist eine Überlagerung versetzter Kreisfamilien – dasselbe Prinzip wie Wellenfronten; Asanoha ist das Dreiecksgitter mit allen Höhen (Gruppe p6m); Shippō ein Kreisgitter, in dem jeder Kreis durch die Mittelpunkte seiner Nachbarn läuft; Kagome ein Kagome-Gitter aus drei Streifenscharen mit zyklischer Über/Unter-Ordnung.</p>
+  <p><b>Ausprobieren.</b> Seigaiha mit dem Wellenfeld multiplizieren (Start → Wellenfeld ein, Mischart XOR): gestickte Wellen treffen physikalische Wellen. Motiv A ändert Ringzahl bzw. Streifenbreite.</p>`,
+  khipu: `<p><b>Herkunft.</b> Der <b>Khipu</b> (Quechua: „Knoten“) war das Verwaltungs- und Zählsystem des Inka-Reichs: an eine Hauptschnur geknüpfte Pendelschnüre tragen Knotengruppen; Lage, Knotentyp und Farbe kodieren Zahlen und Kategorien. Marcia und Robert Ascher (<i>Code of the Quipu</i>, 1981) entzifferten das Dezimalsystem; Khipus gab es schon bei den Wari, und in den Anden wurden sie bis ins 20. Jahrhundert geführt.</p>
+  <p><b>Mathematik.</b> Positionelles Dezimalsystem mit Null (leere Position): unten die Einer als <b>langer Knoten</b> mit n Windungen (die 1 als Achterknoten), darüber Zehner, Hunderter, Tausender als Gruppen einfacher Knoten. Summenschnüre fassen Gruppen zusammen – Buchhaltung ohne Schrift.</p>
+  <p><b>Ausprobieren.</b> Im Feld „Zahlen“ eigene Werte eingeben (bis 9999, durch Komma getrennt) und die Knoten ablesen. Punktgröße = Knotengröße, Linienstärke = Schnurstärke.</p>`
+};
+
+/* ----------------------------------------------------------- Katalog */
+function ethnoSetup(cfg) {
+  remember();
+  const prev = S;
+  S = defaultState(); S.quality = prev.quality;
+  S.opt.waveOn = false; S.opt.ethnoOn = true; S.opt.paletteA = "gray"; S.opt.paletteB = "ice"; S.base.paletteMix = 0.25;
+  Object.assign(S.opt, cfg.opt || {}); Object.assign(S.base, cfg.base || {});
+  if (cfg.sources) S.sources = cfg.sources();
+  if (cfg.khipu) S.khipu = cfg.khipu;
+  if (cfg.mods) cfg.mods.forEach((m) => Object.assign(S.mods[m.i], { on: true, rate: 0.04, depth: 0.2, phase: m.i / 8, slew: 0.4 }, m));
+  resetPhases(); cameraHome();
+  for (const k of ["camYaw", "camPitch", "distance", "fov"]) if (cfg.base && cfg.base[k] !== undefined) S.base[k] = cfg.base[k];
+  dataKey = ""; buildMods(); syncUI(); showPage("culture");
+  if (narrowMQ.matches) setSheet("peek");
+  toast(cfg.name || "Kulturmuster");
+}
+const catalog = [
+  { cont: "Afrika", title: "Sona der Cokwe", region: "Angola · DR Kongo · Sambia", tech: "Sandzeichnung", math: "Spiegelkurven, ggT", text: "Erzähler zeichnen in einem Zug Linien um ein Punktraster; ggT(Spalten, Zeilen) zählt die Kurven.", cfg: { name: "Sona 6 × 4", opt: { ethnoType: "mirror", mirrorRegion: "rect", paletteA: "ember", paletteB: "gray" }, base: { eRows: 4, eCols: 6, eLine: 0.16, eDot: 0.1 } } },
+  { cont: "Afrika", title: "Lunda-Spiegelbild", region: "Lunda-Region, Angola", tech: "Spiegelkurve mit inneren Spiegeln", math: "Reflexion, Verkettung", text: "Innere Spiegel verbinden Kurven zu Figuren – Löwe, Vogel, Antilope entstehen durch wenige Spiegel.", cfg: { name: "Sona mit Spiegeln", opt: { ethnoType: "mirror", mirrorRegion: "rect", paletteA: "spectrum", paletteB: "gray" }, base: { eRows: 5, eCols: 7, eMirrors: 5, eSeed: 11, eLine: 0.15 } } },
+  { cont: "Afrika", title: "Kente", region: "Asante & Ewe, Ghana", tech: "Streifenweberei", math: "Translation, Blockrhythmus", text: "Schmale Streifen mit wechselnden Kett- und Schussblöcken werden versetzt zusammengenäht.", cfg: { name: "Kente", opt: { ethnoType: "kente", paletteA: "ember", paletteB: "aurora" }, base: { paletteMix: 0.45, eCount: 24, eBlur: 0.3, eA: 0.4, contrast: 1.2 } } },
+  { cont: "Afrika", title: "Kuba-Raffia", region: "Kuba-Königreich, DR Kongo", tech: "Schnittsamt & Stickerei", math: "Gruppe pgg, Symmetriebruch", text: "Interlace-Rauten mit Gleitspiegelungen; bewusste Brüche im Rapport sind Teil der Ästhetik.", cfg: { name: "Kuba · pgg", opt: { ethnoType: "symmetry", symGroup: "pgg", paletteA: "ember", paletteB: "gray" }, base: { paletteMix: 0.6, eA: 0.25, eB: 0.7, eSeed: 23, eLine: 0.2, eScale: 1.6, contrast: 0.9 } } },
+  { cont: "Afrika", title: "Ba-ila-Dorf", region: "Südsambia", tech: "Siedlungsarchitektur", math: "Rekursive Skalierung, Fraktal", text: "Ring aus Gehöften, jedes Gehöft ein Ring – Eglashs Beispiel für fraktale Planung.", cfg: { name: "Ba-ila", opt: { ethnoType: "fractal", paletteA: "ember", paletteB: "gray" }, base: { eCount: 14, eIter: 12, eFactor: 0.86, eLine: 0.2 } } },
+  { cont: "Afrika", title: "Cornrow-Kurven", region: "Westafrika · Diaspora", tech: "Flechtfrisur", math: "Iterierte Transformation", text: "Zopfglieder schrumpfen und drehen sich mit festem Faktor – eine geometrische Folge.", cfg: { name: "Cornrows", opt: { ethnoType: "cornrow", paletteA: "aurora", paletteB: "gray" }, base: { eIter: 18, eFactor: 0.9, eTurn: 7, eLine: 0.2 }, mods: [{ i: 0, target: "eTurn", depth: 0.25, rate: 0.03, shape: "tri" }] } },
+  { cont: "Afrika", title: "Makonde-Flechtwerk", region: "Mosambik · Tansania", tech: "Korbflechten 2/2", math: "Köperbindung, Symmetrie", text: "Breite Streifen in Köperbindung; Flechter erzeugen Rauten und Zickzack durch Versatzregeln (Gerdes).", cfg: { name: "Flechtwerk", opt: { ethnoType: "draft", draftPreset: "plait", paletteA: "ember", paletteB: "gray" }, base: { eScale: 0.5, eRound: 0.8, paletteMix: 0.5 } } },
+  { cont: "Afrika", title: "Adire der Yoruba", region: "Nigeria", tech: "Reservefärbung", math: "Gruppe pmm", text: "Indigo-Batiken mit Spiegelsymmetrien in beiden Richtungen.", cfg: { name: "Adire · pmm", opt: { ethnoType: "symmetry", symGroup: "pmm", paletteA: "ocean", paletteB: "ice" }, base: { paletteMix: 0.3, eSeed: 5, eA: 0.35, eB: 0.5, eLine: 0.22 } } },
+  { cont: "Asien", title: "Kolam", region: "Tamil Nadu, Indien", tech: "Reismehl-Zeichnung", math: "Einzügige Kurve, Array-Grammatik", text: "Punktraster 1-3-5-3-1; die Schlinge umrundet jeden Punkt. Siromoney formalisierte Kolam als Bildsprache.", cfg: { name: "Kolam", opt: { ethnoType: "mirror", mirrorRegion: "diamond", paletteA: "gray", paletteB: "ice" }, base: { eRows: 5, eCols: 5, eCurve: 1, eLine: 0.14, eDot: 0.1, paletteMix: 0.3 } } },
+  { cont: "Asien", title: "Patola-Ikat", region: "Patan, Gujarat · Sumba · Usbekistan", tech: "Doppel-Ikat", math: "Vorkodierung, stochastischer Versatz", text: "Kette und Schuss werden vor dem Weben abgebunden und gefärbt; beide Kodierungen müssen am Kreuzungspunkt passen.", cfg: { name: "Ikat", opt: { ethnoType: "ikat", paletteA: "ember", paletteB: "violet" }, base: { paletteMix: 0.4, eBlur: 0.5, eA: 0.6, eCount: 28, eStep: 14 } } },
+  { cont: "Asien", title: "Seigaiha", region: "Japan", tech: "Sashiko-Stickerei", math: "Überlagerte Kreisfamilien", text: "„Blaue Meereswellen“ – versetzte Bögen wie Wellenfronten. Hier mit dem Interferenzfeld gemischt.", cfg: { name: "Seigaiha × Welle", opt: { ethnoType: "sashiko", sashikoKind: "seigaiha", ethnoBlend: "xor", waveOn: true, waveView: "snapshot", paletteA: "ocean", paletteB: "ice" }, base: { lambda: 0.2, paletteMix: 0.4, eLine: 0.18 }, sources: () => [mkSource(-0.4, -0.2), mkSource(0.4, 0.2)] } },
+  { cont: "Asien", title: "Asanoha", region: "Japan", tech: "Sashiko", math: "Dreiecksgitter, p6m", text: "Hanfblatt-Stern aus sechs Linienscharen – das Gitter mit der höchsten ebenen Symmetrie.", cfg: { name: "Asanoha", opt: { ethnoType: "sashiko", sashikoKind: "asanoha", paletteA: "gray", paletteB: "ocean" }, base: { eLine: 0.16, paletteMix: 0.5 } } },
+  { cont: "Asien", title: "Kagome-Korb", region: "Japan · Südostasien", tech: "Dreiachsiges Flechten", math: "Kagome-Gitter, zyklische Ordnung", text: "Drei Streifenscharen im 60°-Winkel, jede über der nächsten – das Gitter der Festkörperphysik.", cfg: { name: "Kagome", opt: { ethnoType: "sashiko", sashikoKind: "kagome", paletteA: "ember", paletteB: "gray" }, base: { eA: 0.4, eRound: 0.8, paletteMix: 0.4 } } },
+  { cont: "Asien", title: "Girih-Sterne", region: "Iran · Zentralasien · Anatolien", tech: "Fliesen & Holzgitter", math: "Gruppe p6m / p4m", text: "Zwölf- und achtstrahlige Sterne aus Linienmotiven in den höchsten Symmetriegruppen.", cfg: { name: "Girih · p6m", opt: { ethnoType: "symmetry", symGroup: "p6m", paletteA: "ocean", paletteB: "ember" }, base: { paletteMix: 0.35, eA: 0.2, eB: 0.75, eSeed: 2, eLine: 0.28, eScale: 1.3 } } },
+  { cont: "Asien", title: "Anatolischer Kelim", region: "Türkei · Kaukasus · Iran", tech: "Schussbetonte Tapisserie", math: "Diskretisierung, Fries", text: "Zickzack- und Rautenreihen mit Stufenkanten; Motive wie Elibelinde (Hände an den Hüften).", cfg: { name: "Kelim", opt: { ethnoType: "tapestry", tapestryKind: "zigzag", paletteA: "ember", paletteB: "gray" }, base: { eStep: 10, eA: 0.5, paletteMix: 0.3, eRound: 0.5 } } },
+  { cont: "Asien", title: "Brettchenband Zentralasien", region: "Kaukasus · Tibet · Burma", tech: "Brettchenweben", math: "Zähler modulo 4", text: "Doppelflächige Bänder mit Rauten und Augen – dieselbe Logik wie in Hallstatt.", cfg: { name: "Brettchenband · Augen", opt: { ethnoType: "tablet", tabletPreset: "eyes", paletteA: "ember", paletteB: "aurora" }, base: { eCount: 20, paletteMix: 0.5, eRound: 0.7 } } },
+  { cont: "Europa", title: "Keltischer Knoten", region: "Irland · Schottland · Northumbria", tech: "Buchmalerei, Steinkreuze", math: "Alternierender Knoten, Spiegelkurve", text: "Book of Kells (um 800): Spiegelkurven mit Über/Unter-Kreuzungen – Cromwell zeigte die Konstruktion.", cfg: { name: "Keltischer Knoten", opt: { ethnoType: "mirror", mirrorRegion: "rect", paletteA: "aurora", paletteB: "gray" }, base: { eRows: 4, eCols: 8, eCurve: 0.5, eGap: 0.09, eLine: 0.22, eDot: 0, eMirrors: 3, eSeed: 4 } } },
+  { cont: "Europa", title: "Hallstatt-Band", region: "Hallstatt · Hochdorf · Oseberg", tech: "Brettchenweben", math: "Drehfolge als Programm", text: "Bänder aus Salzbergwerk und Fürstengräbern (ab 800 v. Chr.); Oseberg-Schiff mit über zehn Bändern.", cfg: { name: "Hallstatt-Band", opt: { ethnoType: "tablet", tabletPreset: "diamond", paletteA: "ember", paletteB: "gray" }, base: { eCount: 16, paletteMix: 0.35, eRound: 0.7 } } },
+  { cont: "Europa", title: "Torchon-Spitze", region: "Erzgebirge · Flandern · Le Puy · Idrija", tech: "Klöppeln", math: "45°-Gitter, Zopfgruppe", text: "Spinnen, Rauten und Fächer auf dem Torchongrund; jedes Fadenpaar kreuzt und dreht sich an den Nadeln.", cfg: { name: "Torchon-Spitze", opt: { ethnoType: "lace", lacePreset: "spider", paletteA: "gray", paletteB: "ice", invert: false }, base: { eLine: 0.16, eDot: 0.08, paletteMix: 0.2, contrast: 1.1 } } },
+  { cont: "Europa", title: "Rosengang", region: "Skandinavien", tech: "Bindung auf 4 Schäften", math: "Spitz-Einzug, Spiegelung", text: "Bauernweberei mit gespiegeltem Einzug und Tritt; Grundlage vieler Bandmuster.", cfg: { name: "Rosengang", opt: { ethnoType: "draft", draftPreset: "rosepath", paletteA: "ember", paletteB: "gray" }, base: { eScale: 0.8, eRound: 0.7, paletteMix: 0.4 } } },
+  { cont: "Europa", title: "Alhambra", region: "Granada, Spanien", tech: "Zellige-Fliesen", math: "17 Flächengruppen", text: "Die Nasridenpaläste zeigen (fast) alle 17 Flächengruppen – Escher studierte sie 1922 und 1936.", cfg: { name: "Alhambra · p4m", opt: { ethnoType: "symmetry", symGroup: "p4m", paletteA: "ocean", paletteB: "ember" }, base: { paletteMix: 0.5, eA: 0.3, eB: 0.65, eSeed: 9, eLine: 0.25, eScale: 1.5 } } },
+  { cont: "Europa", title: "Griechischer Mäander", region: "Griechenland · Rom", tech: "Fries", math: "Friesgruppe p2mm / p11g", text: "Bandornamente mit Gleitspiegelungen – die sieben Friesgruppen im Vergleich.", cfg: { name: "Fries · Drehsprung", opt: { ethnoType: "symmetry", symGroup: "f-p2mm", paletteA: "gray", paletteB: "ember" }, base: { paletteMix: 0.4, eA: 0.3, eB: 0.4, eSeed: 1, eLine: 0.25, eScale: 1.0 } } },
+  { cont: "Amerika", title: "Khipu der Inka", region: "Anden (Peru · Bolivien)", tech: "Knotenschnüre", math: "Positionelles Dezimalsystem", text: "Zahlen als Knotengruppen auf Pendelschnüren – Buchhaltung eines Reiches ohne Schrift.", cfg: { name: "Khipu", opt: { ethnoType: "khipu", paletteA: "ember", paletteB: "gray" }, base: { eLine: 0.2, eDot: 0.1, paletteMix: 0.3 }, khipu: [5, 23, 101, 342, 1200, 7] } },
+  { cont: "Amerika", title: "Diné-Teppich", region: "Navajo Nation, USA", tech: "Schussbetonte Tapisserie", math: "Stufen-Diskretisierung, pmm", text: "Two-Grey-Hills-Rauten in Naturwolle; Weberinnen halten die Symmetrie ohne Vorlage im Kopf.", cfg: { name: "Diné-Rauten", opt: { ethnoType: "tapestry", tapestryKind: "diamond", paletteA: "gray", paletteB: "ember", viewMode: "cloth", viewBlend: "cloth" }, base: { eStep: 14, eA: 0.35, paletteMix: 0.4, eRound: 0.5, depth: 0.3, spin: 2 } } },
+  { cont: "Amerika", title: "Maya-Brokat", region: "Hochland Guatemala · Chiapas", tech: "Hüftwebstuhl", math: "Zickzack-Fries", text: "Zusätzliche Schussfäden zeichnen Zickzack, Rauten und Tiere in den Huipil.", cfg: { name: "Maya-Brokat", opt: { ethnoType: "tapestry", tapestryKind: "zigzag", paletteA: "aurora", paletteB: "ember" }, base: { eStep: 12, eA: 0.7, paletteMix: 0.5 } } },
+  { cont: "Amerika", title: "Ñandutí", region: "Itauguá, Paraguay", tech: "Radspitze", math: "Polarkoordinaten, Parität", text: "Spinnennetz-Räder aus Speichen und gewebten Ringen – aus der Sol-Spitze Teneriffas entwickelt.", cfg: { name: "Ñandutí", opt: { ethnoType: "nanduti", paletteA: "gray", paletteB: "violet" }, base: { eCount: 24, eIter: 12, eA: 0.4, eLine: 0.18, paletteMix: 0.25 } } },
+  { cont: "Amerika", title: "Anden-Gürtel", region: "Peru · Bolivien", tech: "Komplementär-Kette", math: "Augenmuster, Spiegelung", text: "Ñawi-„Augen“ und Rauten in gegenläufigen Kettfäden – hier als Brettchen-Variante nachgebildet.", cfg: { name: "Anden-Augen", opt: { ethnoType: "tablet", tabletPreset: "eyes", paletteA: "ember", paletteB: "violet" }, base: { eCount: 24, paletteMix: 0.55, eRound: 0.75 } } },
+  { cont: "Amerika", title: "Renda de bilro", region: "Ceará, Brasilien", tech: "Klöppeln", math: "Torchongrund", text: "Von portugiesischen Siedlern mitgebrachte Klöppelspitze, heute Kunsthandwerk des Nordostens.", cfg: { name: "Renda de bilro", opt: { ethnoType: "lace", lacePreset: "fan", paletteA: "gray", paletteB: "ice" }, base: { eLine: 0.16, eDot: 0.08, paletteMix: 0.2 } } },
+  { cont: "Ozeanien", title: "Mattang der Marshallinseln", region: "Mikronesien", tech: "Dünungskarte aus Palmrippen", math: "Wellenüberlagerung, Knotenlinien", text: "Navigatoren lesen, wie Inseln die Dünung beugen; wo zwei Dünungen sich treffen, spüren sie Knotenlinien (booj). Hier als Interferenz zweier Dünungen mit Insel als Streuquelle.", cfg: { name: "Mattang", opt: { ethnoOn: false, waveOn: true, waveView: "intensity", paletteA: "ocean", paletteB: "ice" }, base: { lambda: 0.14, paletteMix: 0.3, damping: 0.3 }, sources: () => [mkSource(-1.3, 0, { type: "plane", angle: 0.2 }), mkSource(1.3, 0.2, { type: "plane", angle: Math.PI - 0.3, amp: 0.7 }), mkSource(0.1, -0.1, { amp: 0.6, phase: Math.PI })] } },
+  { cont: "Ozeanien", title: "Tukutuku · Poutama", region: "Aotearoa Neuseeland", tech: "Flechtpaneele", math: "Treppenmotiv, Fries", text: "Māori-Wandpaneele aus Schilf und Flachs; Poutama (Treppe) steht für Wachstum und Wissen.", cfg: { name: "Poutama", opt: { ethnoType: "tapestry", tapestryKind: "steps", paletteA: "gray", paletteB: "ember" }, base: { eStep: 8, eA: 0.3, paletteMix: 0.45 } } },
+  { cont: "Ozeanien", title: "Kōwhaiwhai", region: "Aotearoa Neuseeland", tech: "Dachsparren-Malerei", math: "Friesgruppe p11g", text: "Koru-Spiralen in Gleitspiegelung entlang der Sparren – Washburn & Crowe analysierten sie als Friese.", cfg: { name: "Kōwhaiwhai · p11g", opt: { ethnoType: "symmetry", symGroup: "f-p11g", paletteA: "ember", paletteB: "gray" }, base: { paletteMix: 0.35, eA: 0.25, eB: 0.6, eSeed: 3, eLine: 0.3, eScale: 1.2 } } },
+  { cont: "Ozeanien", title: "Siapo · Ngatu", region: "Samoa · Tonga", tech: "Rindenbaststoff (Tapa)", math: "Rasterfelder, p4m", text: "Bedruckte oder gemalte Felder mit Rauten, Dreiecken und Blättern in strengen Rastern.", cfg: { name: "Siapo · p4g", opt: { ethnoType: "symmetry", symGroup: "p4g", paletteA: "ember", paletteB: "gray" }, base: { paletteMix: 0.5, eA: 0.4, eB: 0.3, eSeed: 7, eLine: 0.22, eScale: 1.4 } } }
+];
+(function buildCatalog() {
+  const c = $("catalog"); let lastCont = "";
+  catalog.forEach((e, i) => {
+    if (e.cont !== lastCont) { const h = document.createElement("div"); h.className = "cont"; h.textContent = e.cont; c.appendChild(h); lastCont = e.cont; }
+    const d = document.createElement("div"); d.className = "cat";
+    d.innerHTML = `<h3>${e.title}<small>${e.region}</small></h3><p><span class="math">${e.tech} · ${e.math}</span><br>${e.text}</p>`;
+    const b = document.createElement("button"); b.className = "btn secondary"; b.textContent = "Erfahren"; b.addEventListener("click", () => ethnoSetup(e.cfg)); d.appendChild(b); c.appendChild(d);
+  });
+})();
+
+/* ------------------------------------------------ Kultur-Bedienelemente */
+(function ethnoControls() {
+  document.querySelectorAll(".ethnoSel").forEach((s) => fillSelect(s, ETHNO_TYPES));
+  const dicts = { MIRROR_REGIONS, TABLET_PRESETS, DRAFT_PRESETS, LACE_PRESETS, SYM_GROUPS, SASHIKO_KINDS, TAPESTRY_KINDS };
+  document.querySelectorAll(".optSel").forEach((s) => fillSelect(s, dicts[s.dataset.dict]));
+  targets.filter((k) => specs[k][5] === "ethno").forEach((k) => {
+    const d = paramSlider(k); const use = ETHNO_USE[k];
+    d.showIf = () => use === "all" || use.includes(S.opt.ethnoType);
+    makeSlider($("sl-ethno"), d);
+  });
+  $("khipuInput").addEventListener("change", () => {
+    const nums = $("khipuInput").value.split(/[,;\s]+/).map((x) => parseInt(x, 10)).filter((n) => Number.isFinite(n) && n >= 0).slice(0, 12).map((n) => Math.min(n, 9999));
+    if (!nums.length) return; remember(); S.khipu = nums; dataKey = ""; syncUI(); toast("Khipu: " + nums.join(", "));
+  });
+  $("mirrorClearBtn").addEventListener("click", () => { remember(); S.mirrorEdits = []; S.base.eMirrors = 0; dataKey = ""; syncUI(); });
+  $("mirrorRandomBtn").addEventListener("click", () => { remember(); S.mirrorEdits = []; S.base.eMirrors = 3 + Math.floor(Math.random() * 6); S.base.eSeed = Math.floor(Math.random() * 100); dataKey = ""; syncUI(); });
+})();
+function syncEthnoUI() {
+  const t = S.opt.ethnoType;
+  document.querySelectorAll("[data-for]").forEach((el) => el.classList.toggle("hidden", el.dataset.for !== t));
+  $("khipuInput").value = S.khipu.join(", ");
+  $("ethnoText").innerHTML = ETHNO_TEXT[t] || "";
+  document.querySelector('#ptabs [data-page="culture"]').classList.toggle("dimmed", !S.opt.ethnoOn);
+}
+// Antippen zwischen zwei Punkten: Spiegel setzen oder entfernen
+function toggleMirrorAt(wx, wy) {
+  const P = parameters(); const cols = clamp(Math.round(P.eCols), 1, 12), rows = clamp(Math.round(P.eRows), 1, 12);
+  const gx = wx * 3 * P.eScale + cols / 2 - 0.5, gy = wy * 3 * P.eScale + rows / 2 - 0.5;
+  const cands = [[Math.floor(gx), Math.round(gy), 0], [Math.round(gx), Math.floor(gy), 1]];
+  let best = null, bd = 0.3;
+  for (const [i, j, d] of cands) { const px = d ? i : i + 0.5, py = d ? j + 0.5 : j; const dist = Math.hypot(gx - px, gy - py); if (dist < bd) { bd = dist; best = [i, j, d]; } }
+  if (!best) return false;
+  const [i, j, d] = best; const ni = d ? i : i + 1, nj = d ? j + 1 : j;
+  if (i < 0 || j < 0 || i >= cols || j >= rows || ni >= cols || nj >= rows) return false;
+  remember();
+  const idx = S.mirrorEdits.findIndex((e) => e[0] === i && e[1] === j && e[2] === d);
+  if (idx >= 0) S.mirrorEdits.splice(idx, 1); else S.mirrorEdits.push([i, j, d]);
+  dataKey = ""; needsSync = true; scheduleHash(); toast(idx >= 0 ? "Spiegel entfernt" : "Spiegel gesetzt");
+  return true;
+}
+
 /* ------------------------------------------------------------- syncUI */
 let currentPage = "start";
 function showPage(name) {
@@ -1268,8 +2074,8 @@ function syncUI() {
   const active = S.mods.filter((m) => m.on).length;
   $("matrixInfo").textContent = `${S.mods.slice(0, 8).filter((m) => m.on).length} / 8 aktiv`;
   $("modBtn").textContent = `Mod ${active}`;
-  refreshOptions(); refreshSliders(); updateRoutes(); updateHint(); scheduleHash();
-  needsSync = true;
+  refreshOptions(); refreshSliders(); updateRoutes(); updateHint(); syncEthnoUI(); scheduleHash();
+  dataKey = ""; needsSync = true;
 }
 function updateHint() {
   const spatial = S.opt.viewMode !== "flat";
@@ -1439,7 +2245,7 @@ canvas.addEventListener("pointerdown", (e) => {
       gesture = { kind: "source", idx, dx: S.sources[idx].x - sx, dy: S.sources[idx].y - sy }; canvas.classList.add("grabbing"); syncUI();
     } else if (spatial() && !e.shiftKey) {
       gesture = { kind: "orbit", x0: e.clientX, y0: e.clientY, yaw: S.base.camYaw, pitch: S.base.camPitch };
-    } else gesture = { kind: "pan", lastX: e.clientX, lastY: e.clientY };
+    } else gesture = { kind: "pan", lastX: e.clientX, lastY: e.clientY, x0: e.clientX, y0: e.clientY, t0: performance.now() };
   } else if (pointers.size === 2) {
     cancelLongPress(); const [a, b] = [...pointers.values()];
     gesture = { kind: "pinch", dist: Math.hypot(a.x - b.x, a.y - b.y), angle: Math.atan2(b.y - a.y, b.x - a.x), midX: (a.x + b.x) / 2, midY: (a.y + b.y) / 2 };
@@ -1479,6 +2285,8 @@ canvas.addEventListener("pointermove", (e) => {
   }
 });
 function endPointer(e) {
+  if (gesture && gesture.kind === "pan" && pointers.size === 1 && gesture.x0 !== undefined && Math.hypot(e.clientX - gesture.x0, e.clientY - gesture.y0) < 6 && performance.now() - gesture.t0 < 500
+      && S.opt.ethnoOn && S.opt.ethnoType === "mirror" && !spatial()) { const [wx, wy] = toWorld(e.clientX, e.clientY); toggleMirrorAt(wx, wy); }
   pointers.delete(e.pointerId); cancelLongPress(); canvas.classList.remove("grabbing");
   if (pointers.size === 0) { gesture = null; scheduleHash(); }
   else if (pointers.size === 1) { const [p] = [...pointers.values()]; gesture = { kind: "pan", lastX: p.x, lastY: p.y }; }
@@ -1616,7 +2424,11 @@ const introSlides = [
     <p>Acht <b>LFOs</b> und drei langsame <b>Oszillatoren</b> steuern je zwei Ziele mit eigener Tiefe – Sinus, Dreieck, Säge, Puls, Zufall, Sample &amp; Hold oder Stufen, frei in Hz oder zum <b>BPM</b> synchron. Ein Oszillator kann einen anderen in Rate (FM) oder Amplitude (AM) modulieren.</p>
     <p>Reglerwerte zeigen <b>Basis → Effektiv</b>: der Regler bleibt unangetastet, der modulierte Wert erscheint dahinter. Das <b>XY-Pad</b> spielt zwei beliebige Ziele mit einem Finger.</p>
     <div class="try">Tab <b>Matrix</b>: „Muster anwenden“ verknüpft acht Ziele auf einen Schlag. <b>Mod</b> oben schaltet alles stumm, ↶ holt den vorherigen Zustand zurück.</div>` },
-  { title: "6 · Szenen, Export & Experimente", scene: "wavecloth", html: `
+  { title: "6 · Ethnomathematik", scene: "sona", html: `
+    <p>Muster sind Mathematik in Händen: Sona-Sandzeichnungen der Cokwe, Kolam aus Tamil Nadu, keltische Knoten, Brettchenweben aus Hallstatt, Kente, Ikat, Klöppelspitze, Ñandutí, Khipu, die Dünungskarten der Marshallinseln. Der Tab <b>Kulturen</b> macht sie als eigene Ebene erfahrbar – auf der Fläche oder auf jedem 3D-Körper, mischbar mit Wellen und Gittern, modulierbar über die Matrix.</p>
+    <p>Hinter dieser Karte: ein Sona-Raster 6 × 4. ggT(6, 4) = 2, also zwei geschlossene Kurven.</p>
+    <div class="try">Tippe zwischen zwei Punkte, um einen Spiegel zu setzen – die Kurven verbinden sich neu. Im Katalog findest du über dreißig Aufbauten aus fünf Kontinenten.</div>` },
+  { title: "7 · Szenen, Export & Experimente", scene: "wavecloth", html: `
     <p><b>Start</b> hält zwölf komplette Szenen bereit und speichert eigene Presets. <b>Stil</b> mischt zwei Paletten, exportiert PNG und JSON (inklusive Matrix und Phasen) und erzeugt einen Link mit dem ganzen Zustand. <b>Info</b> liefert Messwerte, alle Gesten und Tastenkürzel sowie Experimente mit fertigem Aufbau.</p>
     <div class="try">Viel Freude beim Erforschen – diese Einführung erreichst du jederzeit über <b>?</b>.</div>` }
 ];
@@ -1647,6 +2459,8 @@ const experiments = [
   { title: "Moiré-Periode messen", text: "Linien-Moiré laden, Modulation mit Mod aus, Winkel von Gitter 2 auf 2°, 4°, 8° stellen und die Streifenbreite mit der berechneten Periode vergleichen.", scene: "linemoire" },
   { title: "Durchbruch im Raum", text: "Zonenplatten-Möbius laden, Durchbruch zwischen 0 und 0,6 variieren. Das Hyperbelmuster wird zum Gitter, durch das man die Rückseite sieht.", scene: "mobius" },
   { title: "Gewebe trifft Interferenz", text: "Seide × Interferenz laden und die Mischart des Gewebes zwischen Multiplizieren, Differenz und XOR umschalten. Dann Phase von Quelle 2 auf 0° setzen.", scene: "silkwave" },
+  { title: "Der ggT zählt Kurven", text: "Sona laden, dann unter Kulturen Zeilen und Spalten ändern: 6×4 → 2 Kurven, 5×3 → 1 Kurve, 6×6 → 6 Kurven. Die Messwerte zeigen den ggT daneben.", scene: "sona" },
+  { title: "Knotenlinien der Navigatoren", text: "Mattang laden: zwei Dünungen und eine Insel als Streuquelle. Die hellen und dunklen Linien in der Intensität sind die booj, die Marshall-Navigatoren im Kanu spüren. Winkel der ebenen Wellen verändern.", scene: "mattang" },
   { title: "Eigene Modulation bauen", text: "Beliebige Szene, dann in der Matrix alle Quellen aus. LFO 1: Ziel λ, Tiefe 0,15, Rate 0,05 Hz. LFO 2: Ziel Quellen-Drehung, Dreieck, Tiefe 0,3. Beobachte Basis → Effektiv.", scene: "standing" }
 ];
 $("experiments").innerHTML = experiments.map((ex, i) => `<div class="exp"><h3>${ex.title}</h3><p>${ex.text}</p><button class="btn secondary" data-exp="${i}">Aufbau laden</button></div>`).join("");
@@ -1675,6 +2489,7 @@ function updateInfo() {
     lines.push(`Gitter 1 ↔ 2: Δφ = <b>${(((P.g1Angle - P.g2Angle) % 360) + 360) % 360 < 180 ? ((((P.g1Angle - P.g2Angle) % 360) + 360) % 360).toFixed(2) : (360 - (((P.g1Angle - P.g2Angle) % 360) + 360) % 360).toFixed(2)}°</b> · p₁ = ${p1.toFixed(4)} · p₂ = ${p2.toFixed(4)}`);
     lines.push(`Moiré-Periode (Linien): <b>${isFinite(pm) ? pm.toFixed(3) : "∞"}</b> ≈ <b>${isFinite(pm) ? (pm / p1).toFixed(1) : "∞"}×</b> p₁`);
   }
+  if (S.opt.ethnoOn) lines.push(`Kultur: <b>${ETHNO_TYPES[S.opt.ethnoType].split(" · ")[0]}</b> · ${ethnoStats.replace(/<[^>]+>/g, "")}`);
   if (S.opt.wovenOn) lines.push(`Gewebe: Dichte <b>${P.wDensity.toFixed(0)}</b> · Wölbung <b>${P.wBulge.toFixed(2)}</b> · Band ${FORMS[S.opt.wShapeA]} → ${FORMS[S.opt.wShapeB]} (${P.wMorph.toFixed(2)})`);
   if (S.opt.viewMode !== "flat") lines.push(`Körper: ${BODIES[S.opt.viewMode]} → ${BODIES[S.opt.viewBlend]} (${P.bodyMorph.toFixed(2)}) · Kamera ${((P.camYaw + spinPhase + 540) % 360 - 180).toFixed(0)}° / ${P.camPitch.toFixed(0)}°`);
   const active = S.mods.filter((m) => m.on).length;
