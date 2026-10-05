@@ -147,3 +147,15 @@ Lebensfeld mischt sich mit allen Schichten, liegt auf Körpern und Blechen, wird
 Sortenfarben über die Komposition. Pinsel sät Zellen (Lenia, Automaten), legt Lockstoff (Physarum) oder zieht Teilchen an; „Neue
 Saat“ würfelt Matrix und Startzustand. 22 Beispiele, drei Szenen, Einführungsschritt, Experimente („Orbium steuern“, „Eine Art
 züchten“, „Netz oder Zellen“) und Hintergrundtext.
+
+### Audioreaktivität
+
+Tab *Matrix → Audioreaktivität*: Mikrofon, Audiodatei (wird abgespielt) oder ein eingebauter Testton (120 BPM) speisen einen
+Web-Audio-Analyser. Daraus entstehen sechs Signale, die in jeder LFO-Karte als Wellenform wählbar sind: **Pegel**, **Bass**
+(25–150 Hz), **Mitten** (150–2000 Hz), **Höhen** (2–9 kHz), **Beat-Impuls** (Einsatzerkennung im Bassband gegen gleitenden
+Mittelwert mit Hysterese, abklingend) und **Beat-Phase** (Säge, die mit jedem Schlag neu startet – ein zum Takt synchroner LFO).
+Die Signale sind einseitig 0…1, Stille ändert nichts; Glättung pro Karte wirkt wie gewohnt. Verstärkung, Analyser-Glättung und
+Beat-Empfindlichkeit sind einstellbar, der erkannte Beat (Median der letzten Intervalle, auf 70–190 BPM gefaltet) kann die
+Master-BPM setzen, sodass BPM-synchrone LFOs zum Stück laufen. „Audio-Muster anwenden“ verknüpft acht Ziele (Zoom, Gitterwinkel,
+Kontrast, λ, Drehung, Sättigung, Gitterperiode, Quellendrehung) mit Bass, Mitten, Höhen, Beat und Pegel; Pegelanzeigen zeigen alle
+sechs Signale live. Die Audio-Einstellungen wandern mit in Link und JSON.

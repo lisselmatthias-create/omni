@@ -63,6 +63,10 @@
   .ptabs button { min-height: calc(var(--tap) - 4px); border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--dim); font: inherit; font-size: 11px; font-weight: 600; cursor: pointer; padding: 0 1px; }
   .ptabs button.active { color: #000; background: var(--acc); }
   .ptabs button.dimmed { opacity: .35; }
+  .ameters { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin: 4px 0; }
+  .ameters div { display: flex; flex-direction: column; gap: 3px; font-size: 10px; color: var(--dim); }
+  .ameters i { display: block; height: 8px; border-radius: 4px; background: var(--brd); position: relative; overflow: hidden; }
+  .ameters i::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: var(--v, 0%); background: var(--acc); }
   .lmat { border-collapse: collapse; margin-top: 4px; }
   .lmat td { width: 22px; height: 16px; font-size: 9px; text-align: center; color: #fff; border: 1px solid #0003; }
   .ptabs button:not(.active):hover { color: var(--txt); border-color: var(--brd); }
@@ -308,11 +312,27 @@
         <label>Muster <select id="patchStyle">
           <option value="interference">Interferenz-Fahrt</option><option value="moire">Moiré im Fluss</option><option value="breathe">Organisches Atmen</option>
           <option value="weave">Gewebe im Fluss</option><option value="color">Chromatische Reise</option><option value="space">Räumliche Reise · 3D</option>
-          <option value="metamorph">Metamorphose · Körper A/B</option><option value="random">Überraschung</option>
+          <option value="metamorph">Metamorphose · Körper A/B</option><option value="audio">Audioreaktiv · Bass, Beat, Höhen</option><option value="random">Überraschung</option>
         </select></label>
         <div class="row"><button id="autoPatchBtn" class="btn">Muster anwenden</button><button id="clearPatchBtn" class="btn secondary">Alle Quellen aus</button></div>
         <div id="sl-master" class="ctrl"></div>
         <label>Master-BPM <input id="bpm" type="number" min="20" max="300" step="1" value="120"></label>
+      </div>
+      <div class="ctrl">
+        <h2>Audioreaktivität <small>Mikrofon · Datei · Testton</small></h2>
+        <div class="row"><button id="micBtn" class="btn">🎤 Mikrofon</button><button id="audioFileBtn" class="btn secondary">📂 Audiodatei</button><button id="toneBtn" class="btn secondary">Testton</button></div>
+        <div class="row"><button id="audioPlayBtn" class="btn secondary" disabled>▶ Abspielen</button><button id="audioStopBtn" class="btn secondary">■ Audio aus</button><span id="audioBpmOut" class="value">–</span></div>
+        <input id="audioFile" type="file" accept="audio/*" hidden>
+        <div class="ameters">
+          <div><span>Pegel</span><i data-ameter="aLevel"></i></div><div><span>Bass</span><i data-ameter="aLow"></i></div><div><span>Mitten</span><i data-ameter="aMid"></i></div>
+          <div><span>Höhen</span><i data-ameter="aHigh"></i></div><div><span>Beat</span><i data-ameter="aBeat"></i></div><div><span>Phase</span><i data-ameter="aPhase"></i></div>
+        </div>
+        <div id="audioInfo" class="info"></div>
+        <label>Verstärkung <input id="audioGain" type="range" min="0" max="4" step="0.05" value="1.5"></label>
+        <label>Glättung <input id="audioSmooth" type="range" min="0" max="0.95" step="0.01" value="0.6"></label>
+        <label>Beat-Empfindlichkeit <input id="audioSens" type="range" min="1.05" max="2.5" step="0.05" value="1.4"></label>
+        <label class="check"><input type="checkbox" id="audioBpm"><span>Master-BPM aus dem Beat übernehmen</span></label>
+        <button id="audioPatchBtn" class="btn">Audio-Muster anwenden</button>
       </div>
       <div class="ctrl">
         <h2>XY-Performance</h2>
@@ -713,7 +733,7 @@ function defaultState() {
     sources: [mkSource(-0.35, 0), mkSource(0.35, 0)],
     mods: Array.from({ length: N_MOD }, (_, i) => mkMod(i)),
     bpm: 120, master: 0.65, bypass: false, paused: false, quality: "auto", activeSource: 0,
-    mirrorEdits: [], khipu: [5, 23, 101, 342, 1200, 7]
+    mirrorEdits: [], khipu: [5, 23, 101, 342, 1200, 7], audio: { gain: 1.5, smooth: 0.6, sens: 1.4, bpmSync: false }
   };
 }
 
@@ -1523,7 +1543,7 @@ float sech2(float x) { float c = cosh(x); return 1.0 / (c * c); }
 void main() {
   vec2 q = (v_uv - 0.5) * 2.0 * P_pdeScale;      // Weltkoordinaten des Gebiets
   vec2 g = v_uv * u_simRes;                        // Gitterkoordinaten
-  float pat = (u_coupleTo > 0 || u_init == 2) ? pattern(q) : 0.5;
+  float pat = (u_coupleTo > 0 || u_init == 2 || u_model == 1 || u_model == 2 || u_model == 18) ? pattern(q) : 0.5; // Quelle, c²(x,y) und Potential lesen das Muster
   float u0 = u_init0.x, v0 = u_init0.y, ua = u_init0.z, va = u_init0.w;
   if (u_doInit == 1) {
     float r1 = rnd(g), r2 = rnd(g + 7.0);
@@ -1959,7 +1979,7 @@ function advance(dt) {
     const hz = m.sync ? S.bpm / 60 / m.beats : m.rate;
     cycles[i] += dt * hz * (m.linkMode === "rate" ? Math.pow(2, link * m.linkDepth * 2) : 1);
     const amp = m.linkMode === "amp" ? clamp(1 + link * m.linkDepth, 0, 2) : 1;
-    const desired = m.on ? osc(m.shape, cycles[i] + m.phase, i + 1) * amp : 0;
+    const desired = m.on ? (AUDIO_SHAPES[m.shape] ? audioSignal(m.shape) : osc(m.shape, cycles[i] + m.phase, i + 1)) * amp : 0;
     signals[i] = mix(signals[i], desired, m.slew > 0 ? 1 - Math.exp(-dt / Math.max(0.005, m.slew)) : 1);
   }
   const P = parameters();
@@ -1988,7 +2008,8 @@ const patchPatterns = {
   weave: [["wTwist", "wMorph"], ["wWidth", "wWeaveMix"], ["wElastic", "wScale"], ["wBulge", "g1OffX"], ["wRelief", "wLight"], ["wMorph", "wWidth"], ["g1Angle", "panX"], ["rotation", "paletteMix"]],
   color: [["paletteMix", "hue"], ["saturation", "contrast"], ["wLight", "gamma"], ["wWeaveMix", "wMorph"], ["hue", "wLight"], ["wWidth", "wBulge"], ["g1Angle", "wTwist"], ["rotation", "paletteMix"]],
   space: [["depth", "camPitch"], ["camYaw", "wLight"], ["distance", "paletteMix"], ["separation", "wWidth"], ["wTwist", "wMorph"], ["wElastic", "wRelief"], ["hue", "saturation"], ["spin", "lambda"]],
-  metamorph: [["bodyMorph", "depth"], ["bodyTwist", "camPitch"], ["rim", "wLight"], ["paletteMix", "hue"], ["wWidth", "wRelief"], ["wElastic", "wMorph"], ["metal", "saturation"], ["spin", "srcRotate"]]
+  metamorph: [["bodyMorph", "depth"], ["bodyTwist", "camPitch"], ["rim", "wLight"], ["paletteMix", "hue"], ["wWidth", "wRelief"], ["wElastic", "wMorph"], ["metal", "saturation"], ["spin", "srcRotate"]],
+  audio: [["zoom", "wBulge"], ["g1Angle", "hue"], ["contrast", "rim"], ["lambda", "paletteMix"], ["rotation", "g2Angle"], ["saturation", "wLight"], ["g1Period", "exposure"], ["srcRotate", "bodyMorph"]]
 };
 function applyPatch(style, record = true) {
   if (record) remember();
@@ -2005,6 +2026,7 @@ function applyPatch(style, record = true) {
   if (style === "weave" || style === "breathe") S.opt.wovenOn = true;
   if (style === "moire") { S.opt.g1On = true; S.opt.g2On = true; }
   if (style === "interference") S.opt.waveOn = true;
+  if (style === "audio") S.mods.slice(0, 8).forEach((m, i) => Object.assign(m, { shape: ["aLow", "aMid", "aHigh", "aBeat", "aPhase", "aLevel", "aLow", "aBeat"][i], slew: [0.08, 0.1, 0.06, 0.02, 0, 0.1, 0.2, 0.02][i], depth: [0.25, 0.3, 0.35, 0.2, 0.3, 0.25, -0.2, 0.15][i], depth2: [0.3, 0.2, 0.3, 0.15, 0.2, 0.2, 0.15, 0.1][i], link: -1 }));
   S.bypass = false; signals.fill(0);
   buildMods(); syncUI();
   toast("Muster: " + $("patchStyle").querySelector(`[value="${style}"]`).textContent);
@@ -2034,7 +2056,7 @@ function undo() {
 const fmtNum = (v, step) => { const d = step >= 1 ? 0 : step >= 0.1 ? 1 : step >= 0.01 ? 2 : step >= 0.001 ? 3 : 4; return (+v).toFixed(d); };
 function holdRepeat(btn, fn) {
   let t1 = null, t2 = null; const stop = () => { clearTimeout(t1); clearInterval(t2); t1 = t2 = null; };
-  btn.addEventListener("pointerdown", (e) => { e.preventDefault(); btn.setPointerCapture(e.pointerId); fn(); t1 = setTimeout(() => { t2 = setInterval(fn, 50); }, 400); });
+  btn.addEventListener("pointerdown", (e) => { e.preventDefault(); try { btn.setPointerCapture(e.pointerId); } catch (err) { /* synthetisches Ereignis */ } fn(); t1 = setTimeout(() => { t2 = setInterval(fn, 50); }, 400); });
   ["pointerup", "pointercancel", "lostpointercapture"].forEach((ev) => btn.addEventListener(ev, stop));
 }
 const sliderRegistry = [];
@@ -2204,7 +2226,7 @@ function updateRoutes() {
     for (const [k, n] of [[$("xyX").value, x], [$("xyY").value, y]]) { const s = specs[k]; if (s) S.base[k] = mix(s[1], s[2], n); }
     needsSync = true; refreshSliders(); scheduleHash();
   };
-  pad.addEventListener("pointerdown", (e) => { remember(); down = true; pad.setPointerCapture(e.pointerId); apply(e); });
+  pad.addEventListener("pointerdown", (e) => { remember(); down = true; try { pad.setPointerCapture(e.pointerId); } catch (err) { /* synthetisches Ereignis */ } apply(e); });
   pad.addEventListener("pointermove", (e) => { if (down) apply(e); });
   ["pointerup", "pointercancel"].forEach((ev) => pad.addEventListener(ev, () => { down = false; }));
 })();
@@ -2237,6 +2259,8 @@ function sanitizeState(obj) {
   if (Array.isArray(obj.mirrorEdits)) out.mirrorEdits = obj.mirrorEdits.filter((e) => Array.isArray(e) && e.length === 3).slice(0, 200).map((e) => [e[0] | 0, e[1] | 0, e[2] ? 1 : 0]);
   if (Array.isArray(obj.khipu)) out.khipu = obj.khipu.slice(0, 12).map((n) => clamp(Math.abs(n | 0), 0, 9999));
   if (!out.khipu.length) out.khipu = [1];
+  const au = obj.audio && typeof obj.audio === "object" ? obj.audio : {};
+  out.audio = { gain: fin(au.gain, 0, 4, 1.5), smooth: fin(au.smooth, 0, 0.95, 0.6), sens: fin(au.sens, 1.05, 2.5, 1.4), bpmSync: au.bpmSync === true };
   return out;
 }
 function fullSnapshot() { return { format: "wellenstudio", version: 1, state: snapshotState(), clock: { time, fieldPhase, spinPhase, cycles: Array.from(cycles), signals: Array.from(signals) } }; }
@@ -2854,7 +2878,7 @@ function syncSculptUI() {
 const PDE_MODELS = {
   heat: { name: "Wärmeleitung", cat: "Grundgleichungen", labels: ["–", "–", "–", "–"], f: "∂u/∂t = D ∇²u", d: { Du: 0.5, dt: 1, steps: 6, lo: 0, hi: 1, view: "u", init: "blob", u0: 0, v0: 0, ua: 1, va: 0 },
     text: "Die Wärmeleitungsgleichung glättet jede Anfangsverteilung: Hohe Wellenzahlen zerfallen am schnellsten (e^{−Dk²t}). Startet man mit dem Moiré- oder Kulturmuster, sieht man die Fourier-Moden nacheinander verschwinden. Pinsel: Wärme einstreichen." },
-  heatSrc: { name: "Inhomogene Wärmeleitung", cat: "Grundgleichungen", labels: ["Quellstärke a", "Zerfall b", "–", "–"], f: "∂u/∂t = D ∇²u + a·f(x,y) − b u\nf(x,y) = Muster der anderen Ebenen", d: { A: 1, B: 0.05, Du: 0.5, dt: 1, steps: 6, lo: -2, hi: 2, view: "u", init: "noise", u0: 0, v0: 0, ua: 0.1, va: 0 },
+  heatSrc: { name: "Inhomogene Wärmeleitung", cat: "Grundgleichungen", labels: ["Quellstärke a", "Zerfall b", "–", "–"], f: "∂u/∂t = D ∇²u + a·f(x,y) − b u\nf(x,y) = Muster der anderen Ebenen", d: { A: 0.3, B: 0.05, Du: 0.5, dt: 1, steps: 6, lo: -2, hi: 2, view: "u", init: "noise", u0: 0, v0: 0, ua: 0.1, va: 0 },
     text: "Quelle f(x,y) ist das aktuelle Muster (Wellen, Moiré, Kultur). Die Lösung strebt gegen einen stationären Zustand – die geglättete Version der Quelle." },
   wave: { name: "Wellengleichung", cat: "Grundgleichungen", labels: ["c²", "Dämpfung k", "Inhomogenität", "–"], f: "∂²u/∂t² = c²(x,y) ∇²u − k ∂u/∂t\nc²(x,y) = c²·(1 + Inhomogenität·(f − ½)·2)", d: { A: 0.5, B: 0.002, C: 0, Du: 0, dt: 0.5, steps: 8, lo: -0.6, hi: 0.6, view: "u", init: "blob", u0: 0, v0: 0, ua: 1, va: 0 },
     text: "Als System erster Ordnung (u, v = ∂u/∂t). Mit Inhomogenität wird die Wellengeschwindigkeit vom Muster gesteuert – Brechung und Streuung an Gittern. Pinsel: Impulse setzen." },
@@ -2994,7 +3018,7 @@ const pdeExamples = [
   { name: "Tigerbusch", opt: { pdeModel: "klausmeier" }, base: {} },
   { name: "Wellen im Moiré-Medium", opt: { pdeModel: "wave", pdeCouple: "none", g1On: true, g1Type: "dots", pdeBlend: "add" }, base: { pdeC: 0.8, g1Period: 0.12, g1Duty: 0.6, g1Soft: 0.3 } },
   { name: "Schrödinger im Gitter", opt: { pdeModel: "nls", g1On: true, g1Type: "dots", pdeBlend: "max" }, base: { g1Period: 0.14, g1Duty: 0.5, g1Soft: 0.4 } },
-  { name: "Wärme aus dem Muster", opt: { pdeModel: "heat", pdeInit: "pattern", ethnoOn: true, ethnoType: "mirror" }, base: { eRows: 4, eCols: 6 } },
+  { name: "Wärme aus dem Muster", opt: { pdeModel: "heat", pdeInit: "pattern", ethnoOn: true, ethnoType: "mirror" }, base: { eRows: 4, eCols: 6, pdeDu: 0.08, pdeSteps: 2 } },
   { name: "Defektchaos (CGL)", opt: { pdeModel: "cgl", pdeView: "phase" }, base: {} }
 ];
 function loadPdeExample(ex) {
@@ -3092,7 +3116,7 @@ const LIFE_KIND_DEFAULTS = {
   lenia: { base: { lifeR: 13, lifeMu: 0.15, lifeSigma: 0.015, lifeT: 0.1, lifeSteps: 1 }, opt: { lifeInit: "orbium", lifeKernel: "ring" } },
   smoothlife: { base: { lifeR: 12, lifeT: 0.25, lifeSteps: 1 }, opt: { lifeInit: "soup" } },
   ca: { base: { lifeSteps: 1 }, opt: { lifeInit: "random" } },
-  wolfram: { base: { lifeSteps: 2 }, opt: { lifeInit: "center" } },
+  wolfram: { base: { lifeSteps: 4 }, opt: { lifeInit: "center" } },
   particles: { base: { lifeCount: 900, lifeTypes: 5, lifeForce: 1, lifeRmax: 0.12, lifeBeta: 0.3, lifeFriction: 0.5, lifeDecay: 0.25, lifeDiffuse: 0.2, lifeSteps: 1 }, opt: { lifeMatrix: "random" } },
   pps: { base: { lifeCount: 2500, lifeRmax: 0.035, lifeSpeed: 1, lifeTurn: 17, lifeAlpha: 180, lifeDecay: 0.3, lifeDiffuse: 0.1, lifeSteps: 1 }, opt: {} },
   boids: { base: { lifeCount: 500, lifeRmax: 0.08, lifeSpeed: 1, lifeForce: 1, lifeDecay: 0.2, lifeDiffuse: 0.1, lifeSteps: 1 }, opt: {} },
@@ -3420,6 +3444,137 @@ function syncLifeUI() {
 }
 function rgbCss(c) { return `rgb(${Math.round(c[0] * 255)},${Math.round(c[1] * 255)},${Math.round(c[2] * 255)})`; }
 
+/* ------------------------------------------------------------ Audioreaktivität */
+const AUDIO_SHAPES = { aLevel: "Audio · Pegel", aLow: "Audio · Bass", aMid: "Audio · Mitten", aHigh: "Audio · Höhen", aBeat: "Audio · Beat-Impuls", aPhase: "Audio · Beat-Phase (Säge)" };
+Object.assign(WAVEFORMS, AUDIO_SHAPES);
+const audio = { ctx: null, analyser: null, node: null, out: null, kind: "", el: null, stream: null, tone: null, freq: null, wave: null,
+  sig: { aLevel: 0, aLow: 0, aMid: 0, aHigh: 0, aBeat: 0, aPhase: 0 }, energyAvg: 0, energyVar: 0.0001, lastBeat: -10, prevE: 0, intervals: [], bpm: 0, bpmAt: 0, meterAt: 0, error: "" };
+function audioEnsure() {
+  if (audio.ctx) { if (audio.ctx.state === "suspended") audio.ctx.resume(); return true; }
+  const AC = window.AudioContext || window.webkitAudioContext; if (!AC) { toast("Web Audio nicht verfügbar"); return false; }
+  audio.ctx = new AC(); audio.analyser = audio.ctx.createAnalyser(); audio.analyser.fftSize = 2048; audio.analyser.smoothingTimeConstant = S.audio.smooth;
+  audio.freq = new Uint8Array(audio.analyser.frequencyBinCount); audio.wave = new Float32Array(audio.analyser.fftSize);
+  audio.beatAn = audio.ctx.createAnalyser(); audio.beatAn.fftSize = 1024; audio.beatAn.smoothingTimeConstant = 0.15; audio.beatFreq = new Uint8Array(audio.beatAn.frequencyBinCount);
+  audio.out = audio.ctx.createGain(); audio.out.gain.value = 0.5; audio.out.connect(audio.ctx.destination);
+  // Analyse unabhängig von der Bildrate (50 Hz), damit Beats auch bei langsamen Bildern nicht verloren gehen
+  let last = performance.now(); audio.timer = setInterval(() => { const t = performance.now(); audioUpdate(clamp((t - last) / 1000, 0.001, 0.2), t / 1000); last = t; }, 20);
+  return true;
+}
+function audioStop(silent) {
+  if (audio.node) { try { audio.node.disconnect(); } catch (e) { /* schon getrennt */ } audio.node = null; }
+  if (audio.stream) { audio.stream.getTracks().forEach((t) => t.stop()); audio.stream = null; }
+  if (audio.el) { audio.el.pause(); audio.el.src = ""; audio.el = null; }
+  if (audio.tone) { audio.tone.stop(); audio.tone = null; }
+  audio.kind = ""; audio.bpm = 0; audio.intervals.length = 0; audio.energyAvg = 0; for (const k in audio.sig) audio.sig[k] = 0;
+  if (!silent) { syncAudioUI(); toast("Audio aus"); }
+}
+async function audioStartMic() {
+  if (!audioEnsure()) return;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }, video: false });
+    audioStop(true); audio.stream = stream; audio.node = audio.ctx.createMediaStreamSource(stream); audio.node.connect(audio.analyser); audio.node.connect(audio.beatAn); audio.kind = "mic";
+    audio.error = ""; toast("Mikrofon aktiv – LFO-Wellenform „Audio · …“ wählen");
+  } catch (e) { audio.error = "Mikrofon nicht verfügbar: " + (e.message || e.name); toast(audio.error); }
+  syncAudioUI();
+}
+function audioStartFile(file) {
+  if (!file || !audioEnsure()) return;
+  audioStop(true);
+  const el = new Audio(); el.loop = true; el.crossOrigin = "anonymous"; el.src = URL.createObjectURL(file);
+  audio.el = el; audio.node = audio.ctx.createMediaElementSource(el); audio.node.connect(audio.analyser); audio.node.connect(audio.beatAn); audio.node.connect(audio.out); audio.kind = "file";
+  el.play().catch((e) => { audio.error = "Wiedergabe: " + e.message; syncAudioUI(); });
+  audio.fileName = file.name; audio.error = ""; syncAudioUI(); toast("Audiodatei: " + file.name);
+}
+function audioStartTone() {
+  if (!audioEnsure()) return;
+  audioStop(true);
+  const c = audio.ctx, now = c.currentTime;
+  const master = c.createGain(); master.gain.value = 0.0;
+  const kick = c.createOscillator(); kick.type = "sine"; kick.frequency.value = 55;
+  const kg = c.createGain(); kg.gain.value = 0; kick.connect(kg); kg.connect(master);
+  const hat = c.createOscillator(); hat.type = "square"; hat.frequency.value = 3200;
+  const hg = c.createGain(); hg.gain.value = 0; hat.connect(hg); hg.connect(master);
+  const pad = c.createOscillator(); pad.type = "triangle"; pad.frequency.value = 440;
+  const pg = c.createGain(); pg.gain.value = 0.12; pad.connect(pg); pg.connect(master);
+  master.gain.setValueAtTime(1, now);
+  const beat = 60 / 120, bars = 240;
+  for (let i = 0; i < bars * 4; i++) {
+    const t = now + i * beat;
+    kg.gain.setValueAtTime(0.9, t); kg.gain.exponentialRampToValueAtTime(0.01, t + 0.22);
+    if (i % 2 === 1) { hg.gain.setValueAtTime(0.25, t); hg.gain.exponentialRampToValueAtTime(0.01, t + 0.08); }
+    pg.gain.setValueAtTime(i % 8 < 4 ? 0.12 : 0.04, t);
+  }
+  master.connect(audio.analyser); master.connect(audio.beatAn); master.connect(audio.out);
+  kick.start(now); hat.start(now); pad.start(now);
+  audio.tone = { stop: () => { try { kick.stop(); hat.stop(); pad.stop(); master.disconnect(); } catch (e) { /* bereits gestoppt */ } } };
+  audio.node = master; audio.kind = "tone"; audio.error = ""; syncAudioUI(); toast("Testton · 120 BPM");
+}
+function audioUpdate(dt, now) {
+  const sg = audio.sig;
+  if (!audio.analyser || !audio.kind) { for (const k in sg) sg[k] *= Math.exp(-dt * 6); return; }
+  const an = audio.analyser; an.smoothingTimeConstant = S.audio.smooth;
+  an.getByteFrequencyData(audio.freq); an.getFloatTimeDomainData(audio.wave);
+  const binHz = audio.ctx.sampleRate / an.fftSize;
+  const band = (f0, f1) => { const a = Math.max(1, Math.floor(f0 / binHz)), b = Math.min(audio.freq.length - 1, Math.ceil(f1 / binHz)); let s = 0; for (let i = a; i <= b; i++) s += audio.freq[i]; return s / ((b - a + 1) * 255); };
+  const g = S.audio.gain;
+  const low = band(25, 150), mid = band(150, 2000), high = band(2000, 9000);
+  let rms = 0; for (let i = 0; i < audio.wave.length; i++) rms += audio.wave[i] * audio.wave[i]; rms = Math.sqrt(rms / audio.wave.length);
+  sg.aLow = clamp(low * g * 1.6, 0, 1); sg.aMid = clamp(mid * g * 2.2, 0, 1); sg.aHigh = clamp(high * g * 3.5, 0, 1); sg.aLevel = clamp(rms * g * 3, 0, 1);
+  // Beat: Bassenergie aus einem kaum geglätteten zweiten Analyser gegen gleitenden Mittelwert, mit Hysterese
+  audio.beatAn.getByteFrequencyData(audio.beatFreq);
+  const bHz = audio.ctx.sampleRate / audio.beatAn.fftSize; let bs = 0, bn = 0;
+  for (let i = Math.max(1, Math.floor(25 / bHz)); i <= Math.ceil(160 / bHz); i++) { bs += audio.beatFreq[i]; bn++; }
+  const bl = bs / (bn * 255); const E = bl * bl;
+  const k = 1 - Math.exp(-dt / 1.5);
+  audio.energyAvg = mix(audio.energyAvg, E, k); audio.energyVar = mix(audio.energyVar, (E - audio.energyAvg) ** 2, k);
+  const thr = audio.energyAvg * S.audio.sens + Math.sqrt(audio.energyVar) * 0.3 + 0.002;
+  const since = now - audio.lastBeat;
+  const above = E > thr;
+  if (above && !audio.above && since > 0.22) {
+    if (since < 2.5) { audio.intervals.push(since); if (audio.intervals.length > 10) audio.intervals.shift(); }
+    audio.lastBeat = now; sg.aBeat = 1;
+    if (audio.intervals.length >= 4) {
+      const sorted = [...audio.intervals].sort((a, b) => a - b); let iv = sorted[sorted.length >> 1];
+      let bpm = 60 / iv; while (bpm < 70) bpm *= 2; while (bpm > 190) bpm /= 2; audio.bpm = Math.round(bpm);
+      if (S.audio.bpmSync && Math.abs(S.bpm - audio.bpm) >= 1 && now - audio.bpmAt > 2) { S.bpm = audio.bpm; audio.bpmAt = now; $("bpm").value = S.bpm; }
+    }
+  } else sg.aBeat *= Math.exp(-dt / 0.16);
+  audio.above = E > thr * 0.8;
+  const iv = audio.bpm ? 60 / audio.bpm : 0.5;
+  sg.aPhase = clamp(since / iv, 0, 1);
+  if (now - audio.meterAt > 1 / 20) { audio.meterAt = now; audioMeters(); }
+}
+function audioSignal(shape) { return audio.sig[shape] || 0; }
+let ameterEls = null;
+function audioMeters() {
+  if (!ameterEls) ameterEls = Object.fromEntries(Array.from(document.querySelectorAll("[data-ameter]")).map((el) => [el.dataset.ameter, el]));
+  for (const [k, el] of Object.entries(ameterEls)) el.style.setProperty("--v", Math.round((audio.sig[k] || 0) * 100) + "%");
+  if (audio.kind) $("audioBpmOut").textContent = audio.bpm ? `${audio.bpm} BPM` : "Beat …";
+}
+function syncAudioUI() {
+  const names = { mic: "Mikrofon", file: "Datei: " + (audio.fileName || ""), tone: "Testton 120 BPM" };
+  $("audioInfo").innerHTML = audio.error ? `<b>${audio.error}</b>` : audio.kind ? `<b>Quelle: ${names[audio.kind]}</b> · Signale als Wellenform „Audio · …“ in jeder LFO-Karte (0 bis 1, einseitig: Stille = keine Änderung). Beat-Phase ist eine Säge, die mit jedem Schlag neu startet.`
+    : "Keine Quelle. Mikrofon, Audiodatei oder Testton starten; dann in einer LFO-Karte die Wellenform „Audio · Bass“ usw. wählen oder „Audio-Muster anwenden“.";
+  $("audioBpmOut").textContent = audio.kind ? (audio.bpm ? `${audio.bpm} BPM` : "Beat …") : "–";
+  $("micBtn").classList.toggle("active", audio.kind === "mic"); $("toneBtn").classList.toggle("active", audio.kind === "tone"); $("audioFileBtn").classList.toggle("active", audio.kind === "file");
+  $("audioPlayBtn").disabled = audio.kind !== "file"; $("audioPlayBtn").textContent = audio.el && !audio.el.paused ? "⏸ Pause" : "▶ Abspielen";
+  $("audioGain").value = S.audio.gain; $("audioSmooth").value = S.audio.smooth; $("audioSens").value = S.audio.sens; $("audioBpm").checked = S.audio.bpmSync;
+}
+(function audioControls() {
+  $("micBtn").addEventListener("click", () => { if (audio.kind === "mic") audioStop(); else audioStartMic(); });
+  $("toneBtn").addEventListener("click", () => { if (audio.kind === "tone") audioStop(); else audioStartTone(); });
+  $("audioFileBtn").addEventListener("click", () => { audioEnsure(); $("audioFile").click(); });
+  $("audioFile").addEventListener("change", (e) => { const f = e.target.files && e.target.files[0]; if (f) audioStartFile(f); e.target.value = ""; });
+  $("audioPlayBtn").addEventListener("click", () => { if (!audio.el) return; if (audio.el.paused) audio.el.play(); else audio.el.pause(); syncAudioUI(); });
+  $("audioStopBtn").addEventListener("click", () => audioStop());
+  $("audioGain").addEventListener("input", () => { S.audio.gain = +$("audioGain").value; scheduleHash(); });
+  $("audioSmooth").addEventListener("input", () => { S.audio.smooth = +$("audioSmooth").value; scheduleHash(); });
+  $("audioSens").addEventListener("input", () => { S.audio.sens = +$("audioSens").value; scheduleHash(); });
+  $("audioBpm").addEventListener("change", () => { S.audio.bpmSync = $("audioBpm").checked; scheduleHash(); });
+  $("audioPatchBtn").addEventListener("click", () => { if (!audio.kind) toast("Erst eine Audioquelle starten – das Muster wird trotzdem gesetzt"); applyPatch("audio"); });
+  document.addEventListener("visibilitychange", () => { if (document.hidden && audio.el && !audio.el.paused) { /* läuft weiter */ } });
+})();
+
 /* ------------------------------------------------------------- syncUI */
 let currentPage = "start";
 function showPage(name) {
@@ -3451,7 +3606,7 @@ function syncUI() {
   const active = S.mods.filter((m) => m.on).length;
   $("matrixInfo").textContent = `${S.mods.slice(0, 8).filter((m) => m.on).length} / 8 aktiv`;
   $("modBtn").textContent = `Mod ${active}`;
-  refreshOptions(); refreshSliders(); updateRoutes(); updateHint(); syncEthnoUI(); syncSculptUI(); syncPdeUI(); syncLifeUI(); scheduleHash();
+  refreshOptions(); refreshSliders(); updateRoutes(); updateHint(); syncEthnoUI(); syncSculptUI(); syncPdeUI(); syncLifeUI(); syncAudioUI(); scheduleHash();
   dataKey = ""; needsSync = true;
 }
 function updateHint() {
@@ -3814,7 +3969,7 @@ const introSlides = [
     <div class="try">Erhöhe <b>Durchbruch</b> auf 0,4 und schau durch das Gitter hindurch auf die Rückseite.</div>` },
   { title: "5 · Matrix", scene: "mobius", html: `
     <p>Acht <b>LFOs</b> und drei langsame <b>Oszillatoren</b> steuern je zwei Ziele mit eigener Tiefe – Sinus, Dreieck, Säge, Puls, Zufall, Sample &amp; Hold oder Stufen, frei in Hz oder zum <b>BPM</b> synchron. Ein Oszillator kann einen anderen in Rate (FM) oder Amplitude (AM) modulieren.</p>
-    <p>Reglerwerte zeigen <b>Basis → Effektiv</b>: der Regler bleibt unangetastet, der modulierte Wert erscheint dahinter. Das <b>XY-Pad</b> spielt zwei beliebige Ziele mit einem Finger.</p>
+    <p>Reglerwerte zeigen <b>Basis → Effektiv</b>: der Regler bleibt unangetastet, der modulierte Wert erscheint dahinter. Das <b>XY-Pad</b> spielt zwei beliebige Ziele mit einem Finger. <b>Audioreaktiv:</b> Mikrofon, Audiodatei oder Testton liefern Pegel, Bass, Mitten, Höhen, Beat-Impuls und Beat-Phase als Wellenformen für jede LFO-Karte; der erkannte Beat kann die Master-BPM setzen.</p>
     <div class="try">Tab <b>Matrix</b>: „Muster anwenden“ verknüpft acht Ziele auf einen Schlag. <b>Mod</b> oben schaltet alles stumm, ↶ holt den vorherigen Zustand zurück.</div>` },
   { title: "6 · Ethnomathematik", scene: "sona", html: `
     <p>Muster sind Mathematik in Händen: Sona-Sandzeichnungen der Cokwe, Kolam aus Tamil Nadu, keltische Knoten, Brettchenweben aus Hallstatt, Kente, Ikat, Klöppelspitze, Ñandutí, Khipu, die Dünungskarten der Marshallinseln. Der Tab <b>Kulturen</b> macht sie als eigene Ebene erfahrbar – auf der Fläche oder auf jedem 3D-Körper, mischbar mit Wellen und Gittern, modulierbar über die Matrix.</p>
@@ -3916,6 +4071,7 @@ function updateInfo() {
 let lastFrame = performance.now(), fpsAcc = 0, fpsN = 0, fpsT = 0, uiT = 0, drawCount = 0;
 function frame(now) {
   const dt = clamp((now - lastFrame) / 1000, 0, 0.1); lastFrame = now;
+  if (!audio.timer) audioUpdate(dt, now / 1000);
   const P = S.base;
   const animating = !S.paused && ((S.opt.waveOn && P.omega > 0 && P.speed > 0) || (S.opt.wovenOn && P.wMotion > 0 && P.speed > 0) || (S.opt.viewMode !== "flat" && P.spin !== 0) || S.opt.pdeOn || S.opt.lifeOn || anyModActive());
   if (!S.paused && !document.hidden) { let rem = dt; while (rem > 0) { const step = Math.min(rem, 1 / 120); advance(step); rem -= step; } }
