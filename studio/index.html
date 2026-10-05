@@ -59,10 +59,12 @@
   #panelHead { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px 6px; padding-top: calc(12px + env(safe-area-inset-top)); }
   #panelHead h1 { font-size: 15px; color: var(--acc); }
   #panelHead small { color: var(--dim); font-size: 11px; font-variant-numeric: tabular-nums; }
-  .ptabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; padding: 4px 10px 8px; border-bottom: 1px solid var(--brd); }
+  .ptabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; padding: 4px 10px 8px; border-bottom: 1px solid var(--brd); }
   .ptabs button { min-height: calc(var(--tap) - 4px); border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--dim); font: inherit; font-size: 11px; font-weight: 600; cursor: pointer; padding: 0 1px; }
   .ptabs button.active { color: #000; background: var(--acc); }
   .ptabs button.dimmed { opacity: .35; }
+  .lmat { border-collapse: collapse; margin-top: 4px; }
+  .lmat td { width: 22px; height: 16px; font-size: 9px; text-align: center; color: #fff; border: 1px solid #0003; }
   .ptabs button:not(.active):hover { color: var(--txt); border-color: var(--brd); }
   .transport { display: grid; grid-template-columns: 1fr 1fr 1fr var(--tap); gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--brd); }
   #pages { flex: 1; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y; padding: 14px; padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
@@ -184,6 +186,7 @@
     <button data-page="matrix">Matrix</button>
     <button data-page="culture">Kulturen</button>
     <button data-page="pde">Gleichungen</button>
+    <button data-page="life">Leben</button>
     <button data-page="style">Stil</button>
     <button data-page="info">Info</button>
   </nav>
@@ -209,6 +212,7 @@
         <label class="check"><input type="checkbox" data-opt="g2On"><span>Gitter 2</span></label>
         <label class="check"><input type="checkbox" data-opt="ethnoOn"><span>Kulturmuster (Ethnomathematik)</span></label>
         <label class="check"><input type="checkbox" data-opt="pdeOn"><span>Gleichungsfeld (PDE-Simulation)</span></label>
+        <label class="check"><input type="checkbox" data-opt="lifeOn"><span>Leben (Lenia, Particle Life, Automaten …)</span></label>
         <div class="info">Die Ebenen werden der Reihe nach gemischt. Die Mischart steht bei jeder Ebene unter <b>Muster</b>.</div>
       </div>
       <div class="ctrl">
@@ -390,6 +394,34 @@
       </div>
     </div>
 
+    <div class="ppage hidden" data-page="life">
+      <div class="ctrl">
+        <h2>Lebenssimulation <small>Lenia · Particle Life · Automaten · Physarum</small></h2>
+        <button id="lifeOnBtn" class="btn">Leben: aus</button>
+        <label>System <select data-opt="lifeKind" class="lifeSel" data-dict="LIFE_KINDS"></select></label>
+        <div id="lifeFormula" class="formula"></div>
+        <div id="lifeKindText" class="info"></div>
+        <div class="row"><button id="lifeResetBtn" class="btn secondary">↺ Neu starten</button><button id="lifeSeedBtn" class="btn secondary">🎲 Neue Saat</button><button id="lifeDefaultsBtn" class="btn secondary">Standardwerte</button></div>
+        <label data-for="ca">Regel <select data-opt="lifeRule" class="lifeSel" data-dict="LIFE_RULE_NAMES"></select></label>
+        <label data-for="wolfram">Regel <select data-opt="lifeWolfram" class="lifeSel" data-dict="LIFE_WOLFRAM"></select></label>
+        <label data-for="lenia">Kern <select data-opt="lifeKernel" class="lifeSel" data-dict="LIFE_KERNELS"></select></label>
+        <label data-for="particles">Matrix <select data-opt="lifeMatrix" class="lifeSel" data-dict="LIFE_MATRIX"></select></label>
+        <label data-for="lenia smoothlife ca wolfram physarum">Anfang <select data-opt="lifeInit" class="lifeSel" data-dict="LIFE_INITS"></select></label>
+        <label>Mischart <select data-opt="lifeBlend" class="blendSel"></select></label>
+        <label>Gitter <select data-opt="lifeRes" class="lifeSel" data-dict="LIFE_RES"></select></label>
+        <label class="check" data-for="particles pps boids physarum"><input type="checkbox" data-opt="lifeTint"><span>Teilchenfarben über das Bild legen</span></label>
+        <label class="check"><input type="checkbox" data-opt="lifePaint"><span>Ziehen sät Zellen / legt Spur / zieht Teilchen an</span></label>
+        <div id="sl-life" class="ctrl"></div>
+      </div>
+      <div class="ctrl">
+        <h2>Beispiele</h2>
+        <div id="lifeExamples" class="sceneGrid"></div>
+      </div>
+      <div class="ctrl">
+        <h2>Hintergrund</h2>
+        <div id="lifeText" class="info"></div>
+      </div>
+    </div>
     <div class="ppage hidden" data-page="style">
       <div class="ctrl">
         <h2>Perlen <small>Beadwork-Modus</small></h2>
@@ -578,10 +610,16 @@ const specs = {
   pdeScale: ["Gebietsgröße", 0.5, 4, 0.01, 1.6, "pde"],
   pdeLo: ["Anzeige min", -5, 5, 0.01, 0, "pde"],
   pdeHi: ["Anzeige max", -5, 5, 0.01, 0.5, "pde"],
-  pdeBrush: ["Pinselgröße", 2, 40, 1, 8, "pde"]
+  pdeBrush: ["Pinselgröße", 2, 40, 1, 8, "pde"],
+  lifeR: ["Radius R", 1, 20, 1, 13, "life"], lifeMu: ["Wachstum μ", 0, 1, 0.001, 0.15, "life"], lifeSigma: ["Breite σ", 0.001, 0.3, 0.001, 0.015, "life"], lifeT: ["Zeitschritt dt", 0.01, 1, 0.01, 0.1, "life"],
+  lifeSteps: ["Schritte je Bild", 0, 10, 1, 1, "life"], lifeScale: ["Gebietsgröße", 0.5, 4, 0.01, 1.6, "life"],
+  lifeDecay: ["Spur-Abklingen", 0, 0.6, 0.001, 0.25, "life"], lifeDiffuse: ["Spur-Diffusion", 0, 1, 0.01, 0.2, "life"], lifeCount: ["Teilchenzahl", 50, 4000, 10, 900, "life"], lifeTypes: ["Teilchensorten", 2, 8, 1, 5, "life"],
+  lifeForce: ["Kraft", 0, 3, 0.01, 1, "life"], lifeRmax: ["Reichweite rmax", 0.02, 0.4, 0.005, 0.12, "life"], lifeBeta: ["Abstoßradius β", 0.05, 0.9, 0.01, 0.3, "life"], lifeFriction: ["Reibung", 0, 1, 0.01, 0.5, "life"], lifeSpeed: ["Schrittweite", 0, 3, 0.01, 1, "life"],
+  lifeSense: ["Sensorwinkel SA", 0, 90, 0.5, 22.5, "life"], lifeTurn: ["Drehwinkel RA", 0, 180, 0.5, 45, "life"], lifeSenseDist: ["Sensorabstand SD", 1, 30, 1, 9, "life"], lifeAlpha: ["Grunddrehung α", -180, 180, 1, 180, "life"],
+  lifeSeed: ["Zufallssaat", 1, 999, 1, 7, "life"], lifeBrush: ["Pinselgröße", 2, 40, 1, 8, "life"]
 };
 const targets = Object.keys(specs);
-const targetLabels = Object.fromEntries(targets.map((k) => [k, specs[k][0] + (specs[k][5] === "g1" ? " (Gitter 1)" : specs[k][5] === "g2" ? " (Gitter 2)" : specs[k][5] === "woven" ? " (Gewebe)" : specs[k][5] === "ethno" ? " (Kultur)" : specs[k][5] === "sculpt" ? " (Skulptur)" : specs[k][5] === "bead" ? " (Perlen)" : specs[k][5] === "pde" ? " (Gleichung)" : "")]));
+const targetLabels = Object.fromEntries(targets.map((k) => [k, specs[k][0] + (specs[k][5] === "g1" ? " (Gitter 1)" : specs[k][5] === "g2" ? " (Gitter 2)" : specs[k][5] === "woven" ? " (Gewebe)" : specs[k][5] === "ethno" ? " (Kultur)" : specs[k][5] === "sculpt" ? " (Skulptur)" : specs[k][5] === "bead" ? " (Perlen)" : specs[k][5] === "life" ? " (Leben)" : specs[k][5] === "pde" ? " (Gleichung)" : "")]));
 // Welche Kultur-Regler bei welcher Technik sichtbar sind
 const ETHNO_USE = {
   eScale: "all", eLine: ["mirror", "lace", "nanduti", "symmetry", "fractal", "cornrow", "sashiko", "khipu"], eDot: ["mirror", "lace", "khipu"], eCurve: ["mirror"], eGap: ["mirror"],
@@ -641,7 +679,11 @@ const optionSpecs = {
   beadStitch: Object.keys(BEAD_STITCHES), beadPal: Object.keys(BEAD_PALETTES),
   pdeModel: ["heat", "heatSrc", "wave", "transport", "burgers", "fisher", "allencahn", "cahnhilliard", "swifthohenberg", "grayscott", "schnakenberg", "gierer", "brusselator", "fitzhugh", "barkley", "oregonator", "kellersegel", "cgl", "nls", "kuramoto", "kdv", "predator", "sir", "klausmeier"],
   pdeView: ["u", "v", "abs", "phase", "diff"], pdeInit: ["noise", "blob", "pattern", "spiral", "solitons", "packet"], pdeBc: ["periodic", "neumann"],
-  pdeCouple: ["none", "A", "B", "Du", "Dv", "source"], pdeRes: ["128", "256", "512"], pdeBlend: Object.keys(BLENDS)
+  pdeCouple: ["none", "A", "B", "Du", "Dv", "source"], pdeRes: ["128", "256", "512"], pdeBlend: Object.keys(BLENDS),
+  lifeKind: ["lenia", "smoothlife", "ca", "wolfram", "particles", "pps", "boids", "physarum"],
+  lifeRule: ["conway", "highlife", "daynight", "seeds", "life34", "diamoeba", "anneal", "morley", "brain", "bosco", "bugs", "waffle", "majority"],
+  lifeWolfram: ["30", "90", "110", "184", "54", "150", "60", "126", "73", "22"], lifeKernel: ["ring", "twin", "triple", "poly", "gauss"],
+  lifeInit: ["random", "soup", "orbium", "center", "pattern", "empty"], lifeRes: ["128", "256", "512"], lifeBlend: Object.keys(BLENDS), lifeMatrix: ["random", "symmetric", "chase", "snake", "flower"]
 };
 const optionDefaults = {
   waveView: "snapshot", g1Type: "lines", g2Type: "lines", wovenBlend: "multiply", g1Blend: "multiply", g2Blend: "multiply",
@@ -649,6 +691,7 @@ const optionDefaults = {
   viewMode: "flat", viewBlend: "torus",
   sculptKind: "tetra", sculptAxis: "edge", beadStitch: "loom", beadPal: "none", beadOn: false,
   pdeOn: false, pdeModel: "grayscott", pdeView: "u", pdeInit: "blob", pdeBc: "periodic", pdeCouple: "none", pdeRes: "256", pdeBlend: "multiply", pdePaint: true,
+  lifeOn: false, lifeKind: "lenia", lifeRule: "conway", lifeWolfram: "30", lifeKernel: "ring", lifeInit: "orbium", lifeRes: "256", lifeBlend: "multiply", lifeMatrix: "random", lifeTint: true, lifePaint: true,
   ethnoType: "mirror", ethnoBlend: "multiply", mirrorRegion: "rect", tabletPreset: "diamond", draftPreset: "twill", lacePreset: "spider", symGroup: "p6m", sashikoKind: "seigaiha", tapestryKind: "diamond",
   waveOn: true, wovenOn: false, g1On: false, g2On: false, ethnoOn: false, showSources: true, aa: true, invert: false
 };
@@ -1206,10 +1249,19 @@ float pdeValue(vec2 q) {
   if (u_pdeView == 3) return val;
   return clamp((val - P_pdeLo) / max(P_pdeHi - P_pdeLo, 1e-4), 0.0, 1.0);
 }
+uniform sampler2D u_life;
+uniform int u_lifeOn, u_lifeKind, u_lifeBlend, u_lifeTint;
+vec4 lifeSample(vec2 q) { vec2 uv = fract(q / (2.0 * P_lifeScale) + 0.5); return texture(u_life, uv); }
+float lifeValue(vec2 q) { vec4 st = lifeSample(q); return u_lifeKind < 4 ? clamp(st.x, 0.0, 1.0) : 1.0 - exp(-st.a * 2.5); }
+vec3 lifeTint(vec3 col, vec2 q) {
+  if (u_lifeOn == 1 && u_lifeTint == 1 && u_lifeKind >= 4) { vec4 st = lifeSample(q); float a = 1.0 - exp(-st.a * 2.5); vec3 c = st.rgb / max(st.a, 1e-4); col = mix(col, c, a * 0.9); }
+  return col;
+}
 float pattern(vec2 q) {
   bool first = true; float acc = 0.0;
   if (u_on.x == 1) { acc = waveValue(q); first = false; }
   if (u_pdeOn == 1) { float v = pdeValue(q); acc = first ? v : blendOp(acc, v, u_pdeBlend); first = false; }
+  if (u_lifeOn == 1) { float v = lifeValue(q); acc = first ? v : blendOp(acc, v, u_lifeBlend); first = false; }
   if (u_on.y == 1) { float v = woven(q); acc = first ? v : blendOp(acc, v, u_blends.x); first = false; }
   if (u_on.z == 1) { vec2 g = rot(radians(P_g1Angle)) * (q - vec2(P_g1OffX, P_g1OffY)); float v = grating(u_g1Type, g, max(P_g1Period, 1e-4), P_g1Duty, P_g1Soft); acc = first ? v : blendOp(acc, v, u_blends.y); first = false; }
   if (u_on.w == 1) { vec2 g = rot(radians(P_g2Angle)) * (q - vec2(P_g2OffX, P_g2OffY)); float v = grating(u_g2Type, g, max(P_g2Period, 1e-4), P_g2Duty, P_g2Soft); acc = first ? v : blendOp(acc, v, u_blends.z); first = false; }
@@ -1322,6 +1374,7 @@ void main() {
   vec2 q = toWorld(v_uv, u_res.x / u_res.y);
   vec3 col;
   if (u_beadOn == 1) col = beads(q); else col = shade(pattern(q), gl_FragCoord.xy);
+  col = lifeTint(col, q);
   if (u_showSources > 0.5 && u_on.x == 1) col = mix(col, vec3(1.0, 0.7, 0.2), markers(q, 2.0 / (u_res.y * P_zoom)) * 0.9);
   fragColor = vec4(col, 1.0);
 }`;
@@ -1404,7 +1457,7 @@ void main() {
   float diffuse = max(0.0, dot(n, lightDir));
   float specular = pow(max(0.0, dot(n, normalize(lightDir + viewDir))), mix(8.0, 88.0, P_metal)) * P_metal;
   float edge = pow(1.0 - max(0.0, dot(n, viewDir)), 2.5) * P_rim;
-  vec3 material = u_beadOn == 1 ? beads(q) : shade(t, gl_FragCoord.xy);
+  vec3 material = lifeTint(u_beadOn == 1 ? beads(q) : shade(t, gl_FragCoord.xy), q);
   if (u_showSources > 0.5 && u_on.x == 1) material = mix(material, vec3(1.0, 0.7, 0.2), markers(q, 0.004 / P_zoom) * 0.9);
   vec3 shaded = (material * (0.45 + 0.65 * diffuse) + specular * vec3(0.8, 0.9, 1.0) + edge * mix(vec3(0.25, 0.5, 0.7), material, 0.5)) * P_exposure;
   vec3 background = vec3(0.72, 1.0, 1.6) * P_background;
@@ -1439,7 +1492,7 @@ function makeProgram(vsrc, fsrc, mesh) {
   if (mesh) { const ib = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(idx), gl.STATIC_DRAW); }
   const names = ["uP[0]", "u_res", "u_time", "u_fieldPhase", "u_ampNorm", "u_invert", "u_aa", "u_showSources", "u_waveView", "u_srcCount", "u_activeSrc", "u_hoverSrc",
     "u_wField", "u_g1Type", "u_g2Type", "u_palA", "u_palB", "u_on", "u_blends", "u_wovenK", "u_srcA[0]", "u_srcB[0]", "u_eye", "u_layer", "u_mode", "u_modeB",
-    "u_data", "u_dataSize", "u_ethnoType", "u_ethnoSub", "u_khipuN", "u_khipu[0]", "u_ethnoFlags", "u_beadOn", "u_beadStitch", "u_beadPalN", "u_beadPal[0]", "u_pde", "u_pdeOn", "u_pdeView", "u_pdeBlend"];
+    "u_data", "u_dataSize", "u_ethnoType", "u_ethnoSub", "u_khipuN", "u_khipu[0]", "u_ethnoFlags", "u_beadOn", "u_beadStitch", "u_beadPalN", "u_beadPal[0]", "u_pde", "u_pdeOn", "u_pdeView", "u_pdeBlend", "u_life", "u_lifeOn", "u_lifeKind", "u_lifeBlend", "u_lifeTint"];
   const u = {}; names.forEach((n) => { u[n.replace("[0]", "")] = gl.getUniformLocation(pr, n); });
   return { pr, vao, count: idx.length, u };
 }
@@ -1570,6 +1623,144 @@ void main() {
   float near = 0.05, far = 60.0;
   gl_Position = vec4(cam.x * f / (u_res.x / u_res.y), cam.y * f, (far + near) / (near - far) * cam.z + 2.0 * far * near / (near - far), -cam.z);
 }`;
+/* ---------------------------------------------------------- Lebensfeld (Lenia, SmoothLife, Automaten, Spuren) */
+const fsLife = `#version 300 es
+${glslCommon}
+uniform sampler2D u_state, u_seedTex;
+uniform vec2 u_simRes;
+uniform int u_lmode, u_doInit, u_linit, u_kernel, u_birth, u_surv, u_rule, u_ltl, u_brain;
+uniform vec4 u_ranges;            // Larger than Life: b1 b2 s1 s2 (Zelle selbst mitgezählt)
+uniform float u_seed, u_mouseDown, u_R, u_density, u_paintVal;
+uniform vec2 u_mouse;
+in vec2 v_uv; out vec4 o;
+
+vec4 S(ivec2 d) { ivec2 n = ivec2(u_simRes); ivec2 p = (ivec2(gl_FragCoord.xy) + d + n) % n; return texelFetch(u_state, p, 0); }
+float rnd(vec2 p) { return fract(sin(dot(p + u_seed, vec2(12.9898, 78.233))) * 43758.5453); }
+float kcore(float r) {                       // Lenia-Kernkurve
+  if (u_kernel == 3) return pow(4.0 * r * (1.0 - r), 4.0);
+  if (u_kernel == 4) return exp(-pow((r - 0.5) / 0.15, 2.0) * 0.5);
+  return exp(4.0 - 1.0 / max(r * (1.0 - r), 1e-4));
+}
+float kshell(float r) {                      // Ringe mit Gewichten β
+  if (u_kernel == 1) { float b = r * 2.0; float beta = b < 1.0 ? 0.5 : 1.0; return beta * kcore(fract(b)); }
+  if (u_kernel == 2) { float b = r * 3.0; float beta = b < 1.0 ? 0.5 : (b < 2.0 ? 1.0 : 0.6667); return beta * kcore(fract(b)); }
+  return kcore(r);
+}
+float growth(float u) { float d = (u - P_lifeMu) / max(P_lifeSigma, 1e-4); return 2.0 * exp(-d * d * 0.5) - 1.0; }
+float sig1(float x, float a, float al) { return 1.0 / (1.0 + exp(-(x - a) * 4.0 / al)); }
+float sig2(float x, float a, float b) { return sig1(x, a, 0.028) * (1.0 - sig1(x, b, 0.028)); }
+float sigm(float x, float y, float m) { float s = sig1(m, 0.5, 0.147); return x * (1.0 - s) + y * s; }
+
+void main() {
+  ivec2 n = ivec2(u_simRes); ivec2 ip = ivec2(gl_FragCoord.xy);
+  vec2 q = (v_uv - 0.5) * 2.0 * P_lifeScale;
+  vec4 c = texelFetch(u_state, ip, 0);
+  if (u_doInit == 1) {
+    float v = 0.0; vec2 cen = v_uv - 0.5;
+    if (u_lmode == 3) {                      // 1D-Automat: nur die unterste Zeile
+      v = ip.y == 0 ? (u_linit == 3 ? (ip.x == n.x / 2 ? 1.0 : 0.0) : step(1.0 - u_density, rnd(gl_FragCoord.xy))) : 0.0;
+      o = vec4(v, 0.0, 0.0, 1.0); return;
+    }
+    if (u_linit == 0) v = rnd(gl_FragCoord.xy);
+    else if (u_linit == 1) {                 // Ursuppe aus Flecken
+      for (int i = 0; i < 28; i++) {
+        vec2 cp = vec2(rnd(vec2(float(i), 1.0)), rnd(vec2(float(i), 2.0)));
+        vec2 d = fract(v_uv - cp + 0.5) - 0.5; float rr = 0.03 + 0.09 * rnd(vec2(float(i), 3.0));
+        if (length(d) < rr) v = max(v, rnd(gl_FragCoord.xy + float(i)));
+      }
+    }
+    else if (u_linit == 2) {                 // Orbium (20 × 20 Zellen, skaliert mit R/13)
+      float sc = max(u_R, 1.0) / 13.0; vec2 pc = (gl_FragCoord.xy - 0.5 * u_simRes) / sc + vec2(10.0);
+      v = (pc.x >= 0.0 && pc.x < 20.0 && pc.y >= 0.0 && pc.y < 20.0) ? texelFetch(u_seedTex, ivec2(int(pc.x), 19 - int(pc.y)), 0).r : 0.0;
+    }
+    else if (u_linit == 3) v = length(cen) < 0.09 ? rnd(gl_FragCoord.xy) : 0.0;
+    else if (u_linit == 4) v = pattern(q);
+    if (u_lmode == 2) v = step(1.0 - u_density, v);   // diskreter Automat: Dichte
+    o = vec4(v, 0.0, 0.0, 1.0); return;
+  }
+  float v = c.x;
+  if (u_lmode == 4) {                        // Spurkarte: 3×3-Mittel, Abklingen, Pinsel legt Lockstoff
+    vec4 sum = vec4(0.0);
+    for (int dy = -1; dy <= 1; dy++) for (int dx = -1; dx <= 1; dx++) sum += S(ivec2(dx, dy));
+    vec4 t = mix(c, sum / 9.0, P_lifeDiffuse) * (1.0 - P_lifeDecay);
+    if (u_mouseDown > 0.5) { float d = length((v_uv - u_mouse) * u_simRes); float m = 1.0 - smoothstep(P_lifeBrush * 0.7, P_lifeBrush, d); t += vec4(1.0, 0.85, 0.5, 1.0) * m * 0.6; }
+    o = max(t, vec4(0.0)); return;
+  }
+  if (u_lmode == 0 || u_lmode == 1) {        // Lenia / SmoothLife: Faltung mit Ring bzw. Scheibe + Ring
+    int R = int(u_R); float sumK = 0.0, sumW = 0.0, sumI = 0.0, wI = 0.0; float ri = u_R / 3.0;
+    for (int dy = -R; dy <= R; dy++) for (int dx = -R; dx <= R; dx++) {
+      float d = length(vec2(dx, dy)); if (d > u_R + 0.5) continue;
+      float s = S(ivec2(dx, dy)).x;
+      if (u_lmode == 0) { float r = d / u_R; if (r < 1.0) { float k = kshell(r); sumK += k * s; sumW += k; } }
+      else { float wi = clamp(ri + 0.5 - d, 0.0, 1.0); float wo = clamp(u_R + 0.5 - d, 0.0, 1.0) - wi; sumI += wi * s; wI += wi; sumK += wo * s; sumW += wo; }
+    }
+    if (u_lmode == 0) { float u = sumK / max(sumW, 1e-6); v = clamp(v + P_lifeT * growth(u), 0.0, 1.0); }
+    else { float m = sumI / max(wI, 1e-6), nn = sumK / max(sumW, 1e-6); float s = sig2(nn, sigm(0.278, 0.267, m), sigm(0.365, 0.445, m)); v = clamp(v + P_lifeT * (2.0 * s - 1.0), 0.0, 1.0); }
+  }
+  else if (u_lmode == 2) {                   // Life-Familie, Brian's Brain, Larger than Life
+    int R = int(u_R); int cnt = 0;
+    for (int dy = -R; dy <= R; dy++) for (int dx = -R; dx <= R; dx++) { if (dx == 0 && dy == 0) continue; cnt += S(ivec2(dx, dy)).x > 0.75 ? 1 : 0; }
+    bool alive = v > 0.75;
+    if (u_brain == 1) { if (alive) v = 0.5; else if (v > 0.25) v = 0.0; else v = cnt == 2 ? 1.0 : 0.0; }
+    else if (u_ltl == 1) { float tot = float(cnt) + (alive ? 1.0 : 0.0); v = alive ? ((tot >= u_ranges.z && tot <= u_ranges.w) ? 1.0 : 0.0) : ((tot >= u_ranges.x && tot <= u_ranges.y) ? 1.0 : 0.0); }
+    else { int m = alive ? u_surv : u_birth; v = ((m >> cnt) & 1) == 1 ? 1.0 : 0.0; }
+  }
+  else if (u_lmode == 3) {                   // Wolfram: neue Zeile unten, Rest rückt nach oben
+    if (ip.y == 0) { int l = S(ivec2(-1, 0)).x > 0.5 ? 1 : 0, m = c.x > 0.5 ? 1 : 0, r = S(ivec2(1, 0)).x > 0.5 ? 1 : 0; int idx = l * 4 + m * 2 + r; v = ((u_rule >> idx) & 1) == 1 ? 1.0 : 0.0; }
+    else v = S(ivec2(0, -1)).x;
+  }
+  if (u_mouseDown > 0.5 && u_lmode < 3) {    // Pinsel: Zufallswerte (Lenia) bzw. Zellen (Automat)
+    float d = length((v_uv - u_mouse) * u_simRes); float m = 1.0 - smoothstep(P_lifeBrush * 0.7, P_lifeBrush, d);
+    if (m > 0.0) { float r0 = rnd(gl_FragCoord.xy + 5.0); v = mix(v, u_paintVal * (u_lmode == 2 ? step(0.4, r0) : r0), m); }
+  }
+  o = vec4(v, c.y, 0.0, 1.0);
+}`;
+
+/* Physarum-Agenten: Position (Texel), Richtung – ein Texel je Agent */
+const fsAgent = `#version 300 es
+precision highp float;
+uniform sampler2D u_agents, u_trail;
+uniform vec2 u_simRes, u_mouse;
+uniform int u_doInit, u_linit;
+uniform float u_seed, u_sa, u_ra, u_sd, u_ss, u_mouseDown;
+in vec2 v_uv; out vec4 o;
+float rnd(vec2 p) { return fract(sin(dot(p + u_seed, vec2(12.9898, 78.233))) * 43758.5453); }
+float trail(vec2 p) { return texture(u_trail, fract(p / u_simRes)).a; }
+void main() {
+  ivec2 id = ivec2(gl_FragCoord.xy); vec2 c = gl_FragCoord.xy;
+  if (u_doInit == 1) {
+    float ang = rnd(c) * 6.2831853; vec2 p;
+    if (u_linit == 3) { float rr = sqrt(rnd(c + 1.0)) * 0.22; p = (0.5 + rr * vec2(cos(ang), sin(ang))) * u_simRes; ang = ang + 3.14159 + (rnd(c + 2.0) - 0.5); }
+    else p = vec2(rnd(c + 1.0), rnd(c + 2.0)) * u_simRes;
+    o = vec4(p, ang, 1.0); return;
+  }
+  vec4 a = texelFetch(u_agents, id, 0); vec2 p = a.xy; float h = a.z;
+  float sa = radians(u_sa), ra = radians(u_ra);
+  float f = trail(p + u_sd * vec2(cos(h), sin(h)));
+  float l = trail(p + u_sd * vec2(cos(h + sa), sin(h + sa)));
+  float r = trail(p + u_sd * vec2(cos(h - sa), sin(h - sa)));
+  float rr = rnd(p + float(id.x) * 0.37);
+  if (f > l && f > r) { } else if (f < l && f < r) h += rr < 0.5 ? ra : -ra; else if (l < r) h -= ra; else if (r < l) h += ra;
+  p += u_ss * vec2(cos(h), sin(h)); p = mod(p, u_simRes);
+  o = vec4(p, h, 1.0);
+}`;
+
+/* Spur ablegen: Punkte aus Agenten-Textur (gl_VertexID) oder aus CPU-Puffer */
+const vsDep = `#version 300 es
+precision highp float;
+uniform sampler2D u_agents; uniform int u_fromTex, u_agentSide; uniform float u_pointSize; uniform vec2 u_simRes; uniform vec3 u_depCol;
+in vec2 a_pos; in vec3 a_col; out vec3 v_col;
+void main() {
+  vec2 p; vec3 col;
+  if (u_fromTex == 1) { ivec2 id = ivec2(gl_VertexID % u_agentSide, gl_VertexID / u_agentSide); vec4 a = texelFetch(u_agents, id, 0); p = a.xy / u_simRes; col = u_depCol; }
+  else { p = a_pos; col = a_col; }
+  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0); gl_PointSize = u_pointSize; v_col = col;
+}`;
+const fsDep = `#version 300 es
+precision highp float;
+uniform float u_dep; in vec3 v_col; out vec4 o;
+void main() { float d = length(gl_PointCoord - 0.5) * 2.0; float a = (1.0 - smoothstep(0.55, 1.0, d)) * u_dep; o = vec4(v_col * a, a); }`;
+
 const fsSculpt = `#version 300 es
 ${glslCommon}
 uniform vec3 u_eye;
@@ -1611,7 +1802,7 @@ const progSculpt = (() => {
   for (const [name, buf] of [["a_pos", bufs.pos], ["a_nrm", bufs.nrm], ["a_loc", bufs.loc]]) { gl.bindBuffer(gl.ARRAY_BUFFER, buf); const l = gl.getAttribLocation(pr, name); gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, 3, gl.FLOAT, false, 0, 0); }
   const names = ["uP[0]", "u_res", "u_time", "u_fieldPhase", "u_ampNorm", "u_invert", "u_aa", "u_showSources", "u_waveView", "u_srcCount", "u_activeSrc", "u_hoverSrc",
     "u_wField", "u_g1Type", "u_g2Type", "u_palA", "u_palB", "u_on", "u_blends", "u_wovenK", "u_srcA[0]", "u_srcB[0]", "u_eye",
-    "u_data", "u_dataSize", "u_ethnoType", "u_ethnoSub", "u_khipuN", "u_khipu[0]", "u_ethnoFlags", "u_worm", "u_beadOn", "u_beadStitch", "u_beadPalN", "u_beadPal[0]", "u_pde", "u_pdeOn", "u_pdeView", "u_pdeBlend"];
+    "u_data", "u_dataSize", "u_ethnoType", "u_ethnoSub", "u_khipuN", "u_khipu[0]", "u_ethnoFlags", "u_worm", "u_beadOn", "u_beadStitch", "u_beadPalN", "u_beadPal[0]", "u_pde", "u_pdeOn", "u_pdeView", "u_pdeBlend", "u_life", "u_lifeOn", "u_lifeKind", "u_lifeBlend", "u_lifeTint"];
   const u = {}; names.forEach((n) => { u[n.replace("[0]", "")] = gl.getUniformLocation(pr, n); });
   return { pr, vao, bufs, u, count: 0 };
 })();
@@ -1686,6 +1877,11 @@ function uploadCommon(u, P, w, h) {
   gl.uniform1i(u.u_pdeOn, o.pdeOn && pde.tex[0] ? 1 : 0);
   gl.uniform1i(u.u_pdeView, ["u", "v", "abs", "phase", "diff"].indexOf(o.pdeView));
   gl.uniform1i(u.u_pdeBlend, bk.indexOf(o.pdeBlend));
+  gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, life.tex[life.cur] || dataTex); gl.uniform1i(u.u_life, 3);
+  if (life.tex[0]) { const crisp = o.lifeKind === "ca" || o.lifeKind === "wolfram" || !life.linearOk; gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, crisp ? gl.NEAREST : gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, crisp ? gl.NEAREST : gl.LINEAR); }
+  gl.uniform1i(u.u_lifeOn, o.lifeOn && life.tex[0] ? 1 : 0);
+  gl.uniform1i(u.u_lifeKind, ["lenia", "smoothlife", "ca", "wolfram", "particles", "pps", "boids", "physarum"].indexOf(o.lifeKind));
+  gl.uniform1i(u.u_lifeBlend, bk.indexOf(o.lifeBlend)); gl.uniform1i(u.u_lifeTint, o.lifeTint ? 1 : 0);
   gl.activeTexture(gl.TEXTURE0);
 }
 const beadArr = new Float32Array(24);
@@ -1700,6 +1896,7 @@ function visibleRect() {
 function render(forExport) {
   const P = parameters();
   if (S.opt.pdeOn && (!S.paused || pde.needInit)) pdeStep(P);
+  if (S.opt.lifeOn && (!S.paused || life.needInit)) lifeStep(P);
   const vr = visibleRect();
   const w = canvas.width, vh = forExport ? canvas.height : Math.max(2, Math.round(canvas.height * vr.height / vr.full));
   const h = vh, vy = canvas.height - vh;
@@ -1941,6 +2138,7 @@ function buildOptions() {
       S.opt[key] = el.type === "checkbox" ? el.checked : el.value;
       if (key === "viewMode") cameraHome();
       if (key === "pdeOn" && el.checked) pde.needInit = true;
+      if (key === "lifeOn" && el.checked) life.needInit = true;
       needsSync = true; syncUI();
     });
   });
@@ -2084,6 +2282,9 @@ const scenes = {
   kuerpig: { name: "Kürpigsches Tetraeder", opt: { waveOn: false, viewMode: "kuerpig", sculptKind: "tetra", sculptAxis: "edge", paletteA: "gray", paletteB: "ice" }, base: { sSlices: 19, sThick: 0.018, sSpread: 1.3, spin: 4, rim: 0.3, exposure: 1.1, camYaw: 32, camPitch: 18, distance: 4.2 } },
   grayscott: { name: "Gray–Scott · Flecken", opt: { waveOn: false, pdeOn: true, pdeModel: "grayscott", pdeInit: "blob", paletteA: "ocean", paletteB: "ember", viewMode: "flat" }, base: { pdeA: 0.037, pdeB: 0.06, pdeDu: 0.5, pdeDv: 1, pdeDt: 1, pdeSteps: 10, pdeLo: 0, pdeHi: 0.5, paletteMix: 0.35 } },
   spirals: { name: "Spiralwellen · Barkley", opt: { waveOn: false, pdeOn: true, pdeModel: "barkley", pdeInit: "spiral", paletteA: "ember", paletteB: "gray", viewMode: "flat" }, base: { pdeA: 0.75, pdeB: 0.02, pdeC: 0.04, pdeD: 0.1, pdeDu: 4, pdeDv: 0, pdeDt: 0.25, pdeSteps: 16, pdeLo: 0, pdeHi: 1, paletteMix: 0.2 } },
+  orbium: { name: "Orbium · Lenia", opt: { waveOn: false, lifeOn: true, lifeKind: "lenia", lifeInit: "orbium", lifeKernel: "ring", paletteA: "ocean", paletteB: "ember", viewMode: "flat" }, base: { lifeR: 13, lifeMu: 0.15, lifeSigma: 0.015, lifeT: 0.1, lifeSteps: 1, paletteMix: 0.35 } },
+  particlelife: { name: "Particle Life", opt: { waveOn: false, lifeOn: true, lifeKind: "particles", lifeMatrix: "random", lifeTint: true, paletteA: "gray", paletteB: "ice", viewMode: "flat" }, base: { lifeCount: 900, lifeTypes: 5, lifeForce: 1, lifeRmax: 0.12, lifeBeta: 0.3, lifeFriction: 0.5, lifeDecay: 0.25, lifeDiffuse: 0.2, lifeSteps: 1, lifeSeed: 7, paletteMix: 0.4 } },
+  physarum: { name: "Physarum · Schleimpilz", opt: { waveOn: false, lifeOn: true, lifeKind: "physarum", lifeInit: "random", lifeTint: false, paletteA: "ember", paletteB: "gray", viewMode: "flat" }, base: { lifeCount: 4000, lifeSense: 22.5, lifeTurn: 45, lifeSenseDist: 9, lifeSpeed: 1, lifeDecay: 0.1, lifeDiffuse: 0.6, lifeSteps: 1, paletteMix: 0.3 } },
   layers: { name: "Schichten · Licht", opt: { waveOn: true, g1On: true, g1Type: "hex", g1Blend: "difference", paletteA: "violet", paletteB: "ice", viewMode: "stack", viewBlend: "cloth" }, base: { lambda: 0.18, g1Period: 0.1, separation: 0.65, camYaw: 38, spin: 2, cutout: 0.3 }, sources: () => arrangeCircle(3, 0.4), style: "space" }
 };
 function applyScene(key) {
@@ -2099,6 +2300,7 @@ function applyScene(key) {
   if (sc.mods) sc.mods.forEach((m) => Object.assign(S.mods[m.i], { on: true, rate: 0.05, depth: 0.2, phase: m.i / 8, slew: 0.3 }, m));
   cameraHome();
   for (const k of ["camYaw", "camPitch", "distance", "fov"]) if (sc.base[k] !== undefined) S.base[k] = sc.base[k];
+  pde.needInit = true; life.needInit = true;
   buildMods(); syncUI(); toast(sc.name);
 }
 function cameraHome() {
@@ -2738,7 +2940,7 @@ const progSim = (() => {
   const names = ["uP[0]", "u_res", "u_time", "u_fieldPhase", "u_ampNorm", "u_invert", "u_aa", "u_showSources", "u_waveView", "u_srcCount", "u_activeSrc", "u_hoverSrc",
     "u_wField", "u_g1Type", "u_g2Type", "u_palA", "u_palB", "u_on", "u_blends", "u_wovenK", "u_srcA[0]", "u_srcB[0]",
     "u_data", "u_dataSize", "u_ethnoType", "u_ethnoSub", "u_khipuN", "u_khipu[0]", "u_ethnoFlags", "u_beadOn", "u_beadStitch", "u_beadPalN", "u_beadPal[0]",
-    "u_pde", "u_pdeOn", "u_pdeView", "u_pdeBlend", "u_state", "u_simRes", "u_model", "u_bc", "u_init", "u_doInit", "u_coupleTo", "u_init0", "u_mouse", "u_mouseDown", "u_seed"];
+    "u_pde", "u_pdeOn", "u_pdeView", "u_pdeBlend", "u_life", "u_lifeOn", "u_lifeKind", "u_lifeBlend", "u_lifeTint", "u_state", "u_simRes", "u_model", "u_bc", "u_init", "u_doInit", "u_coupleTo", "u_init0", "u_mouse", "u_mouseDown", "u_seed"];
   const u = {}; names.forEach((n) => { u[n.replace("[0]", "")] = gl.getUniformLocation(pr, n); });
   return { pr, vao, u };
 })();
@@ -2832,6 +3034,391 @@ function syncPdeUI() {
   $("pdeOnBtn").classList.toggle("active", S.opt.pdeOn);
   document.querySelector('#ptabs [data-page="pde"]').classList.toggle("dimmed", !S.opt.pdeOn);
 }
+/* ================================================================ Leben: Lenia, SmoothLife, Automaten, Teilchen, Physarum */
+const LIFE_KINDS = { lenia: "Lenia · kontinuierlicher Automat", smoothlife: "SmoothLife", ca: "Zellulärer Automat · Life-Familie", wolfram: "Wolfram-Regel · 1D", particles: "Particle Life · Teilchensorten", pps: "Urteilchen · Primordial Particle System", boids: "Boids · Schwarm", physarum: "Physarum · Schleimpilz" };
+const LIFE_FIELD = ["lenia", "smoothlife", "ca", "wolfram"];
+const LIFE_RULES = {
+  conway: { name: "Conway · B3/S23", R: 1, b: [3], s: [2, 3], density: 0.35 },
+  highlife: { name: "HighLife · B36/S23 (Replikator)", R: 1, b: [3, 6], s: [2, 3], density: 0.35 },
+  daynight: { name: "Day & Night · B3678/S34678", R: 1, b: [3, 6, 7, 8], s: [3, 4, 6, 7, 8], density: 0.5 },
+  seeds: { name: "Seeds · B2/S (explosiv)", R: 1, b: [2], s: [], density: 0.08 },
+  life34: { name: "3-4 Life · B34/S34", R: 1, b: [3, 4], s: [3, 4], density: 0.3 },
+  diamoeba: { name: "Diamoeba · B35678/S5678", R: 1, b: [3, 5, 6, 7, 8], s: [5, 6, 7, 8], density: 0.48 },
+  anneal: { name: "Anneal · B4678/S35678 (Mehrheit)", R: 1, b: [4, 6, 7, 8], s: [3, 5, 6, 7, 8], density: 0.5 },
+  morley: { name: "Morley · B368/S245", R: 1, b: [3, 6, 8], s: [2, 4, 5], density: 0.35 },
+  brain: { name: "Brian's Brain · 3 Zustände", R: 1, b: [2], s: [], brain: true, density: 0.3 },
+  bosco: { name: "Bosco's Rule · R5 · B34–45 / S33–57", R: 5, ltl: [34, 45, 33, 57], density: 0.5 },
+  bugs: { name: "Bugs · R5 · B34–45 / S34–58", R: 5, ltl: [34, 45, 34, 58], density: 0.5 },
+  waffle: { name: "Waffle · R7 · B75–170 / S100–200", R: 7, ltl: [75, 170, 100, 200], density: 0.5 },
+  majority: { name: "Mehrheit · R4 · ab 41 von 81", R: 4, ltl: [41, 81, 41, 81], density: 0.5 }
+};
+const LIFE_RULE_NAMES = Object.fromEntries(Object.entries(LIFE_RULES).map(([k, v]) => [k, v.name]));
+const LIFE_WOLFRAM = { 30: "Regel 30 · Chaos", 90: "Regel 90 · Sierpinski", 110: "Regel 110 · universell", 184: "Regel 184 · Verkehr", 54: "Regel 54", 150: "Regel 150", 60: "Regel 60", 126: "Regel 126", 73: "Regel 73", 22: "Regel 22" };
+const LIFE_KERNELS = { ring: "Ein Ring (Orbium)", twin: "Zwei Ringe β = ½, 1", triple: "Drei Ringe β = ½, 1, ⅔", poly: "Polynom-Kern", gauss: "Gauß-Ring" };
+const LIFE_INITS = { random: "Zufall", soup: "Ursuppe (Flecken)", orbium: "Orbium-Glider", center: "Mittelpunkt", pattern: "Aus dem Muster", empty: "Leer" };
+const LIFE_RES = { 128: "128 × 128", 256: "256 × 256", 512: "512 × 512" };
+const LIFE_MATRIX = { random: "Zufallsmatrix", symmetric: "Symmetrisch (Newton)", chase: "Jagdkette (zyklisch)", snake: "Schlange", flower: "Blüte (Kern + Hülle)" };
+const LIFE_USE = {
+  lifeR: ["lenia", "smoothlife"], lifeMu: ["lenia"], lifeSigma: ["lenia"], lifeT: ["lenia", "smoothlife"], lifeSteps: "all", lifeScale: "all",
+  lifeDecay: ["particles", "pps", "boids", "physarum"], lifeDiffuse: ["particles", "pps", "boids", "physarum"], lifeCount: ["particles", "pps", "boids", "physarum"], lifeTypes: ["particles"],
+  lifeForce: ["particles", "boids"], lifeRmax: ["particles", "pps", "boids"], lifeBeta: ["particles"], lifeFriction: ["particles"], lifeSpeed: ["pps", "boids", "physarum"],
+  lifeSense: ["physarum"], lifeTurn: ["physarum", "pps"], lifeSenseDist: ["physarum"], lifeAlpha: ["pps"], lifeSeed: "all", lifeBrush: ["lenia", "smoothlife", "ca", "physarum", "particles", "pps"]
+};
+const LIFE_LABELS = {
+  pps: { lifeTurn: "β · Drehung je Nachbar", lifeRmax: "Sichtradius r", lifeSpeed: "Geschwindigkeit v", lifeBrush: "Pinsel (Lockradius)" },
+  boids: { lifeForce: "Zusammenhalt", lifeRmax: "Sichtweite", lifeSpeed: "Tempo" },
+  physarum: { lifeSpeed: "Schrittweite SS", lifeCount: "Agenten (× 4)", lifeBrush: "Pinsel (Lockstoff)" },
+  particles: { lifeBrush: "Pinsel (Lockradius)" }
+};
+const LIFE_INFO = {
+  lenia: { f: "A(t+dt) = clip(A + dt · G(K ∗ A))\nG(u) = 2 exp(−(u−μ)²/2σ²) − 1,  K: Ring aus exp(4 − 1/(r(1−r)))",
+    text: "Bert Wang-Chak Chans Lenia (2019) macht Conways Spiel des Lebens in Raum, Zeit und Zustand stetig: Ein ringförmiger Kern mittelt die Umgebung mit Radius R, eine Glockenkurve um μ entscheidet über Wachstum oder Schwund. Der Glider <b>Orbium</b> (R 13, μ 0,15, σ 0,015) wandert als weiche Scheibe durch das Feld; über 400 „Arten“ sind katalogisiert." },
+  smoothlife: { f: "m = Scheibe(ri), n = Ring(ri…ra), ri = R/3\ns = σ₂(n, σₘ(b₁,d₁,m), σₘ(b₂,d₂,m)),  A += dt (2s − 1)\nb₁ 0,278 · b₂ 0,365 · d₁ 0,267 · d₂ 0,445 · αₙ 0,028 · αₘ 0,147",
+    text: "Stephan Raflers SmoothLife (2011) ersetzt Zellen durch Scheibe und Ring und die Life-Regel durch glatte Sigmoid-Übergänge mit Geburts- und Sterbeintervall. Es entstehen Glider, die in beliebige Richtungen laufen, und pulsierende Zellen." },
+  ca: { f: "Moore-Nachbarschaft, Geburt B / Überleben S\nLarger than Life: Radius R, Nachbarn im Intervall",
+    text: "Die Life-Familie: Conway (1970), HighLife mit Replikator, Day & Night, Seeds, Brian's Brain mit sterbendem Zwischenzustand – und Kellie Evans' Larger than Life (Bosco, Bugs, Waffle) mit großen Nachbarschaften, deren Gleiter wie Zellen über das Feld rollen." },
+  wolfram: { f: "a'ᵢ = Regel(aᵢ₋₁, aᵢ, aᵢ₊₁),  8-Bit-Regelnummer nach Wolfram\nNeue Zeile unten, Geschichte rückt nach oben",
+    text: "Stephen Wolframs elementare Automaten (1983): 256 Regeln auf einer Zeile. Regel 30 ist chaotisch (Zufallsgenerator in Mathematica), Regel 90 zeichnet das Sierpinski-Dreieck, Regel 110 ist Turing-vollständig (Cook 2004), Regel 184 ist ein Verkehrsmodell." },
+  particles: { f: "F(r) = r/β − 1  für r < β,   a·(1 − |2r − 1 − β|/(1 − β))  für β < r < 1\nv ← v·Reibung + Σ F·r̂·rmax·Kraft·dt,   a = Matrix[Sorte i][Sorte j]",
+    text: "Particle Life (Jeffrey Ventrellas „Clusters“, Tom Mohrs Formulierung): Wenige Teilchensorten, eine asymmetrische Anziehungsmatrix, Nahabstoßung – mehr nicht. Daraus entstehen Zellen mit Membranen, Jäger, Würmer, Kreisel. Jede Zufallssaat liefert eine andere Matrix." },
+  pps: { f: "Δφ = α + β · N · sign(R − L),   N = L + R Nachbarn im Radius r\nStandard: α 180°, β 17°, v 0,67, r 5 (Schmickl et al. 2016)",
+    text: "Das Primordial Particle System (Schmickl, Stefanec, Crailsheim, Scientific Reports 2016): Jedes Teilchen dreht sich um α plus β mal Nachbarzahl – rechts- oder linksherum, je nachdem, wo mehr Nachbarn sind. Aus Chaos entstehen Zellen mit Kern und Hülle, die wachsen, sich teilen und sterben. Farbe nach Nachbarzahl N (grün < 13, braun, blau, gelb > 35)." },
+  boids: { f: "a = Trennung + Angleichung + Zusammenhalt (Reynolds 1987)\nje innerhalb der Sichtweite, Tempo begrenzt",
+    text: "Craig Reynolds' Boids (1987): drei lokale Regeln – nicht anstoßen, Richtung angleichen, zur Mitte der Nachbarn streben – erzeugen Schwärme, die sich teilen und wieder vereinen. Farbe nach Flugrichtung." },
+  physarum: { f: "Sensoren F, L, R im Abstand SD unter Winkel ±SA\ndrehen um RA zur stärksten Spur, Schritt SS, ablegen\nSpur: 3×3-Mittel, Abklingen (Jones 2010)",
+    text: "Jeff Jones' Modell des Schleimpilzes Physarum polycephalum (2010): Tausende Agenten folgen ihrer eigenen Spur und weben ohne Plan Transportnetze. Sensorwinkel zu Drehwinkel etwa 1:2 ergibt Netze, breite Sensoren mit kleinem Drehwinkel Zellen und Tropfen (Sage Jensons Bilder). Der Pinsel legt Lockstoff aus." }
+};
+const LIFE_KIND_DEFAULTS = {
+  lenia: { base: { lifeR: 13, lifeMu: 0.15, lifeSigma: 0.015, lifeT: 0.1, lifeSteps: 1 }, opt: { lifeInit: "orbium", lifeKernel: "ring" } },
+  smoothlife: { base: { lifeR: 12, lifeT: 0.25, lifeSteps: 1 }, opt: { lifeInit: "soup" } },
+  ca: { base: { lifeSteps: 1 }, opt: { lifeInit: "random" } },
+  wolfram: { base: { lifeSteps: 2 }, opt: { lifeInit: "center" } },
+  particles: { base: { lifeCount: 900, lifeTypes: 5, lifeForce: 1, lifeRmax: 0.12, lifeBeta: 0.3, lifeFriction: 0.5, lifeDecay: 0.25, lifeDiffuse: 0.2, lifeSteps: 1 }, opt: { lifeMatrix: "random" } },
+  pps: { base: { lifeCount: 2500, lifeRmax: 0.035, lifeSpeed: 1, lifeTurn: 17, lifeAlpha: 180, lifeDecay: 0.3, lifeDiffuse: 0.1, lifeSteps: 1 }, opt: {} },
+  boids: { base: { lifeCount: 500, lifeRmax: 0.08, lifeSpeed: 1, lifeForce: 1, lifeDecay: 0.2, lifeDiffuse: 0.1, lifeSteps: 1 }, opt: {} },
+  physarum: { base: { lifeCount: 4000, lifeSense: 22.5, lifeTurn: 45, lifeSenseDist: 9, lifeSpeed: 1, lifeDecay: 0.1, lifeDiffuse: 0.6, lifeSteps: 1 }, opt: { lifeInit: "random" } }
+};
+// Orbium nach B. Chan (Lenia-Tutorial), 20 × 20 Zellen, Zeile 0 oben
+const ORBIUM = [[0,0,0,0,0,0,0.1,0.14,0.1,0,0,0.03,0.03,0,0,0.3,0,0,0,0],[0,0,0,0,0,0.08,0.24,0.3,0.3,0.18,0.14,0.15,0.16,0.15,0.09,0.2,0,0,0,0],[0,0,0,0,0,0.15,0.34,0.44,0.46,0.38,0.18,0.14,0.11,0.13,0.19,0.18,0.45,0,0,0],[0,0,0,0,0.06,0.13,0.39,0.5,0.5,0.37,0.06,0,0,0,0.02,0.16,0.68,0,0,0],[0,0,0,0.11,0.17,0.17,0.33,0.4,0.38,0.28,0.14,0,0,0,0,0,0.18,0.42,0,0],[0,0,0.09,0.18,0.13,0.06,0.08,0.26,0.32,0.32,0.27,0,0,0,0,0,0,0.82,0,0],[0.27,0,0.16,0.12,0,0,0,0.25,0.38,0.44,0.45,0.34,0,0,0,0,0,0.22,0.17,0],[0,0.07,0.2,0.02,0,0,0,0.31,0.48,0.57,0.6,0.57,0,0,0,0,0,0,0.49,0],[0,0.59,0.19,0,0,0,0,0.2,0.57,0.69,0.76,0.76,0.49,0,0,0,0,0,0.36,0],[0,0.58,0.19,0,0,0,0,0,0.67,0.83,0.9,0.92,0.87,0.12,0,0,0,0,0.22,0.07],[0,0,0.46,0,0,0,0,0,0.7,0.93,1,1,1,0.61,0,0,0,0,0.18,0.11],[0,0,0.82,0,0,0,0,0,0.47,1,1,0.98,1,0.96,0.27,0,0,0,0.19,0.1],[0,0,0.46,0,0,0,0,0,0.25,1,1,0.84,0.92,0.97,0.54,0.14,0.04,0.1,0.21,0.05],[0,0,0,0.4,0,0,0,0,0.09,0.8,1,0.82,0.8,0.85,0.63,0.31,0.18,0.19,0.2,0.01],[0,0,0,0.36,0.1,0,0,0,0.05,0.54,0.86,0.79,0.74,0.72,0.6,0.39,0.28,0.24,0.13,0],[0,0,0,0.01,0.3,0.07,0,0,0.08,0.36,0.64,0.7,0.64,0.6,0.51,0.39,0.29,0.19,0.04,0],[0,0,0,0,0.1,0.24,0.14,0.1,0.15,0.29,0.45,0.53,0.52,0.46,0.4,0.31,0.21,0.08,0,0],[0,0,0,0,0,0.08,0.21,0.21,0.22,0.29,0.36,0.39,0.37,0.33,0.26,0.18,0.09,0,0,0],[0,0,0,0,0,0,0.03,0.13,0.19,0.22,0.24,0.24,0.23,0.18,0.13,0.05,0,0,0,0],[0,0,0,0,0,0,0,0,0.02,0.06,0.08,0.09,0.07,0.05,0.01,0,0,0,0,0]];
+
+const life = { fbo: [null, null], tex: [null, null], res: 0, cur: 0, needInit: true, mouse: [0.5, 0.5], down: 0, linearOk: false,
+  agentTex: [null, null], agentFbo: [null, null], agentSide: 256, acur: 0, seedTex: null, vbo: null, vao: null, vaoEmpty: null,
+  n: 0, kind: "", seedUsed: -1, typesUsed: 0, px: null, py: null, vx: null, vy: null, hd: null, tp: null, col: null, buf: null, matrix: null, grid: null, stats: "" };
+function lifeAlloc(n) {
+  if (life.res === n && life.tex[0]) return;
+  const ext = gl.getExtension("EXT_color_buffer_float");
+  const half = !ext && gl.getExtension("EXT_color_buffer_half_float");
+  const type = ext ? gl.FLOAT : (half ? gl.HALF_FLOAT : null);
+  if (!type) { toast("Float-Texturen nicht verfügbar – Lebenssimulation deaktiviert"); S.opt.lifeOn = false; return; }
+  const ifmt = ext ? gl.RGBA32F : gl.RGBA16F;
+  life.linearOk = ext ? !!gl.getExtension("OES_texture_float_linear") : !!gl.getExtension("OES_texture_half_float_linear");
+  const mk = (w, h, filt) => {
+    const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texImage2D(gl.TEXTURE_2D, 0, ifmt, w, h, 0, gl.RGBA, type, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filt); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filt);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+    const f = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, f); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
+    return [t, f];
+  };
+  for (let i = 0; i < 2; i++) {
+    if (life.tex[i]) { gl.deleteTexture(life.tex[i]); gl.deleteFramebuffer(life.fbo[i]); }
+    [life.tex[i], life.fbo[i]] = mk(n, n, life.linearOk ? gl.LINEAR : gl.NEAREST);
+    if (!life.agentTex[i]) [life.agentTex[i], life.agentFbo[i]] = mk(life.agentSide, life.agentSide, gl.NEAREST);
+  }
+  if (!life.seedTex) {
+    const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+    const px = new Uint8Array(20 * 20 * 4); ORBIUM.forEach((row, y) => row.forEach((v, x) => { const i = (y * 20 + x) * 4; px[i] = px[i + 1] = px[i + 2] = Math.round(v * 255); px[i + 3] = 255; }));
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 20, 20, 0, gl.RGBA, gl.UNSIGNED_BYTE, px);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    life.seedTex = t;
+  }
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.bindTexture(gl.TEXTURE_2D, null);
+  life.res = n; life.needInit = true;
+}
+function makeSimProgram(vsrc, fsrc, extra) {
+  const pr = gl.createProgram();
+  gl.attachShader(pr, compileShader(gl.VERTEX_SHADER, vsrc)); gl.attachShader(pr, compileShader(gl.FRAGMENT_SHADER, fsrc));
+  gl.linkProgram(pr); if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(pr));
+  const vao = gl.createVertexArray(); gl.bindVertexArray(vao);
+  const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+  const loc = gl.getAttribLocation(pr, "a_pos"); if (loc >= 0) { gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0); }
+  const u = {}; extra.forEach((n) => { u[n.replace("[0]", "")] = gl.getUniformLocation(pr, n); });
+  return { pr, vao, u };
+}
+const COMMON_UNIFORMS = ["uP[0]", "u_res", "u_time", "u_fieldPhase", "u_ampNorm", "u_invert", "u_aa", "u_showSources", "u_waveView", "u_srcCount", "u_activeSrc", "u_hoverSrc",
+  "u_wField", "u_g1Type", "u_g2Type", "u_palA", "u_palB", "u_on", "u_blends", "u_wovenK", "u_srcA[0]", "u_srcB[0]",
+  "u_data", "u_dataSize", "u_ethnoType", "u_ethnoSub", "u_khipuN", "u_khipu[0]", "u_ethnoFlags", "u_beadOn", "u_beadStitch", "u_beadPalN", "u_beadPal[0]",
+  "u_pde", "u_pdeOn", "u_pdeView", "u_pdeBlend", "u_life", "u_lifeOn", "u_lifeKind", "u_lifeBlend", "u_lifeTint"];
+const progLife = makeSimProgram(vs2d, fsLife, COMMON_UNIFORMS.concat(["u_state", "u_seedTex", "u_simRes", "u_lmode", "u_doInit", "u_linit", "u_kernel", "u_birth", "u_surv", "u_rule", "u_ltl", "u_brain", "u_ranges", "u_seed", "u_mouseDown", "u_R", "u_density", "u_paintVal", "u_mouse"]));
+const progAgent = makeSimProgram(vs2d, fsAgent, ["u_agents", "u_trail", "u_simRes", "u_mouse", "u_doInit", "u_linit", "u_seed", "u_sa", "u_ra", "u_sd", "u_ss", "u_mouseDown"]);
+const progDep = (() => {
+  const pr = gl.createProgram();
+  gl.attachShader(pr, compileShader(gl.VERTEX_SHADER, vsDep)); gl.attachShader(pr, compileShader(gl.FRAGMENT_SHADER, fsDep));
+  gl.linkProgram(pr); if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(pr));
+  const vao = gl.createVertexArray(); gl.bindVertexArray(vao);
+  const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  const lp = gl.getAttribLocation(pr, "a_pos"), lc = gl.getAttribLocation(pr, "a_col");
+  gl.enableVertexAttribArray(lp); gl.vertexAttribPointer(lp, 2, gl.FLOAT, false, 20, 0);
+  gl.enableVertexAttribArray(lc); gl.vertexAttribPointer(lc, 3, gl.FLOAT, false, 20, 8);
+  const vaoEmpty = gl.createVertexArray();
+  const u = {}; ["u_agents", "u_fromTex", "u_agentSide", "u_pointSize", "u_simRes", "u_depCol", "u_dep"].forEach((n) => { u[n] = gl.getUniformLocation(pr, n); });
+  gl.bindVertexArray(null);
+  return { pr, vao, vaoEmpty, buf, u };
+})();
+
+/* ---- CPU-Teilchen: Particle Life, Urteilchen, Boids */
+function mulberry(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+function hsl(h, s, l) { const f = (n) => { const k = (n + h * 12) % 12; const a = s * Math.min(l, 1 - l); return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); }; return [f(0), f(8), f(4)]; }
+function lifeMatrix(types, style, rnd) {
+  const m = Array.from({ length: types }, () => new Float32Array(types));
+  for (let i = 0; i < types; i++) for (let j = 0; j < types; j++) m[i][j] = rnd() * 2 - 1;
+  if (style === "symmetric") for (let i = 0; i < types; i++) for (let j = i; j < types; j++) m[j][i] = m[i][j];
+  if (style === "chase") for (let i = 0; i < types; i++) for (let j = 0; j < types; j++) m[i][j] = j === i ? 0.6 : j === (i + 1) % types ? 1 : j === (i + types - 1) % types ? -0.7 : 0;
+  if (style === "snake") for (let i = 0; i < types; i++) for (let j = 0; j < types; j++) m[i][j] = j === i ? 0.3 : j === (i + 1) % types ? 0.9 : 0;
+  if (style === "flower") for (let i = 0; i < types; i++) for (let j = 0; j < types; j++) m[i][j] = i === 0 ? (j === 0 ? 1 : 0.6) : (j === 0 ? 0.8 : (j === i ? 0.4 : -0.5));
+  return m;
+}
+function lifeCpuInit(P) {
+  const kind = S.opt.lifeKind; const n = clamp(Math.round(P.lifeCount), 50, 4000); const types = clamp(Math.round(P.lifeTypes), 2, 8);
+  const rnd = mulberry(Math.round(P.lifeSeed) * 7919 + 13);
+  life.n = n; life.kind = kind; life.seedUsed = Math.round(P.lifeSeed); life.typesUsed = types; life.matrixStyle = S.opt.lifeMatrix;
+  life.px = new Float32Array(n); life.py = new Float32Array(n); life.vx = new Float32Array(n); life.vy = new Float32Array(n); life.hd = new Float32Array(n); life.tp = new Uint8Array(n);
+  life.col = new Float32Array(n * 3); life.buf = new Float32Array(n * 5); life.nb = new Int32Array(n);
+  for (let i = 0; i < n; i++) {
+    life.px[i] = rnd(); life.py[i] = rnd(); life.hd[i] = rnd() * Math.PI * 2; life.tp[i] = Math.floor(rnd() * types);
+    if (kind === "boids") { const sp = 0.004; life.vx[i] = Math.cos(life.hd[i]) * sp; life.vy[i] = Math.sin(life.hd[i]) * sp; }
+    const c = kind === "particles" ? hsl(life.tp[i] / types, 0.85, 0.6) : [0.8, 0.8, 0.8];
+    life.col[i * 3] = c[0]; life.col[i * 3 + 1] = c[1]; life.col[i * 3 + 2] = c[2];
+  }
+  life.matrix = lifeMatrix(types, S.opt.lifeMatrix, rnd);
+}
+// Gleichmäßiges Gitter für Nachbarsuche (periodischer Einheitsraum)
+function lifeGrid(r) {
+  const n = life.n, g = Math.max(1, Math.min(64, Math.floor(1 / Math.max(r, 1e-3))));
+  if (!life.grid || life.grid.g !== g || life.grid.n !== n) life.grid = { g, n, head: new Int32Array(g * g), next: new Int32Array(n), cell: new Int32Array(n) };
+  const G = life.grid; G.head.fill(-1);
+  for (let i = 0; i < n; i++) { const cx = Math.floor(life.px[i] * g) % g, cy = Math.floor(life.py[i] * g) % g; const c = cy * g + cx; G.cell[i] = c; G.next[i] = G.head[c]; G.head[c] = i; }
+  return G;
+}
+function lifeCpuStep(P) {
+  const kind = S.opt.lifeKind, n = life.n, px = life.px, py = life.py, vx = life.vx, vy = life.vy;
+  const r = clamp(P.lifeRmax, 0.02, 0.4), G = lifeGrid(r), g = G.g;
+  const mx = life.mouse[0], my = 1 - life.mouse[1], pull = life.down > 0.5 ? 1 : 0, pr = P.lifeBrush / 128;
+  const neigh = (i, fn) => {
+    const cx = G.cell[i] % g, cy = (G.cell[i] / g) | 0;
+    for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) {
+      let j = G.head[((cy + oy + g) % g) * g + (cx + ox + g) % g];
+      while (j >= 0) { if (j !== i) { let dx = px[j] - px[i], dy = py[j] - py[i]; if (dx > 0.5) dx -= 1; else if (dx < -0.5) dx += 1; if (dy > 0.5) dy -= 1; else if (dy < -0.5) dy += 1; const d = Math.hypot(dx, dy); if (d < r) fn(j, dx, dy, d); } j = G.next[j]; }
+    }
+  };
+  if (kind === "particles") {
+    const beta = P.lifeBeta, dt = 0.02, fric = 1 - 0.6 * P.lifeFriction, force = P.lifeForce * 10 * r, M = life.matrix;
+    for (let i = 0; i < n; i++) {
+      let fx = 0, fy = 0; const ti = life.tp[i];
+      neigh(i, (j, dx, dy, d) => { const q = d / r; let f; if (q < beta) f = q / beta - 1; else f = M[ti][life.tp[j]] * (1 - Math.abs(2 * q - 1 - beta) / (1 - beta)); if (d > 1e-6) { fx += f * dx / d; fy += f * dy / d; } });
+      if (pull) { let dx = mx - px[i], dy = my - py[i]; if (dx > 0.5) dx -= 1; else if (dx < -0.5) dx += 1; if (dy > 0.5) dy -= 1; else if (dy < -0.5) dy += 1; const d = Math.hypot(dx, dy); if (d < pr * 3 && d > 1e-6) { fx += 0.6 * dx / d; fy += 0.6 * dy / d; } }
+      vx[i] = vx[i] * fric + fx * force * dt; vy[i] = vy[i] * fric + fy * force * dt;
+    }
+    for (let i = 0; i < n; i++) { px[i] = (px[i] + vx[i] * dt + 1) % 1; py[i] = (py[i] + vy[i] * dt + 1) % 1; }
+  } else if (kind === "pps") {
+    const alpha = P.lifeAlpha * Math.PI / 180, beta = P.lifeTurn * Math.PI / 180, v = 0.67 * P.lifeSpeed * r / 5, nb = life.nb;
+    for (let i = 0; i < n; i++) {
+      let L = 0, R = 0; const ch = Math.cos(life.hd[i]), sh = Math.sin(life.hd[i]);
+      neigh(i, (j, dx, dy) => { if (ch * dy - sh * dx > 0) L++; else R++; });
+      const N = L + R; nb[i] = N; life.hd[i] += alpha + beta * N * Math.sign(R - L);
+      if (pull) { let dx = mx - px[i], dy = my - py[i]; if (dx > 0.5) dx -= 1; else if (dx < -0.5) dx += 1; if (dy > 0.5) dy -= 1; else if (dy < -0.5) dy += 1; if (Math.hypot(dx, dy) < pr * 3) life.hd[i] = Math.atan2(dy, dx); }
+    }
+    for (let i = 0; i < n; i++) {
+      px[i] = (px[i] + Math.cos(life.hd[i]) * v + 1) % 1; py[i] = (py[i] + Math.sin(life.hd[i]) * v + 1) % 1;
+      const N = nb[i]; const c = N < 13 ? [0.35, 0.85, 0.35] : N <= 15 ? [0.7, 0.45, 0.2] : N <= 35 ? [0.3, 0.5, 1] : N <= 50 ? [1, 0.9, 0.25] : [1, 0.3, 0.9];
+      life.col[i * 3] = c[0]; life.col[i * 3 + 1] = c[1]; life.col[i * 3 + 2] = c[2];
+    }
+  } else if (kind === "boids") {
+    const maxSp = 0.006 * P.lifeSpeed, sep = r * 0.45, coh = P.lifeForce;
+    for (let i = 0; i < n; i++) {
+      let cx = 0, cy = 0, ax = 0, ay = 0, sx = 0, sy = 0, cnt = 0;
+      neigh(i, (j, dx, dy, d) => { cx += dx; cy += dy; ax += vx[j]; ay += vy[j]; cnt++; if (d < sep && d > 1e-6) { sx -= dx / d * (sep - d) / sep; sy -= dy / d * (sep - d) / sep; } });
+      let fx = 0, fy = 0;
+      if (cnt) { fx += (cx / cnt) * 0.005 * coh + (ax / cnt - vx[i]) * 0.06; fy += (cy / cnt) * 0.005 * coh + (ay / cnt - vy[i]) * 0.06; }
+      fx += sx * 0.0025; fy += sy * 0.0025;
+      if (pull) { let dx = mx - px[i], dy = my - py[i]; if (dx > 0.5) dx -= 1; else if (dx < -0.5) dx += 1; if (dy > 0.5) dy -= 1; else if (dy < -0.5) dy += 1; fx += dx * 0.004; fy += dy * 0.004; }
+      vx[i] += fx; vy[i] += fy; const sp = Math.hypot(vx[i], vy[i]); if (sp > maxSp) { vx[i] *= maxSp / sp; vy[i] *= maxSp / sp; } else if (sp < maxSp * 0.4 && sp > 1e-9) { vx[i] *= maxSp * 0.4 / sp; vy[i] *= maxSp * 0.4 / sp; }
+    }
+    for (let i = 0; i < n; i++) { px[i] = (px[i] + vx[i] + 1) % 1; py[i] = (py[i] + vy[i] + 1) % 1; const c = hsl((Math.atan2(vy[i], vx[i]) / (2 * Math.PI) + 1) % 1, 0.7, 0.62); life.col[i * 3] = c[0]; life.col[i * 3 + 1] = c[1]; life.col[i * 3 + 2] = c[2]; }
+  }
+  const b = life.buf; for (let i = 0; i < n; i++) { b[i * 5] = px[i]; b[i * 5 + 1] = py[i]; b[i * 5 + 2] = life.col[i * 3]; b[i * 5 + 3] = life.col[i * 3 + 1]; b[i * 5 + 4] = life.col[i * 3 + 2]; }
+}
+function lifeDeposit(P, n, fromTex, count, size, dep) {
+  gl.useProgram(progDep.pr);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, life.fbo[life.cur]); gl.viewport(0, 0, n, n);
+  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
+  gl.uniform1i(progDep.u.u_fromTex, fromTex ? 1 : 0); gl.uniform1i(progDep.u.u_agentSide, life.agentSide);
+  gl.uniform1f(progDep.u.u_pointSize, size); gl.uniform2f(progDep.u.u_simRes, n, n); gl.uniform1f(progDep.u.u_dep, dep);
+  gl.uniform3f(progDep.u.u_depCol, 1.0, 0.82, 0.5);
+  if (fromTex) { gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, life.agentTex[life.acur]); gl.uniform1i(progDep.u.u_agents, 4); gl.bindVertexArray(progDep.vaoEmpty); }
+  else { gl.bindVertexArray(progDep.vao); gl.bindBuffer(gl.ARRAY_BUFFER, progDep.buf); gl.bufferData(gl.ARRAY_BUFFER, life.buf, gl.DYNAMIC_DRAW); }
+  gl.drawArrays(gl.POINTS, 0, count);
+  gl.disable(gl.BLEND); gl.bindVertexArray(null);
+}
+function lifeTrailPass(P, n) {
+  gl.useProgram(progLife.pr); gl.bindVertexArray(progLife.vao);
+  const src = life.cur, dst = 1 - life.cur;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, life.fbo[dst]); gl.viewport(0, 0, n, n);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, life.tex[src]); gl.uniform1i(progLife.u.u_state, 1);
+  gl.uniform1i(progLife.u.u_lmode, 4); gl.uniform1i(progLife.u.u_doInit, 0);
+  gl.uniform1f(progLife.u.u_mouseDown, S.opt.lifeKind === "physarum" ? life.down : 0);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  life.cur = dst;
+}
+function lifeStep(P) {
+  const n = +S.opt.lifeRes; lifeAlloc(n); if (!life.tex[0]) return;
+  const kind = S.opt.lifeKind, field = LIFE_FIELD.includes(kind);
+  if (!field && kind !== "physarum") {
+    const cnt = clamp(Math.round(P.lifeCount), 50, 4000);
+    if (life.kind !== kind || life.n !== cnt || life.seedUsed !== Math.round(P.lifeSeed) || (kind === "particles" && (life.typesUsed !== clamp(Math.round(P.lifeTypes), 2, 8) || life.matrixStyle !== S.opt.lifeMatrix))) life.needInit = true;
+  }
+  const steps = life.needInit ? 1 : clamp(Math.round(P.lifeSteps), 0, 10);
+  gl.disable(gl.DEPTH_TEST);
+  // Gemeinsame Uniforms für das Feldprogramm (auch Spurkarte)
+  gl.useProgram(progLife.pr); gl.bindVertexArray(progLife.vao);
+  uploadCommon(progLife.u, P, n, n);
+  gl.uniform1i(progLife.u.u_lifeOn, 0);
+  gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, dataTex); // Zieltextur nicht gebunden lassen
+  gl.activeTexture(gl.TEXTURE5); gl.bindTexture(gl.TEXTURE_2D, life.seedTex); gl.uniform1i(progLife.u.u_seedTex, 5);
+  gl.uniform2f(progLife.u.u_simRes, n, n);
+  gl.uniform1i(progLife.u.u_linit, Object.keys(LIFE_INITS).indexOf(S.opt.lifeInit));
+  gl.uniform1i(progLife.u.u_kernel, Object.keys(LIFE_KERNELS).indexOf(S.opt.lifeKernel));
+  gl.uniform2f(progLife.u.u_mouse, life.mouse[0], life.mouse[1]);
+  gl.uniform1f(progLife.u.u_mouseDown, life.down); gl.uniform1f(progLife.u.u_paintVal, 1);
+  gl.uniform1f(progLife.u.u_seed, (time * 13.7 + P.lifeSeed * 3.1) % 100);
+  const rule = LIFE_RULES[S.opt.lifeRule] || LIFE_RULES.conway;
+  let R = clamp(Math.round(P.lifeR), 1, 20), density = 0.5;
+  if (kind === "ca") { R = rule.R; density = rule.density; }
+  gl.uniform1f(progLife.u.u_R, R); gl.uniform1f(progLife.u.u_density, density);
+  const mask = (arr) => (arr || []).reduce((m, k) => m | (1 << k), 0);
+  gl.uniform1i(progLife.u.u_birth, mask(rule.b)); gl.uniform1i(progLife.u.u_surv, mask(rule.s));
+  gl.uniform1i(progLife.u.u_ltl, rule.ltl ? 1 : 0); gl.uniform1i(progLife.u.u_brain, rule.brain ? 1 : 0);
+  const lt = rule.ltl || [0, 0, 0, 0]; gl.uniform4f(progLife.u.u_ranges, lt[0], lt[1], lt[2], lt[3]);
+  gl.uniform1i(progLife.u.u_rule, clamp(parseInt(S.opt.lifeWolfram, 10) || 30, 0, 255));
+  gl.viewport(0, 0, n, n);
+  if (field) {
+    gl.uniform1i(progLife.u.u_lmode, LIFE_FIELD.indexOf(kind));
+    for (let i = 0; i < steps; i++) {
+      const src = life.cur, dst = 1 - life.cur;
+      gl.bindFramebuffer(gl.FRAMEBUFFER, life.fbo[dst]);
+      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, life.tex[src]); gl.uniform1i(progLife.u.u_state, 1);
+      gl.uniform1i(progLife.u.u_doInit, life.needInit ? 1 : 0);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      life.cur = dst; life.needInit = false;
+    }
+  } else {
+    if (life.needInit) {
+      for (let i = 0; i < 2; i++) { gl.bindFramebuffer(gl.FRAMEBUFFER, life.fbo[i]); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); }
+      if (kind === "physarum") lifeAgentPass(P, n, true); else lifeCpuInit(P);
+      life.needInit = false;
+    }
+    const agents = agentsCount(P);
+    for (let i = 0; i < steps; i++) {
+      if (kind === "physarum") { lifeAgentPass(P, n, false); lifeDeposit(P, n, true, agents, 1, 0.05); }
+      else { lifeCpuStep(P); lifeDeposit(P, n, false, life.n, kind === "pps" ? Math.max(1.5, n / 128) : Math.max(2, n / 96), kind === "boids" ? 0.9 : 1.0); }
+      lifeTrailPass(P, n);
+    }
+  }
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.bindVertexArray(null);
+  life.stats = field ? `${LIFE_KINDS[kind].split(" · ")[0]} · ${n}² Zellen` : kind === "physarum" ? `${agentsCount(P)} Agenten · ${n}² Spur` : `${life.n} Teilchen`;
+}
+function agentsCount(P) { return Math.min(life.agentSide * life.agentSide, Math.round(clamp(P.lifeCount, 50, 4000) * 4)); }
+function lifeAgentPass(P, n, init) {
+  gl.useProgram(progAgent.pr); gl.bindVertexArray(progAgent.vao);
+  const src = life.acur, dst = 1 - life.acur;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, life.agentFbo[dst]); gl.viewport(0, 0, life.agentSide, life.agentSide);
+  gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, life.agentTex[src]); gl.uniform1i(progAgent.u.u_agents, 4);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, life.tex[life.cur]); gl.uniform1i(progAgent.u.u_trail, 1);
+  gl.uniform2f(progAgent.u.u_simRes, n, n); gl.uniform1i(progAgent.u.u_doInit, init ? 1 : 0);
+  gl.uniform1i(progAgent.u.u_linit, Object.keys(LIFE_INITS).indexOf(S.opt.lifeInit));
+  gl.uniform1f(progAgent.u.u_seed, (time * 7.3 + P.lifeSeed) % 100);
+  gl.uniform1f(progAgent.u.u_sa, P.lifeSense); gl.uniform1f(progAgent.u.u_ra, P.lifeTurn); gl.uniform1f(progAgent.u.u_sd, P.lifeSenseDist); gl.uniform1f(progAgent.u.u_ss, P.lifeSpeed);
+  gl.uniform2f(progAgent.u.u_mouse, life.mouse[0], life.mouse[1]); gl.uniform1f(progAgent.u.u_mouseDown, life.down);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  life.acur = dst;
+  gl.viewport(0, 0, n, n); gl.useProgram(progLife.pr); gl.bindVertexArray(progLife.vao);
+}
+function lifeApplyKind(kind) {
+  const d = LIFE_KIND_DEFAULTS[kind]; Object.assign(S.base, d.base); Object.assign(S.opt, d.opt); life.needInit = true;
+}
+const LIFE_TEXT = `<p><b>Komplexe Lebenssimulationen.</b> Acht Systeme, in denen aus lokalen Regeln Zellen, Gleiter, Schwärme und Netze entstehen: <b>Lenia</b> (B. Chan 2019, kontinuierliche Automaten mit Ringkern und Glockenwachstum), <b>SmoothLife</b> (S. Rafler 2011), die <b>Life-Familie</b> mit <b>Larger than Life</b> (K. Evans), <b>Wolframs</b> elementare 1D-Regeln, <b>Particle Life</b> (J. Ventrella / T. Mohr: Sorten, Anziehungsmatrix, Nahabstoßung), das <b>Primordial Particle System</b> (T. Schmickl et al. 2016), <b>Boids</b> (C. Reynolds 1987) und das Mehragentenmodell des Schleimpilzes <b>Physarum</b> (J. Jones 2010).</p>
+<p><b>Rechenweg.</b> Feldsysteme laufen als Ping-Pong-Texturen auf der Grafikkarte: Lenia und SmoothLife falten die Umgebung mit Radius R in einem Shader, Automaten zählen Nachbarn, Wolfram-Regeln schieben Zeile für Zeile nach oben. Physarum hält bis zu 16 000 Agenten in einer Textur (Position, Richtung), die als Punkte Spur ablegen; Particle Life, Urteilchen und Boids rechnen auf der CPU mit Gitter-Nachbarsuche und legen ihre Spur ebenfalls in die Karte, die Diffusion und Abklingen weichzeichnet.</p>
+<p><b>Im Studio.</b> Das Lebensfeld ist eine Ebene wie Wellen oder Gleichungen: mischbar, auf Körper und Bleche legbar, als Perlenbild oder durch das Moiré gefiltert. „Teilchenfarben“ legt die echten Sortenfarben über die Komposition. Der Pinsel sät Zellen (Lenia, Automaten), legt Lockstoff (Physarum) oder zieht Teilchen an. Zufallssaat wechselt Matrix und Startzustand. Alle Parameter sind Modulationsziele – ein LFO auf μ lässt Lenia atmen.</p>`;
+const lifeExamples = [
+  { name: "Orbium (Lenia)", opt: { lifeKind: "lenia", lifeInit: "orbium" }, base: {} },
+  { name: "Lenia-Ursuppe", opt: { lifeKind: "lenia", lifeInit: "soup" }, base: { lifeSigma: 0.017 } },
+  { name: "Lenia · Drei Ringe", opt: { lifeKind: "lenia", lifeInit: "soup", lifeKernel: "triple" }, base: { lifeR: 18, lifeMu: 0.26, lifeSigma: 0.036, lifeT: 0.1 } },
+  { name: "Lenia · Zwei Ringe", opt: { lifeKind: "lenia", lifeInit: "soup", lifeKernel: "twin" }, base: { lifeR: 16, lifeMu: 0.2, lifeSigma: 0.025 } },
+  { name: "SmoothLife", opt: { lifeKind: "smoothlife", lifeInit: "soup" }, base: {} },
+  { name: "Conway-Ursuppe", opt: { lifeKind: "ca", lifeRule: "conway" }, base: { lifeSteps: 2 } },
+  { name: "HighLife", opt: { lifeKind: "ca", lifeRule: "highlife" }, base: { lifeSteps: 2 } },
+  { name: "Day & Night", opt: { lifeKind: "ca", lifeRule: "daynight" }, base: { lifeSteps: 2 } },
+  { name: "Brian's Brain", opt: { lifeKind: "ca", lifeRule: "brain" }, base: { lifeSteps: 1 } },
+  { name: "Bosco's Rule (LtL)", opt: { lifeKind: "ca", lifeRule: "bosco" }, base: { lifeSteps: 1 } },
+  { name: "Bugs (LtL)", opt: { lifeKind: "ca", lifeRule: "bugs" }, base: { lifeSteps: 1 } },
+  { name: "Regel 30", opt: { lifeKind: "wolfram", lifeWolfram: "30" }, base: {} },
+  { name: "Regel 110", opt: { lifeKind: "wolfram", lifeWolfram: "110", lifeInit: "random" }, base: {} },
+  { name: "Regel 90 · Sierpinski", opt: { lifeKind: "wolfram", lifeWolfram: "90" }, base: {} },
+  { name: "Particle Life · Zufall", opt: { lifeKind: "particles", lifeMatrix: "random" }, base: {} },
+  { name: "Particle Life · Jagdkette", opt: { lifeKind: "particles", lifeMatrix: "chase" }, base: { lifeTypes: 6 } },
+  { name: "Particle Life · Blüten", opt: { lifeKind: "particles", lifeMatrix: "flower" }, base: { lifeTypes: 4, lifeCount: 1200 } },
+  { name: "Urteilchen (PPS)", opt: { lifeKind: "pps" }, base: {} },
+  { name: "Boids", opt: { lifeKind: "boids" }, base: {} },
+  { name: "Physarum · Netz", opt: { lifeKind: "physarum" }, base: {} },
+  { name: "Physarum · Zellen", opt: { lifeKind: "physarum" }, base: { lifeSense: 45, lifeTurn: 12, lifeSenseDist: 12, lifeDecay: 0.06 } },
+  { name: "Physarum aus der Mitte", opt: { lifeKind: "physarum", lifeInit: "center" }, base: { lifeSense: 30, lifeTurn: 40 } }
+];
+function loadLifeExample(ex) {
+  remember(); const prev = S; S = defaultState(); S.quality = prev.quality;
+  S.opt.waveOn = false; S.opt.lifeOn = true; S.opt.paletteA = "ocean"; S.opt.paletteB = "ember"; S.base.paletteMix = 0.35;
+  const kind = ex.opt.lifeKind; lifeApplyKind(kind); Object.assign(S.opt, ex.opt); Object.assign(S.base, ex.base || {});
+  if (!LIFE_FIELD.includes(kind)) { S.opt.paletteA = "gray"; S.opt.paletteB = "ice"; S.base.paletteMix = 0.4; }
+  life.needInit = true; resetPhases(); buildMods(); syncUI(); showPage("life"); if (narrowMQ.matches) setSheet("peek"); toast(ex.name);
+}
+(function lifeControls() {
+  const dicts = { LIFE_KINDS, LIFE_RULE_NAMES, LIFE_WOLFRAM, LIFE_KERNELS, LIFE_INITS, LIFE_RES, LIFE_MATRIX };
+  document.querySelectorAll(".lifeSel").forEach((s) => fillSelect(s, dicts[s.dataset.dict]));
+  document.querySelectorAll(".lifeSel").forEach((s) => s.addEventListener("change", () => {
+    remember(); S.opt[s.dataset.opt] = s.value;
+    if (s.dataset.opt === "lifeKind") lifeApplyKind(s.value);
+    life.needInit = true; syncUI();
+  }));
+  targets.filter((k) => specs[k][5] === "life").forEach((k) => {
+    const d = paramSlider(k);
+    d.showIf = () => LIFE_USE[k] === "all" || LIFE_USE[k].includes(S.opt.lifeKind);
+    d.labelFn = () => (LIFE_LABELS[S.opt.lifeKind] || {})[k] || specs[k][0];
+    makeSlider($("sl-life"), d);
+  });
+  $("lifeText").innerHTML = LIFE_TEXT;
+  $("lifeExamples").innerHTML = lifeExamples.map((e, i) => `<button class="btn secondary" data-life="${i}">${e.name}</button>`).join("");
+  document.querySelectorAll("[data-life]").forEach((b) => b.addEventListener("click", () => loadLifeExample(lifeExamples[+b.dataset.life])));
+  $("lifeResetBtn").addEventListener("click", () => { life.needInit = true; needsSync = true; toast("Neu gestartet"); });
+  $("lifeSeedBtn").addEventListener("click", () => { remember(); S.base.lifeSeed = (Math.round(S.base.lifeSeed) % 999) + 1; life.needInit = true; syncUI(); toast("Zufallssaat " + S.base.lifeSeed); });
+  $("lifeDefaultsBtn").addEventListener("click", () => { remember(); lifeApplyKind(S.opt.lifeKind); syncUI(); toast("Standardwerte: " + LIFE_KINDS[S.opt.lifeKind]); });
+  $("lifeOnBtn").addEventListener("click", () => { remember(); S.opt.lifeOn = !S.opt.lifeOn; if (S.opt.lifeOn) life.needInit = true; syncUI(); });
+})();
+function syncLifeUI() {
+  const kind = S.opt.lifeKind, info = LIFE_INFO[kind];
+  $("lifeFormula").textContent = info.f;
+  let extra = "";
+  if (kind === "ca") extra = `<br>${LIFE_RULES[S.opt.lifeRule].name}`;
+  if (kind === "particles" && life.matrix && life.kind === "particles") {
+    const t = life.matrix.length;
+    extra = `<br>Matrix (Zeile zieht Spalte an):<table class="lmat">` + life.matrix.map((row, i) => `<tr><td style="background:${rgbCss(hsl(i / t, 0.85, 0.6))}"></td>` + Array.from(row).map((v) => `<td style="background:${v > 0 ? `rgba(90,200,120,${Math.abs(v)})` : `rgba(230,90,90,${Math.abs(v)})`}">${v.toFixed(1)}</td>`).join("") + "</tr>").join("") + "</table>";
+  }
+  $("lifeKindText").innerHTML = `<b>${LIFE_KINDS[kind]}</b><br>${info.text}${extra}`;
+  $("lifeOnBtn").textContent = S.opt.lifeOn ? "Leben: an" : "Leben: aus";
+  $("lifeOnBtn").classList.toggle("active", S.opt.lifeOn);
+  document.querySelectorAll('[data-page="life"] [data-for]').forEach((el) => { el.style.display = el.dataset.for.split(" ").includes(kind) ? "" : "none"; });
+  document.querySelector('#ptabs [data-page="life"]').classList.toggle("dimmed", !S.opt.lifeOn);
+}
+function rgbCss(c) { return `rgb(${Math.round(c[0] * 255)},${Math.round(c[1] * 255)},${Math.round(c[2] * 255)})`; }
 
 /* ------------------------------------------------------------- syncUI */
 let currentPage = "start";
@@ -2864,11 +3451,12 @@ function syncUI() {
   const active = S.mods.filter((m) => m.on).length;
   $("matrixInfo").textContent = `${S.mods.slice(0, 8).filter((m) => m.on).length} / 8 aktiv`;
   $("modBtn").textContent = `Mod ${active}`;
-  refreshOptions(); refreshSliders(); updateRoutes(); updateHint(); syncEthnoUI(); syncSculptUI(); syncPdeUI(); scheduleHash();
+  refreshOptions(); refreshSliders(); updateRoutes(); updateHint(); syncEthnoUI(); syncSculptUI(); syncPdeUI(); syncLifeUI(); scheduleHash();
   dataKey = ""; needsSync = true;
 }
 function updateHint() {
   const spatial = S.opt.viewMode !== "flat";
+  if (S.opt.lifeOn && S.opt.lifePaint && !spatial) { const k = S.opt.lifeKind; $("hint").textContent = `${LIFE_KINDS[k].split(" · ")[0]} · Ziehen = ${LIFE_FIELD.includes(k) ? "Zellen säen" : k === "physarum" ? "Lockstoff legen" : "Teilchen anziehen"} · Shift+Ziehen = verschieben · Rad = Zoom`; return; }
   if (S.opt.pdeOn && S.opt.pdePaint && !spatial) { $("hint").textContent = `${PDE_MODELS[S.opt.pdeModel].name} · Ziehen = in die Simulation malen · Shift+Ziehen = verschieben · Rad = Zoom`; return; }
   $("hint").textContent = S.opt.viewMode === "kuerpig"
     ? `${SCULPT_KINDS[S.opt.sculptKind]} · Ziehen = Kamera drehen · Rad = Abstand · Blick entlang der Achse schließt die Scheiben zum Körper`
@@ -3033,8 +3621,10 @@ canvas.addEventListener("pointerdown", (e) => {
     if (e.pointerType !== "mouse") longPress = { x: e.clientX, y: e.clientY, timer: setTimeout(() => { longPress = null; gesture = null; contextMenu(e.clientX, e.clientY); }, 550) };
     const [wx, wy] = toWorld(e.clientX, e.clientY);
     const idx = S.opt.waveOn && !e.shiftKey ? nearestSource(wx, wy) : -1;
-    if (idx < 0 && S.opt.pdeOn && S.opt.pdePaint && !spatial() && !e.shiftKey) {
-      const P0 = parameters(); pde.mouse = [((wx / (2 * P0.pdeScale) + 0.5) % 1 + 1) % 1, ((wy / (2 * P0.pdeScale) + 0.5) % 1 + 1) % 1]; pde.down = 1;
+    if (idx < 0 && ((S.opt.pdeOn && S.opt.pdePaint) || (S.opt.lifeOn && S.opt.lifePaint)) && !spatial() && !e.shiftKey) {
+      const P0 = parameters();
+      if (S.opt.pdeOn && S.opt.pdePaint) { pde.mouse = [((wx / (2 * P0.pdeScale) + 0.5) % 1 + 1) % 1, ((wy / (2 * P0.pdeScale) + 0.5) % 1 + 1) % 1]; pde.down = 1; }
+      if (S.opt.lifeOn && S.opt.lifePaint) { life.mouse = [((wx / (2 * P0.lifeScale) + 0.5) % 1 + 1) % 1, ((wy / (2 * P0.lifeScale) + 0.5) % 1 + 1) % 1]; life.down = 1; }
       gesture = { kind: "paint" }; needsSync = true;
     } else if (idx >= 0) {
       S.activeSource = idx; const [sx, sy] = worldToSource(wx, wy);
@@ -3060,7 +3650,9 @@ canvas.addEventListener("pointermove", (e) => {
   const r = visibleRect(), unitPerPx = 2 / r.height / S.base.zoom, b = S.base;
   if (gesture.kind === "paint" && pointers.size === 1) {
     const [wx, wy] = toWorld(e.clientX, e.clientY); const P0 = parameters();
-    pde.mouse = [((wx / (2 * P0.pdeScale) + 0.5) % 1 + 1) % 1, ((wy / (2 * P0.pdeScale) + 0.5) % 1 + 1) % 1]; needsSync = true;
+    if (pde.down) pde.mouse = [((wx / (2 * P0.pdeScale) + 0.5) % 1 + 1) % 1, ((wy / (2 * P0.pdeScale) + 0.5) % 1 + 1) % 1];
+    if (life.down) life.mouse = [((wx / (2 * P0.lifeScale) + 0.5) % 1 + 1) % 1, ((wy / (2 * P0.lifeScale) + 0.5) % 1 + 1) % 1];
+    needsSync = true;
   } else if (gesture.kind === "source" && pointers.size === 1) {
     const [wx, wy] = toWorld(e.clientX, e.clientY); const [sx, sy] = worldToSource(wx, wy);
     const s = S.sources[gesture.idx]; s.x = sx + gesture.dx; s.y = sy + gesture.dy; needsSync = true; refreshSliders();
@@ -3084,7 +3676,7 @@ canvas.addEventListener("pointermove", (e) => {
   }
 });
 function endPointer(e) {
-  pde.down = 0;
+  pde.down = 0; life.down = 0;
   if (gesture && gesture.kind === "pan" && pointers.size === 1 && gesture.x0 !== undefined && Math.hypot(e.clientX - gesture.x0, e.clientY - gesture.y0) < 6 && performance.now() - gesture.t0 < 500
       && S.opt.ethnoOn && S.opt.ethnoType === "mirror" && !spatial()) { const [wx, wy] = toWorld(e.clientX, e.clientY); toggleMirrorAt(wx, wy); }
   pointers.delete(e.pointerId); cancelLongPress(); canvas.classList.remove("grabbing");
@@ -3236,7 +3828,11 @@ const introSlides = [
     <p>Hinter dieser Karte rechnet die Grafikkarte das <b>Gray–Scott-System</b>: ∂u/∂t = ∇²u + u²v − (a+b)u, ∂v/∂t = D∇²v − u²v + a(1−v). Der Tab <b>Gleichungen</b> enthält 24 Modelle mit ihren Formeln nach visualpde.com – Wärme- und Wellengleichung, Fisher–KPP, Cahn–Hilliard, Swift–Hohenberg, Schnakenberg, Gierer–Meinhardt, Brusselator, FitzHugh–Nagumo, Barkley, Oregonator, Keller–Segel, Ginzburg–Landau, Schrödinger, Kuramoto–Sivashinsky, KdV, Räuber–Beute, SIR, Klausmeier.</p>
     <p>Das Feld ist eine Ebene wie jede andere: mischbar, perlbar, auf Körper und Bleche legbar. Und das Muster wirkt zurück – als ortsabhängiger Koeffizient, Quelle oder Potential.</p>
     <div class="try">Streiche mit dem Finger oder der Maus in die Fläche: Du malst Aktivator in die Reaktion. Mit „Standardwerte“ und „Neu starten“ im Tab Gleichungen beginnst du jedes Modell frisch.</div>` },
-  { title: "9 · Szenen, Export & Experimente", scene: "wavecloth", html: `
+  { title: "9 · Leben: Lenia, Particle Life & Co", scene: "orbium", html: `
+    <p>Hinter dieser Karte schwimmt ein <b>Orbium</b>: der Glider aus Bert Chans <b>Lenia</b>, einem stetigen Spiel des Lebens mit Ringkern (R 13) und Glockenwachstum (μ 0,15, σ 0,015). Der Tab <b>Leben</b> versammelt acht Systeme, in denen aus lokalen Regeln Zellen, Schwärme und Netze entstehen: Lenia, SmoothLife, die Life-Familie mit Larger than Life, Wolframs 1D-Regeln, <b>Particle Life</b> mit Anziehungsmatrix, Schmickls Urteilchen, Boids und der Schleimpilz <b>Physarum</b> mit bis zu 16 000 Agenten.</p>
+    <p>Das Lebensfeld ist eine Ebene wie jede andere: mischbar mit Wellen und Moiré, auf Körper legbar, als Perlenbild. „Teilchenfarben“ legt die echten Sortenfarben über die Komposition.</p>
+    <div class="try">Streiche in die Fläche: Du säst neue Zellen. Unter Leben → Beispiele „Particle Life · Zufall“ laden und „🎲 Neue Saat“ drücken, bis sich Zellen mit Hülle bilden.</div>` },
+  { title: "10 · Szenen, Export & Experimente", scene: "wavecloth", html: `
     <p><b>Start</b> hält zwölf komplette Szenen bereit und speichert eigene Presets. <b>Stil</b> mischt zwei Paletten, exportiert PNG und JSON (inklusive Matrix und Phasen) und erzeugt einen Link mit dem ganzen Zustand. <b>Info</b> liefert Messwerte, alle Gesten und Tastenkürzel sowie Experimente mit fertigem Aufbau.</p>
     <div class="try">Viel Freude beim Erforschen – diese Einführung erreichst du jederzeit über <b>?</b>.</div>` }
 ];
@@ -3274,6 +3870,9 @@ const experiments = [
   { title: "Perlen zählen", text: "Lakota-Webrahmen aus dem Katalog laden. Unter Stil → Perlen stehen Reihen, Spalten und Perlenzahl der sichtbaren Vorlage. Perlengröße verdoppeln: Die Zahl viertelt sich – Auflösung gegen Material.", scene: "doubleslit", after: () => { const e = catalog.find((x) => x.title === "Lakota-Webrahmen"); if (e) ethnoSetup(e.cfg); showPage("style"); } },
   { title: "Turing-Instabilität finden", text: "Gleichungen → Schnakenberg laden. Diffusion D_v langsam senken: Unter einem kritischen Verhältnis D_v/D_u verschwinden die Muster, der homogene Zustand wird stabil. Dann D_v wieder erhöhen und mit Musterkopplung auf „Parameter A“ das Muster ortsabhängig machen.", scene: "grayscott", after: () => loadPdeExample(pdeExamples[2]) },
   { title: "Wellen im inhomogenen Medium", text: "Beispiel „Wellen im Moiré-Medium“ laden und in die Fläche tippen: Der Impuls läuft durch ein Punktgitter, dessen Dichte die Wellengeschwindigkeit c²(x,y) setzt – Brechung und Streuung wie in der inhomogenen Wellengleichung bei VisualPDE.", scene: "grayscott", after: () => loadPdeExample(pdeExamples[8]) },
+  { title: "Orbium steuern", text: "Orbium laden, dann μ in kleinen Schritten von 0,15 auf 0,13 senken: Der Glider wird größer und träger, zu klein lässt ihn zerfallen, zu groß schrumpft ihn zum Punkt. Mit dem Pinsel ein zweites Orbium säen und beobachten, wie beide zusammenstoßen oder verschmelzen.", scene: "orbium" },
+  { title: "Eine Art züchten", text: "Particle Life laden und „🎲 Neue Saat“ drücken, bis Zellen mit Hülle entstehen. Reibung senken und Reichweite erhöhen: Zellen werden zu Würmern, die durch das Feld jagen. Matrix „Jagdkette“: Jede Sorte verfolgt die nächste – ein Kreislauf ohne Ende.", scene: "particlelife" },
+  { title: "Netz oder Zellen", text: "Physarum laden: Sensorwinkel 22,5° und Drehwinkel 45° (Verhältnis 1:2) weben Transportnetze. Dann Sensorwinkel auf 45° und Drehwinkel auf 12° stellen – die Agenten ballen sich zu Tropfen und Zellen. Mit dem Pinsel Lockstoff legen: Die Adern wachsen dorthin.", scene: "physarum" },
   { title: "Eigene Modulation bauen", text: "Beliebige Szene, dann in der Matrix alle Quellen aus. LFO 1: Ziel λ, Tiefe 0,15, Rate 0,05 Hz. LFO 2: Ziel Quellen-Drehung, Dreieck, Tiefe 0,3. Beobachte Basis → Effektiv.", scene: "standing" }
 ];
 $("experiments").innerHTML = experiments.map((ex, i) => `<div class="exp"><h3>${ex.title}</h3><p>${ex.text}</p><button class="btn secondary" data-exp="${i}">Aufbau laden</button></div>`).join("");
@@ -3303,6 +3902,7 @@ function updateInfo() {
     lines.push(`Moiré-Periode (Linien): <b>${isFinite(pm) ? pm.toFixed(3) : "∞"}</b> ≈ <b>${isFinite(pm) ? (pm / p1).toFixed(1) : "∞"}×</b> p₁`);
   }
   if (S.opt.pdeOn) lines.push(`Gleichung: <b>${PDE_MODELS[S.opt.pdeModel].name}</b> · ${S.opt.pdeRes}² Gitter · dt ${P.pdeDt.toFixed(3)} × ${Math.round(P.pdeSteps)} Schritte/Bild · t ≈ ${(time * P.pdeDt * P.pdeSteps * 60 / Math.max(1, P.speed)).toFixed(0)}`);
+  if (S.opt.lifeOn) lines.push(`Leben: <b>${LIFE_KINDS[S.opt.lifeKind]}</b> · ${life.stats}`);
   if (S.opt.ethnoOn) lines.push(`Kultur: <b>${ETHNO_TYPES[S.opt.ethnoType].split(" · ")[0]}</b> · ${ethnoStats.replace(/<[^>]+>/g, "")}`);
   if (S.opt.wovenOn) lines.push(`Gewebe: Dichte <b>${P.wDensity.toFixed(0)}</b> · Wölbung <b>${P.wBulge.toFixed(2)}</b> · Band ${FORMS[S.opt.wShapeA]} → ${FORMS[S.opt.wShapeB]} (${P.wMorph.toFixed(2)})`);
   if (S.opt.viewMode === "kuerpig") lines.push(`Skulptur: ${sculptStats}`);
@@ -3317,7 +3917,7 @@ let lastFrame = performance.now(), fpsAcc = 0, fpsN = 0, fpsT = 0, uiT = 0, draw
 function frame(now) {
   const dt = clamp((now - lastFrame) / 1000, 0, 0.1); lastFrame = now;
   const P = S.base;
-  const animating = !S.paused && ((S.opt.waveOn && P.omega > 0 && P.speed > 0) || (S.opt.wovenOn && P.wMotion > 0 && P.speed > 0) || (S.opt.viewMode !== "flat" && P.spin !== 0) || S.opt.pdeOn || anyModActive());
+  const animating = !S.paused && ((S.opt.waveOn && P.omega > 0 && P.speed > 0) || (S.opt.wovenOn && P.wMotion > 0 && P.speed > 0) || (S.opt.viewMode !== "flat" && P.spin !== 0) || S.opt.pdeOn || S.opt.lifeOn || anyModActive());
   if (!S.paused && !document.hidden) { let rem = dt; while (rem > 0) { const step = Math.min(rem, 1 / 120); advance(step); rem -= step; } }
   if (animating || needsSync) { render(false); needsSync = false; drawCount++; }
   fpsAcc += dt; fpsN++;

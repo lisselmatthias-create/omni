@@ -124,3 +124,26 @@ Wellen-/Moiré-Felds in A, B, D_u, D_v oder als Quellterm (Turing-Muster im inho
 Störungen; Blendmodus mit den übrigen Schichten; zwölf Beispielaufbauten, Einführungsschritt und Experimente („Turing-Instabilität
 finden“, „Wellen im inhomogenen Medium“). Explizite Zeitintegration ⇒ Stabilitätsgrenze dt·D ≲ 1,2; außerhalb springt das Feld auf den
 Startzustand zurück.
+
+### Leben · Lenia, Particle Life & Co
+
+Eine weitere Schicht im Musterstapel (Tab *Leben*) mit acht komplexen Lebenssimulationen, die aus lokalen Regeln Zellen, Gleiter,
+Schwärme und Netze hervorbringen:
+
+| System | Quelle | Rechenweg |
+|---|---|---|
+| Lenia | B. W.-C. Chan 2019 | Ringkern (ein, zwei, drei Ringe; Exponential-, Polynom-, Gauß-Kern), Glockenwachstum μ/σ, Orbium-Glider als Startmuster |
+| SmoothLife | S. Rafler 2011 | Scheibe + Ring, Sigmoid-Übergänge b₁ b₂ d₁ d₂ |
+| Life-Familie | Conway, HighLife, Day & Night, Seeds, 3-4 Life, Diamoeba, Anneal, Morley, Brian's Brain | Geburts-/Überlebensmasken auf der GPU |
+| Larger than Life | K. Evans: Bosco, Bugs, Waffle, Mehrheit | Radius 4–7, Nachbarn im Intervall |
+| Wolfram-Regeln | Regel 30, 90, 110, 184, 54, 150, 60, 126, 73, 22 | Zeile für Zeile, Geschichte rückt nach oben |
+| Particle Life | J. Ventrella „Clusters“, T. Mohr | 2–8 Sorten, Anziehungsmatrix (Zufall, symmetrisch, Jagdkette, Schlange, Blüte), Nahabstoßung β, Reibung; Gitter-Nachbarsuche auf der CPU |
+| Urteilchen (PPS) | T. Schmickl et al. 2016 | Δφ = α + β·N·sign(R−L), Farbe nach Nachbarzahl |
+| Boids | C. Reynolds 1987 | Trennung, Angleichung, Zusammenhalt |
+| Physarum | J. Jones 2010 | bis zu 16 000 Agenten in einer Textur, drei Sensoren, Spurkarte mit Diffusion und Abklingen |
+
+Feldsysteme laufen in Ping-Pong-Float-Texturen (128², 256², 512²), Teilchen und Agenten legen ihre Spur in dieselbe Karte. Das
+Lebensfeld mischt sich mit allen Schichten, liegt auf Körpern und Blechen, wird zum Perlenbild; „Teilchenfarben“ legt die echten
+Sortenfarben über die Komposition. Pinsel sät Zellen (Lenia, Automaten), legt Lockstoff (Physarum) oder zieht Teilchen an; „Neue
+Saat“ würfelt Matrix und Startzustand. 22 Beispiele, drei Szenen, Einführungsschritt, Experimente („Orbium steuern“, „Eine Art
+züchten“, „Netz oder Zellen“) und Hintergrundtext.
