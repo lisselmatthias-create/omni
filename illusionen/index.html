@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Illusionslabor – optische Täuschungen interaktiv und animiert erleben, mit Reglern, Auflösung und Erklärung.">
+<meta name="theme-color" content="#101014">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Illusionslabor</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header id="top">
+  <button id="menuBtn" class="icon" aria-label="Liste öffnen">☰</button>
+  <h1>Illusions<span>labor</span></h1>
+  <div class="spacer"></div>
+  <button id="prevBtn" class="icon" aria-label="Vorherige">‹</button>
+  <span id="counter">1 / 1</span>
+  <button id="nextBtn" class="icon" aria-label="Nächste">›</button>
+  <button id="fsBtn" class="icon" aria-label="Vollbild">⛶</button>
+</header>
+
+<aside id="side">
+  <input id="search" type="search" placeholder="Suchen … (z. B. Bewegung, Größe)" autocomplete="off">
+  <div id="cats"></div>
+  <nav id="list"></nav>
+</aside>
+
+<main id="stage">
+  <canvas id="cv"></canvas>
+  <div id="hud">
+    <button id="playBtn" class="chip" title="Animation starten/stoppen (Leertaste)">⏸ Animation</button>
+    <button id="revealBtn" class="chip" title="Wahrheit einblenden (R)">👁 Auflösen</button>
+    <button id="resetBtn" class="chip" title="Regler zurücksetzen">↺ Reset</button>
+  </div>
+</main>
+
+<section id="panel">
+  <div id="panelHead">
+    <div>
+      <span id="cat" class="tag"></span>
+      <h2 id="title"></h2>
+    </div>
+    <button id="infoToggle" class="icon" aria-label="Erklärung ein/aus">i</button>
+  </div>
+  <p id="hint" class="hint"></p>
+  <div id="controls"></div>
+  <div id="info">
+    <h3>Was passiert hier?</h3>
+    <p id="desc"></p>
+    <h3>Warum?</h3>
+    <p id="why"></p>
+  </div>
+</section>
+
+<script src="core.js"></script>
+<script src="illusions-geometrie.js"></script>
+<script src="illusions-helligkeit.js"></script>
+<script src="illusions-bewegung.js"></script>
+<script src="illusions-wahrnehmung.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
