@@ -1,0 +1,2320 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#06070a">
+<meta name="description" content="Latent Space Browser – ein Echtzeit-Strömungsfeld nach der Bildsprache von Refik Anadol, gespeist aus echten, frei zugänglichen Sensordaten.">
+<title>Latent Space Browser</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,200..800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#06070a;
+  --panel:rgba(9,11,15,.74);
+  --panel-strong:rgba(9,11,15,.92);
+  --line:rgba(236,234,228,.12);
+  --line-strong:rgba(236,234,228,.28);
+  --text:#ecEae4;
+  --muted:#9aa0ab;
+  --faint:#5d636e;
+  --accent:#c9ccd1;
+  --err:#d9705f;
+  --display:"Archivo",system-ui,-apple-system,"Helvetica Neue",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;background:var(--bg);color:var(--text);
+  font-family:var(--display);font-size:14px;line-height:1.5;
+  overflow:hidden;-webkit-font-smoothing:antialiased;overscroll-behavior:none;
+}
+[hidden]{display:none!important}
+a{color:inherit}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:1.5px solid var(--accent);outline-offset:3px}
+select,input[type=text],input[type=number]{
+  font:inherit;font-size:12px;color:var(--text);background:rgba(255,255,255,.04);
+  border:1px solid var(--line);border-radius:0;padding:6px 8px;min-width:0;width:100%;
+}
+select option{background:#0c0e12;color:var(--text)}
+
+#gl{position:fixed;inset:0;width:100%;height:100%;display:block;cursor:crosshair;touch-action:none;background:var(--bg)}
+#hud{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;transition:opacity .5s}
+body.hide-ui #hud{opacity:.0}
+
+.mono{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+
+.ui{position:fixed;inset:0;pointer-events:none;transition:opacity .5s ease}
+.ui > *{pointer-events:auto}
+body.hide-ui .ui{opacity:0;pointer-events:none}
+body.hide-ui .ui > *{pointer-events:none}
+
+/* top bar */
+.topbar{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:flex-start;padding:22px 24px;gap:16px;pointer-events:none}
+.topbar > *{pointer-events:auto}
+.brand{display:flex;flex-direction:column;gap:4px;max-width:440px}
+.brand-name{font-family:var(--mono);font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--text)}
+.brand-sub{font-size:12px;color:var(--muted);font-variation-settings:"wdth" 100}
+.actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.chip{
+  display:inline-flex;align-items:center;gap:8px;height:32px;padding:0 12px;
+  border:1px solid var(--line);border-radius:999px;background:var(--panel);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);
+  transition:border-color .2s,color .2s;white-space:nowrap;
+}
+.chip:hover{color:var(--text);border-color:var(--line-strong)}
+.chip[aria-pressed="true"]{color:var(--text);border-color:var(--accent)}
+.chip .dot{width:6px;height:6px;border-radius:50%;background:var(--faint);transition:background .2s}
+.chip[aria-pressed="true"] .dot{background:var(--accent);box-shadow:0 0 10px var(--accent)}
+.chip kbd{font:inherit;color:var(--faint);margin-left:2px}
+
+/* readout */
+.readout-wrap{position:absolute;left:24px;bottom:116px;display:flex;flex-direction:column;gap:14px;max-width:min(520px,calc(100vw - 480px))}
+.readout{
+  display:grid;grid-template-columns:auto 1fr;gap:4px 18px;margin:0;
+  font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);
+  font-variant-numeric:tabular-nums;
+}
+.readout dd{margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.readout b{font-weight:500;color:var(--text)}
+.readout .k{color:var(--faint)}
+.ticker{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:3px;font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;color:var(--muted)}
+.ticker li{display:flex;gap:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;animation:tin .6s ease}
+.ticker li span:first-child{color:var(--faint);flex:none;width:44px}
+.ticker li b{font-weight:500;color:var(--accent)}
+@keyframes tin{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* drawer */
+.drawer{
+  position:absolute;right:24px;top:84px;bottom:116px;width:408px;
+  display:flex;flex-direction:column;
+  background:var(--panel);border:1px solid var(--line);
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  overflow:hidden;
+}
+.tabs{display:flex;border-bottom:1px solid var(--line);flex:none}
+.tab{flex:1;padding:12px 10px 11px;font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .2s,border-color .2s}
+.tab:hover{color:var(--muted)}
+.tab[aria-selected="true"]{color:var(--text);border-bottom-color:var(--accent)}
+.tab .n{display:inline-block;min-width:16px;margin-left:6px;padding:0 4px;border-radius:8px;background:rgba(255,255,255,.08);color:var(--muted);font-size:10px;letter-spacing:0}
+.drawer-scroll{overflow-y:auto;padding:20px 22px 22px;flex:1;scrollbar-width:thin;scrollbar-color:var(--line-strong) transparent;overscroll-behavior:contain}
+
+.work-head{display:flex;flex-direction:column;gap:8px;padding-bottom:18px;border-bottom:1px solid var(--line)}
+.work-title{
+  margin:0;font-size:27px;line-height:1.1;font-weight:560;letter-spacing:-.015em;
+  font-variation-settings:"wdth" 96;text-wrap:balance;
+}
+.work-title em{font-style:normal;color:var(--accent)}
+.meta{display:grid;grid-template-columns:80px 1fr;gap:7px 14px;padding:16px 0;border-bottom:1px solid var(--line);font-size:12.5px;margin:0}
+.meta dt{margin:0;font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);padding-top:2px}
+.meta dd{margin:0;color:var(--text)}
+.work-text{margin:16px 0 0;font-size:13.5px;line-height:1.6;color:var(--text);max-width:62ch}
+.hint{
+  margin:16px 0 0;padding:12px 14px;border-left:2px solid var(--accent);
+  background:rgba(255,255,255,.03);font-size:13px;line-height:1.55;color:var(--text);
+}
+.hint .eyebrow{display:block;margin-bottom:4px;color:var(--accent)}
+
+.binds{margin-top:18px;padding-top:14px;border-top:1px solid var(--line)}
+.binds .eyebrow{display:block;margin-bottom:8px}
+.bind{display:grid;grid-template-columns:8px 1fr auto;gap:0 10px;align-items:baseline;padding:6px 0;font-size:12px;border-bottom:1px dashed var(--line)}
+.bind:last-of-type{border-bottom:0}
+.bind .sd{align-self:center}
+.bind .bn{color:var(--text)}
+.bind .bn small{display:block;color:var(--faint);font-size:11px;line-height:1.45}
+.bind .bv{font-family:var(--mono);font-size:10.5px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;text-transform:uppercase;letter-spacing:.04em}
+.suggest{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+.suggest .chip{height:28px}
+
+.sd{width:6px;height:6px;border-radius:50%;background:var(--faint);display:inline-block;flex:none}
+[data-state="live"] .sd,.sd[data-state="live"]{background:var(--accent);box-shadow:0 0 8px var(--accent)}
+[data-state="wait"] .sd,.sd[data-state="wait"]{background:var(--muted);animation:pulse 1.2s infinite}
+[data-state="err"] .sd,.sd[data-state="err"]{background:var(--err)}
+@keyframes pulse{0%,100%{opacity:.35}50%{opacity:1}}
+
+/* controls */
+.controls{display:flex;flex-direction:column;gap:14px}
+.ctl{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center;position:relative}
+.ctl label{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.ctl output{font-family:var(--mono);font-size:10.5px;color:var(--faint);font-variant-numeric:tabular-nums}
+.ctl output b{color:var(--accent);font-weight:500}
+.ctl .track{grid-column:1/-1;position:relative}
+input[type=range]{width:100%;margin:4px 0 0;appearance:none;-webkit-appearance:none;height:18px;background:transparent;display:block}
+input[type=range]::-webkit-slider-runnable-track{height:1px;background:var(--line-strong)}
+input[type=range]::-moz-range-track{height:1px;background:var(--line-strong)}
+input[type=range]::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:10px;height:10px;border-radius:50%;background:var(--accent);margin-top:-4.5px;border:0}
+input[type=range]::-moz-range-thumb{width:10px;height:10px;border-radius:50%;background:var(--accent);border:0}
+.eff{position:absolute;top:7px;width:2px;height:12px;margin-left:-1px;background:var(--text);opacity:.0;transition:opacity .3s;pointer-events:none}
+.eff.on{opacity:.55}
+.sect{margin:22px 0 10px;padding-top:14px;border-top:1px solid var(--line)}
+.sect:first-child{margin-top:0;padding-top:0;border-top:0}
+.toggles{display:flex;flex-direction:column;gap:8px;font-size:12.5px}
+.toggles label{display:flex;gap:10px;align-items:center;cursor:pointer;color:var(--text)}
+.toggles input{accent-color:var(--accent)}
+.legend{display:grid;grid-template-columns:repeat(2,1fr);gap:6px 14px;font-size:11.5px;color:var(--muted);margin-top:4px}
+.legend span{display:flex;align-items:center;gap:8px}
+.legend i{width:8px;height:8px;border-radius:50%;flex:none}
+
+.disclosure{margin-top:20px;border-top:1px solid var(--line)}
+.disclosure summary{
+  list-style:none;cursor:pointer;padding:14px 0 0;display:flex;justify-content:space-between;align-items:center;
+  font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)
+}
+.disclosure summary::-webkit-details-marker{display:none}
+.disclosure summary::after{content:"+";font-size:14px;color:var(--faint)}
+.disclosure[open] summary::after{content:"–"}
+.disclosure summary:hover{color:var(--text)}
+.disclosure .body{padding:12px 0 4px;font-size:13px;line-height:1.6;color:var(--text)}
+.disclosure p{margin:0 0 10px}
+.disclosure p:last-child{margin-bottom:0}
+.timeline{list-style:none;margin:4px 0 0;padding:0;display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:12.5px;line-height:1.45}
+.timeline .y{font-family:var(--mono);font-size:11px;color:var(--muted);padding-top:2px;font-variant-numeric:tabular-nums}
+.steps{list-style:none;margin:4px 0 0;padding:0;display:grid;gap:10px;counter-reset:s}
+.steps li{display:grid;grid-template-columns:22px 1fr;gap:10px;font-size:12.5px;line-height:1.5}
+.steps li::before{counter-increment:s;content:counter(s,decimal-leading-zero);font-family:var(--mono);font-size:11px;color:var(--accent);padding-top:2px}
+.steps b{font-weight:600}
+.steps span{color:var(--muted)}
+.note{margin-top:14px;padding-top:12px;border-top:1px dashed var(--line);font-size:11.5px;line-height:1.5;color:var(--muted)}
+
+/* location */
+.loc{display:flex;flex-direction:column;gap:8px;padding-bottom:16px;border-bottom:1px solid var(--line)}
+.loc-now{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.loc-now b{font-size:16px;font-weight:560;font-variation-settings:"wdth" 96}
+.loc-now span{font-family:var(--mono);font-size:10.5px;color:var(--faint);font-variant-numeric:tabular-nums;white-space:nowrap}
+.loc-row{display:grid;grid-template-columns:1fr auto;gap:6px}
+.btn{height:31px;padding:0 12px;border:1px solid var(--line);font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);background:rgba(255,255,255,.03);white-space:nowrap}
+.btn:hover{color:var(--text);border-color:var(--line-strong)}
+.loc-res{display:flex;flex-direction:column}
+.loc-res button{text-align:left;padding:6px 8px;font-size:12px;border-bottom:1px dashed var(--line);color:var(--text)}
+.loc-res button small{color:var(--faint);margin-left:6px}
+.loc-res button:hover{background:rgba(255,255,255,.04)}
+.loc-msg{font-size:11.5px;color:var(--muted);min-height:0}
+.check{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--muted);cursor:pointer}
+.check input{accent-color:var(--accent)}
+
+/* sensors */
+.sgroup{margin-top:18px}
+.sgroup > .eyebrow{display:flex;justify-content:space-between;margin-bottom:6px}
+.scard{border:1px solid var(--line);background:rgba(255,255,255,.015);margin-bottom:6px;transition:border-color .25s,background .25s}
+.scard[data-on="1"]{border-color:var(--line-strong);background:rgba(255,255,255,.03)}
+.shead{display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center;padding:10px 12px}
+.sw{width:30px;height:17px;border-radius:9px;border:1px solid var(--line-strong);position:relative;transition:background .2s,border-color .2s}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:11px;height:11px;border-radius:50%;background:var(--muted);transition:transform .2s,background .2s}
+.sw[aria-checked="true"]{background:color-mix(in srgb,var(--accent) 30%,transparent);border-color:var(--accent)}
+.sw[aria-checked="true"]::after{transform:translateX(13px);background:var(--accent)}
+.sname{font-size:13px;line-height:1.3;color:var(--text);min-width:0}
+.sname small{display:block;font-size:11px;color:var(--faint);margin-top:2px}
+.badge{font-style:normal;font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;padding:0 5px;border:1px solid var(--line);color:var(--muted);margin-left:4px}
+.badge.b-mess{border-color:color-mix(in srgb,var(--accent) 55%,transparent);color:var(--accent)}
+.sstat{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:10px;letter-spacing:.04em;color:var(--muted);max-width:150px;text-align:right}
+.sstat .snote{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.scard[data-state="err"] .snote{color:var(--err)}
+.sinfo{margin:0;padding:0 12px 10px 56px;font-size:11.5px;line-height:1.5;color:var(--faint)}
+.sinfo a{color:var(--muted);text-decoration-color:var(--line-strong)}
+.sbody{padding:0 12px 12px;display:flex;flex-direction:column;gap:8px}
+.ssel label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-bottom:4px}
+.sextra canvas{display:block;width:128px;height:96px;image-rendering:pixelated;border:1px solid var(--line)}
+.sextra .ctl{margin-top:6px}
+.chs{display:flex;flex-direction:column}
+.ch{display:grid;grid-template-columns:1fr 96px;gap:4px 10px;padding:8px 0;border-top:1px dashed var(--line);align-items:center}
+.ch-l{font-size:12px;color:var(--text);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ch-v{font-family:var(--mono);font-size:11px;color:var(--text);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ch-v small{color:var(--faint);margin-left:3px}
+.ch canvas{grid-column:1/-1;width:100%;height:26px;display:block}
+.ch-map{grid-column:1/-1;display:grid;grid-template-columns:1fr 90px;gap:8px;align-items:center}
+.ch-map select{padding:4px 6px;font-size:11.5px}
+.ch-map input[type=range]{margin:0}
+.ch[data-mapped="1"] .ch-l{color:var(--accent)}
+.empty{font-size:12px;color:var(--faint);padding:6px 0}
+
+/* works strip */
+.works{position:absolute;left:24px;right:24px;bottom:24px;display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+.works::-webkit-scrollbar{display:none}
+.work{
+  flex:1 0 0;min-width:136px;text-align:left;padding:12px 14px 13px;
+  background:var(--panel);border:1px solid var(--line);border-top:2px solid transparent;
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  display:flex;flex-direction:column;gap:3px;color:var(--muted);
+  transition:color .2s,border-color .25s,background .25s;
+}
+.work:hover{color:var(--text);background:var(--panel-strong)}
+.work[aria-current="true"]{color:var(--text);border-top-color:var(--accent)}
+.work .y{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;display:flex;justify-content:space-between;gap:6px}
+.work .y i{font-style:normal;color:var(--faint)}
+.work .t{font-size:13px;font-weight:520;letter-spacing:-.005em;font-variation-settings:"wdth" 96;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.work .s{font-size:11px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.info-toggle{display:none}
+.toast{position:absolute;left:50%;top:84px;transform:translateX(-50%);padding:8px 14px;background:var(--panel-strong);border:1px solid var(--line-strong);font-size:12.5px;max-width:min(520px,90vw);text-align:center;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.on{opacity:1}
+
+@media (max-width:1180px){
+  .readout-wrap{max-width:calc(100vw - 480px)}
+  .ticker{display:none}
+}
+@media (max-width:860px){
+  .topbar{padding:14px 14px}
+  .brand-sub{display:none}
+  .chip kbd{display:none}
+  .chip.opt{display:none}
+  .readout-wrap{display:none}
+  .works{left:14px;right:14px;bottom:14px}
+  .work{min-width:120px;padding:10px 12px}
+  .work .s{display:none}
+  .work .t{white-space:normal;font-size:12.5px;line-height:1.25}
+  .info-toggle{display:inline-flex}
+  .drawer{
+    right:14px;left:14px;width:auto;top:auto;bottom:92px;max-height:min(66vh,600px);
+    transform:translateY(20px);opacity:0;pointer-events:none;transition:transform .3s,opacity .3s;
+  }
+  body.info-open .drawer{transform:none;opacity:1;pointer-events:auto}
+  .work-title{font-size:22px}
+}
+@media (prefers-reduced-motion:reduce){
+  .ui,.drawer,.work,.chip,.ticker li{transition:none;animation:none}
+}
+</style>
+</head>
+<body>
+<canvas id="gl" aria-label="Interaktives Strömungsfeld nach der Bildsprache von Refik Anadol, gespeist aus Live-Sensordaten"></canvas>
+<canvas id="hud" aria-hidden="true"></canvas>
+
+<div class="ui">
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-name">Latent Space Browser</span>
+      <span class="brand-sub">Eine Hommage an die Datenmalerei von Refik Anadol · gespeist aus echten Messnetzen, Satelliten und den Sensoren deines Geräts</span>
+    </div>
+    <nav class="actions" aria-label="Werkzeuge">
+      <button class="chip info-toggle" id="btnInfo" aria-pressed="false"><span class="dot"></span>Info</button>
+      <button class="chip" id="btnSens" title="Sensoren wählen und zuordnen"><span class="dot"></span>Sensoren <kbd>S</kbd></button>
+      <button class="chip opt" id="btnMirror" aria-pressed="false" title="Spiegelraum nach Infinity Room (2015)"><span class="dot"></span>Spiegelraum <kbd>M</kbd></button>
+      <button class="chip opt" id="btnMic" aria-pressed="false" title="Mikrofon als Datenquelle"><span class="dot"></span>Mikrofon</button>
+      <button class="chip opt" id="btnWind" aria-pressed="false" title="Globales Windfeld (Open-Meteo, 288 Gitterpunkte) treibt die Strömung"><span class="dot"></span>Wind <kbd>W</kbd></button>
+      <button class="chip" id="btnReset" title="Fläche neu beginnen">Neu <kbd>R</kbd></button>
+      <button class="chip opt" id="btnShot" title="Aktuelles Bild als PNG speichern">Bild</button>
+      <button class="chip opt" id="btnFull" title="Vollbild">Vollbild <kbd>F</kbd></button>
+      <button class="chip" id="btnHide" title="Oberfläche ausblenden">Ausblenden <kbd>H</kbd></button>
+    </nav>
+  </header>
+
+  <div class="readout-wrap">
+    <dl class="readout" aria-live="off">
+      <dt class="k">Raum</dt><dd><b id="roMode">01</b> <span id="roName"></span></dd>
+      <dt class="k">Ort</dt><dd id="roLoc">—</dd>
+      <dt class="k">Sensoren</dt><dd id="roSens">—</dd>
+      <dt class="k">Punkte</dt><dd><b id="roPts">0</b></dd>
+      <dt class="k">Eingaben</dt><dd><b id="roInputs">00000</b></dd>
+      <dt class="k">Bild/s</dt><dd><b id="roFps">—</b> <span id="roRes"></span></dd>
+    </dl>
+    <ul class="ticker" id="ticker" aria-label="Neueste Ereignisse"></ul>
+  </div>
+
+  <aside class="drawer" aria-label="Werk, Sensoren und Feld">
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" data-tab="werk" aria-selected="true">Werk</button>
+      <button class="tab" role="tab" data-tab="sens" aria-selected="false">Sensoren<span class="n" id="tabN">0</span></button>
+      <button class="tab" role="tab" data-tab="feld" aria-selected="false">Feld</button>
+    </div>
+    <div class="drawer-scroll" id="drawerScroll">
+
+      <section class="pane" id="pane-werk" role="tabpanel">
+        <div class="work-head">
+          <span class="eyebrow" id="wEyebrow"></span>
+          <h1 class="work-title" id="wTitle"></h1>
+        </div>
+        <dl class="meta">
+          <dt>Daten</dt><dd id="wData"></dd>
+          <dt>Ort</dt><dd id="wPlace"></dd>
+          <dt>Verfahren</dt><dd id="wMethod"></dd>
+          <dt>Live</dt><dd id="wLive"></dd>
+        </dl>
+        <p class="work-text" id="wText"></p>
+        <div class="hint"><span class="eyebrow">So erfährst du es</span><span id="wHint"></span></div>
+        <div class="binds" id="binds">
+          <span class="eyebrow">Datenströme dieses Raums, jetzt</span>
+          <div id="bindRows"></div>
+          <div class="suggest" id="suggest"></div>
+        </div>
+
+        <details class="disclosure">
+          <summary>Wie die Arbeiten entstehen</summary>
+          <div class="body">
+            <ol class="steps">
+              <li><div><b>Sammeln.</b> <span>Ein Archiv wird zum Material: Museumsbestände, Stadtfotografie, Wetterdaten, Hirnströme. Oft hunderte Millionen Einzelbilder, gereinigt und sortiert.</span></div></li>
+              <li><div><b>Trainieren.</b> <span>Ein generatives Modell (lange StyleGAN2, heute das eigene Large Nature Model) lernt die Verteilung der Formen und Farben.</span></div></li>
+              <li><div><b>Navigieren.</b> <span>Mit dem seit 2017 entwickelten Latent Space Browser fährt das Studio durch den Raum des Gelernten und zeichnet Pfade auf.</span></div></li>
+              <li><div><b>Materialisieren.</b> <span>Fluid-Simulationen geben den Bildern Masse und Strömung; Projektion, LED-Wände oder Spiegelräume machen sie körperlich.</span></div></li>
+            </ol>
+            <p class="note">Diese Seite rechnet kein trainiertes Modell. Sie übersetzt das Prinzip in ein Echtzeit-Strömungsfeld im Browser: Curl-Noise als Wind, Messwerte als Kräfte, Messorte als Pigmentquellen. Jeder Messwert lässt sich unter „Sensoren“ einer Größe des Feldes zuordnen.</p>
+          </div>
+        </details>
+
+        <details class="disclosure">
+          <summary>Refik Anadol, Stationen</summary>
+          <div class="body">
+            <p>Geboren 1985 in Istanbul, seit 2012 in Los Angeles. Medienkünstler und Regisseur, Gründer des Refik Anadol Studio (RAS) und Lehrender am Department of Design Media Arts der UCLA. Sein Begriff für das Ergebnis: <em>Datenmalerei</em>, Bilder, die nicht gemalt, sondern aus Daten gerechnet werden.</p>
+            <ol class="timeline">
+              <li class="y">2015</li><li class="e">Infinity Room, erster begehbarer Spiegelraum (Zorlu PSM, Istanbul)</li>
+              <li class="y">2016</li><li class="e">Artist in Residence bei Google Artists &amp; Machine Intelligence</li>
+              <li class="y">2017</li><li class="e">Archive Dreaming, 1,7 Mio. Dokumente des SALT-Archivs als begehbarer Datenraum</li>
+              <li class="y">2018</li><li class="e">Melting Memories, Bosphorus, WDCH Dreams auf Gehrys Walt Disney Concert Hall</li>
+              <li class="y">2019</li><li class="e">Machine Hallucinations, Artechouse New York</li>
+              <li class="y">2020</li><li class="e">Quantum Memories, NGV Triennial, Melbourne</li>
+              <li class="y">2021</li><li class="e">Machine Hallucinations: Nature Dreams, Kunsthalle München</li>
+              <li class="y">2022</li><li class="e">Unsupervised im MoMA; Living Architecture: Casa Batlló</li>
+              <li class="y">2023</li><li class="e">Winds of Yawanawá mit dem Volk der Yawanawá; Glacier Dreams; MoMA erwirbt Unsupervised</li>
+              <li class="y">2024</li><li class="e">Large Nature Model vorgestellt (Davos); Echoes of the Earth, Serpentine London</li>
+              <li class="y">2026</li><li class="e">DATALAND, Museum of AI Arts, eröffnet in The Grand LA</li>
+            </ol>
+          </div>
+        </details>
+      </section>
+
+      <section class="pane" id="pane-sens" role="tabpanel" hidden>
+        <div class="loc">
+          <span class="eyebrow">Messort</span>
+          <div class="loc-now"><b id="locName">—</b><span id="locCoord"></span></div>
+          <div class="loc-row">
+            <select id="locPreset" aria-label="Ort wählen"></select>
+            <button class="btn" id="locGps" type="button">GPS</button>
+          </div>
+          <form class="loc-row" id="locForm">
+            <input type="text" id="locQ" placeholder="Ort suchen, z. B. Leipzig" aria-label="Ort suchen" autocomplete="off">
+            <button class="btn" type="submit">Suchen</button>
+          </form>
+          <div class="loc-res" id="locRes"></div>
+          <div class="loc-msg" id="locMsg"></div>
+          <label class="check"><input type="checkbox" id="locCouple" checked> Raum bestimmt den Messort</label>
+        </div>
+        <div id="sensorList"></div>
+        <p class="note">Alle Quellen sind frei und ohne Schlüssel direkt aus dem Browser abrufbar. „Messung“ heißt: ein physisches Messgerät (Station, Seismometer, Transponder, Satellit). „Modell“ heißt: aus Messungen gerechnete Analyse an einem Gitterpunkt. Gerätesensoren bleiben in deinem Browser, nichts wird gesendet.</p>
+      </section>
+
+      <section class="pane" id="pane-feld" role="tabpanel" hidden>
+        <div class="sect"><span class="eyebrow">Strömung</span></div>
+        <div class="controls">
+          <div class="ctl"><label for="rTurb">Turbulenz</label><output id="oTurb"></output><div class="track"><input type="range" id="rTurb" min="0" max="1" step="0.01" value="0.5"><i class="eff" id="eTurb"></i></div></div>
+          <div class="ctl"><label for="rSpeed">Tempo</label><output id="oSpeed"></output><div class="track"><input type="range" id="rSpeed" min="0" max="1" step="0.01" value="0.5"><i class="eff" id="eSpeed"></i></div></div>
+          <div class="ctl"><label for="rDens">Datendichte</label><output id="oDens"></output><div class="track"><input type="range" id="rDens" min="0" max="1" step="0.01" value="0.6"><i class="eff" id="eDens"></i></div></div>
+        </div>
+        <div class="sect"><span class="eyebrow">Material</span></div>
+        <div class="controls">
+          <div class="ctl"><label for="rDetail">Detail (Oktaven)</label><output id="oDetail"></output><div class="track"><input type="range" id="rDetail" min="3" max="8" step="1" value="6"></div></div>
+          <div class="ctl"><label for="rRelief">Relief</label><output id="oRelief"></output><div class="track"><input type="range" id="rRelief" min="0" max="1" step="0.01" value="0.45"><i class="eff" id="eRelief"></i></div></div>
+          <div class="ctl"><label for="rGlow">Glanz</label><output id="oGlow"></output><div class="track"><input type="range" id="rGlow" min="0" max="1" step="0.01" value="0.35"><i class="eff" id="eGlow"></i></div></div>
+          <div class="ctl"><label for="rRes">Auflösung</label><output id="oRes"></output><div class="track"><input type="range" id="rRes" min="0.4" max="1" step="0.05" value="0.8"></div></div>
+          <div class="ctl"><label for="rPt">Größe der Datenpunkte</label><output id="oPt"></output><div class="track"><input type="range" id="rPt" min="0.4" max="2.5" step="0.05" value="1"></div></div>
+        </div>
+        <div class="sect"><span class="eyebrow">Ebenen</span></div>
+        <div class="toggles">
+          <label><input type="checkbox" id="tHud" checked> Kartennetz und Beschriftungen (G)</label>
+          <label><input type="checkbox" id="tPts" checked> Messorte als Pigment einspeisen</label>
+          <label><input type="checkbox" id="tTicker" checked> Ereignis-Ticker</label>
+        </div>
+        <div class="sect"><span class="eyebrow">Farben der Datenpunkte</span></div>
+        <div class="legend" id="legend"></div>
+        <p class="note">Weiße Marken auf den Reglern zeigen den Wert, den die Sensoren gerade daraus machen. Zuordnungen legst du unter „Sensoren“ pro Messwert fest: Ziel und Stärke, negativ heißt umgekehrt.</p>
+      </section>
+    </div>
+  </aside>
+
+  <nav class="works" id="works" aria-label="Räume"></nav>
+  <div class="toast" id="toast" role="status"></div>
+</div>
+
+<script id="vs" type="x-shader/x-vertex">
+attribute vec2 aPos;
+varying vec2 vUv;
+void main(){ vUv = aPos*0.5+0.5; gl_Position = vec4(aPos,0.0,1.0); }
+</script>
+
+<script id="fsSim" type="x-shader/x-fragment">
+precision highp float;
+varying vec2 vUv;
+uniform sampler2D uPrev;
+uniform sampler2D uInjC;
+uniform sampler2D uInjV;
+uniform sampler2D uWind;
+uniform sampler2D uCam;
+uniform vec2 uRes;
+uniform float uTime;
+uniform vec2 uMouse;
+uniform vec2 uMouseVel;
+uniform float uDown;
+uniform float uTurb;
+uniform float uSpeed;
+uniform float uDensity;
+uniform float uPulse;
+uniform float uBlend;
+uniform float uReset;
+uniform vec2 uSeed;
+uniform float uWindK;
+uniform float uLive;
+uniform float uCamK;
+uniform float uOct;
+uniform float uCurlK;
+uniform float uWave;
+uniform vec2 uFlowBias;
+uniform vec2 uFlowVec;
+uniform float uInjBase;
+uniform float uInjMask;
+uniform float uHue;
+uniform float uMono;
+uniform vec3 uPA;
+uniform vec3 uPB;
+uniform vec3 uPC;
+uniform vec3 uPD;
+uniform vec3 uHi;
+uniform float uHiK;
+uniform float uPalScale;
+uniform float uPalDrift;
+uniform float uDesat;
+
+float hash(vec2 p){ p=fract(p*vec2(123.34,456.21)); p+=dot(p,p+45.32); return fract(p.x*p.y); }
+float noise(vec2 p){
+  vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
+  float a=hash(i), b=hash(i+vec2(1.0,0.0)), c=hash(i+vec2(0.0,1.0)), d=hash(i+vec2(1.0,1.0));
+  return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);
+}
+float fbm(vec2 p){
+  float v=0.0, a=0.5, n=0.0; mat2 m=mat2(1.6,1.2,-1.2,1.6);
+  for(int i=0;i<8;i++){ if(float(i)>=uOct) break; v+=a*noise(p); n+=a; p=m*p; a*=0.5; }
+  return v/max(n,0.001)*0.94;
+}
+vec2 curl(vec2 p){
+  float e=0.02;
+  float a=fbm(p+vec2(0.0,e)), b=fbm(p-vec2(0.0,e)), c=fbm(p+vec2(e,0.0)), d=fbm(p-vec2(e,0.0));
+  return vec2(a-b, -(c-d))/(2.0*e);
+}
+vec3 pal(float t, vec3 a, vec3 b, vec3 c, vec3 d){ return a+b*cos(6.28318*(c*t+d)); }
+
+void main(){
+  vec2 uv=vUv;
+  vec2 asp=vec2(uRes.x/uRes.y,1.0);
+  vec2 p=uv*asp+uSeed;
+  float t=uTime*(0.04+0.22*uSpeed);
+  float scale=mix(1.2,3.6,uTurb);
+
+  vec2 v=curl(p*scale+vec2(t*0.35,-t*0.2))*uCurlK;
+  v+=uFlowBias+vec2(0.0,uWave*sin(p.x*2.5+t*1.5));
+  v+=uFlowVec;
+  vec4 cam=vec4(0.0);
+  if(uCamK>0.0){ cam=texture2D(uCam,uv); v*=1.0+cam.a*uCamK*3.0; }
+  v*=1.0+uPulse*1.6;
+  if(uWindK>0.0){
+    vec2 wuv=vec2(uv.x, clamp((uv.y*180.0-20.0)/140.0,0.0,1.0));
+    vec2 w=(texture2D(uWind,wuv).rg-0.5)*2.0;
+    v+=w*uWindK;
+  }
+  vec4 injC=vec4(0.0);
+  if(uLive>0.5){
+    injC=texture2D(uInjC,uv);
+    vec4 iv=texture2D(uInjV,uv);
+    v+=(iv.rg-iv.ba)*8.0;
+  }
+
+  vec2 d=(uv-uMouse)*asp;
+  float md=exp(-dot(d,d)*90.0);
+  float stp=(0.0012+0.0035*uSpeed)*(1.0+uBlend*0.5);
+  vec2 adv=uv - v*stp/asp - uMouseVel*md*1.4;
+  vec4 prev=texture2D(uPrev,adv);
+
+  float n=fbm(p*1.8+vec2(t*0.6,t*0.3)+v*0.15);
+  float n2=fbm(p*5.5-vec2(t*0.9,-t*0.4)+v*0.05);
+  float mask=smoothstep(0.35,0.8,fbm(p*1.1-vec2(t*0.4,t*0.25)+3.7));
+  vec3 src;
+  if(uMono>0.5){
+    float h=smoothstep(0.25,0.85,n+0.08*(n2-0.5));
+    src=vec3(h*0.92)*(0.72+0.28*sin(h*38.0));
+  } else {
+    src=pal(n*uPalScale+t*uPalDrift+uHue+0.06*(n2-0.5), uPA,uPB,uPC,uPD);
+    src=mix(src, uHi, smoothstep(0.7,0.86,n)*uHiK);
+    src=mix(src, vec3(dot(src,vec3(0.333))), uDesat);
+    src*=0.9+0.2*n2;
+  }
+
+  float inj=(uInjBase+uInjMask*uDensity*mask+uPulse*0.07)*(1.0+uBlend*3.0);
+  vec3 col=mix(prev.rgb,src,clamp(inj,0.0,1.0));
+  if(uLive>0.5&&injC.a>0.001){
+    vec3 ic=injC.rgb/max(injC.a,0.001);
+    if(uMono>0.5) ic=vec3(dot(ic,vec3(0.333)));
+    col=mix(col, ic, min(1.0,injC.a)*(0.25+0.5*uDensity));
+  }
+  if(uCamK>0.0){
+    vec3 cc=uMono>0.5?vec3(dot(cam.rgb,vec3(0.333))):cam.rgb;
+    col=mix(col, mix(src*1.2+0.06, cc, 0.55), clamp(cam.a*uCamK,0.0,1.0)*0.5);
+  }
+  float mv=clamp(length(uMouseVel)*180.0,0.0,1.0);
+  col=mix(col, src*1.15+0.05, md*(mv*0.35+uDown*0.6));
+  col=mix(col, src, uReset);
+  gl_FragColor=vec4(col,1.0);
+}
+</script>
+
+<script id="vsPoint" type="x-shader/x-vertex">
+attribute vec2 aPos;
+attribute vec2 aVel;
+attribute float aSize;
+attribute float aKind;
+attribute float aPhase;
+uniform float uDt;
+uniform float uTime;
+uniform float uScale;
+uniform float uWrap;
+varying vec2 vVel;
+varying float vKind;
+varying float vPulse;
+void main(){
+  vec2 p=aPos+aVel*uDt;
+  if(uWrap>0.5) p.x=fract(p.x);
+  gl_Position=vec4(p*2.0-1.0,0.0,1.0);
+  float pulse=1.0;
+  bool pul=(aKind>0.5&&aKind<1.5)||(aKind>6.5&&aKind<7.5);
+  if(pul){ pulse=0.55+0.45*sin(uTime*1.6+aPhase*6.2831); }
+  gl_PointSize=aSize*uScale*(pul?(0.75+0.5*pulse):1.0);
+  vVel=aVel; vKind=aKind; vPulse=pulse;
+}
+</script>
+
+<script id="fsPoint" type="x-shader/x-fragment">
+precision mediump float;
+uniform float uPass;
+varying vec2 vVel;
+varying float vKind;
+varying float vPulse;
+void main(){
+  vec2 c=gl_PointCoord*2.0-1.0;
+  float d=dot(c,c);
+  if(d>1.0) discard;
+  float w=pow(1.0-d,1.6);
+  vec3 col;
+  if(vKind<0.5) col=vec3(1.0,0.86,0.62);
+  else if(vKind<1.5) col=vec3(1.0,0.34,0.2);
+  else if(vKind<2.5) col=vec3(0.55,0.9,1.0);
+  else if(vKind<3.5) col=vec3(0.3,0.85,0.75);
+  else if(vKind<4.5) col=vec3(1.0,0.55,0.15);
+  else if(vKind<5.5) col=vec3(1.0,0.72,0.3);
+  else if(vKind<6.5) col=vec3(0.62,0.7,1.0);
+  else if(vKind<7.5) col=vec3(1.0,0.25,0.5);
+  else col=vec3(0.65,1.0,0.55);
+  if(uPass<0.5){
+    gl_FragColor=vec4(col*w*vPulse, w*vPulse);
+  } else {
+    float l=length(vVel);
+    vec2 dir=l>0.0?vVel/l:vec2(0.0);
+    gl_FragColor=vec4(max(dir,0.0)*w*0.5, max(-dir,0.0)*w*0.5);
+  }
+}
+</script>
+
+<script id="fsDisp" type="x-shader/x-fragment">
+precision highp float;
+varying vec2 vUv;
+uniform sampler2D uTex;
+uniform vec2 uRes;
+uniform vec2 uSimRes;
+uniform float uTime;
+uniform float uMirror;
+uniform float uMono;
+uniform float uRelief;
+uniform float uGlow;
+float hash(vec2 p){ p=fract(p*vec2(123.34,456.21)); p+=dot(p,p+45.32); return fract(p.x*p.y); }
+float lum(vec3 c){ return dot(c,vec3(0.299,0.587,0.114)); }
+vec3 tx(vec2 uv){ return texture2D(uTex,uv).rgb; }
+void main(){
+  vec2 uv=vUv;
+  vec2 q=abs(uv*2.0-1.0);
+  uv=mix(uv,q,uMirror);
+  vec2 px=1.0/uSimRes;
+  vec3 col=tx(uv);
+  vec3 b=tx(uv+px*1.5)+tx(uv-px*1.5)+tx(uv+vec2(px.x,-px.y)*1.5)+tx(uv-vec2(px.x,-px.y)*1.5);
+  col=mix(col,b*0.25,0.25);
+
+  // relief: luminance as height field, lit from upper left
+  float hx=lum(tx(uv+vec2(px.x*1.5,0.0)))-lum(tx(uv-vec2(px.x*1.5,0.0)));
+  float hy=lum(tx(uv+vec2(0.0,px.y*1.5)))-lum(tx(uv-vec2(0.0,px.y*1.5)));
+  vec3 nrm=normalize(vec3(-hx*9.0,-hy*9.0,1.0));
+  vec3 L=normalize(vec3(-0.45,0.55,0.7));
+  float dif=max(dot(nrm,L),0.0);
+  float spec=pow(max(dot(reflect(-L,nrm),vec3(0.0,0.0,1.0)),0.0),28.0);
+  col=col*mix(1.0,0.5+0.75*dif,uRelief)+spec*uRelief*0.32*(0.4+lum(col));
+
+  // glow: wide bright-pass
+  if(uGlow>0.01){
+    vec3 bl=vec3(0.0);
+    for(int i=0;i<8;i++){
+      float a=float(i)*0.785398;
+      vec2 o=vec2(cos(a),sin(a));
+      bl+=max(tx(uv+o*px*7.0)-0.5,0.0)+max(tx(uv+o*px*17.0)-0.45,0.0)*0.7;
+    }
+    col+=bl*uGlow*0.16;
+  }
+
+  if(uMono>0.5){
+    float l=lum(col);
+    float c=abs(fract(l*16.0)-0.5)*2.0;
+    col=vec3(l*(0.8+0.2*smoothstep(0.0,0.25,c)));
+  } else {
+    col=mix(col, vec3(lum(col)), 0.06);
+  }
+  vec2 cc=vUv*2.0-1.0;
+  col*=1.0-0.22*dot(cc,cc);
+  col+=(hash(vUv*uRes+fract(uTime))-0.5)*0.03;
+  col=pow(max(col,0.0),vec3(1.05));
+  gl_FragColor=vec4(col,1.0);
+}
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/satellite.js/6.0.1/satellite.min.js"></script>
+<script>
+(function(){
+'use strict';
+const $=id=>document.getElementById(id);
+const clamp=(x,a,b)=>Math.max(a==null?0:a,Math.min(b==null?1:b,x));
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=(n,d)=>(n==null||!isFinite(n))?'—':Number(n).toLocaleString('de-DE',{maximumFractionDigits:d==null?1:d,minimumFractionDigits:0});
+const pad=(n,l)=>String(n).padStart(l,'0');
+const D2R=Math.PI/180;
+const H=3600e3;
+function ago(ts){
+  if(!ts||!isFinite(ts)) return '';
+  const s=(Date.now()-ts)/1000;
+  if(s<90) return 'vor '+Math.max(1,Math.round(s))+' s';
+  if(s<5400) return 'vor '+Math.round(s/60)+' min';
+  if(s<172800) return 'vor '+Math.round(s/3600)+' h';
+  return 'vor '+Math.round(s/86400)+' d';
+}
+function distKm(lat1,lon1,lat2,lon2){
+  const dLat=(lat2-lat1)*D2R,dLon=(lon2-lon1)*D2R;
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*D2R)*Math.cos(lat2*D2R)*Math.sin(dLon/2)**2;
+  return 12742*Math.asin(Math.min(1,Math.sqrt(a)));
+}
+function median(a){ if(!a.length) return null; const b=a.slice().sort((x,y)=>x-y); const m=b.length>>1; return b.length%2?b[m]:(b[m-1]+b[m])/2; }
+function compass(deg){ return ['N','NO','O','SO','S','SW','W','NW'][Math.round((((deg%360)+360)%360)/45)%8]; }
+function downsample(a,n){ if(a.length<=n) return a; const o=[]; const k=a.length/n; for(let i=0;i<n;i++) o.push(a[Math.floor(i*k)]); return o; }
+async function getJson(url,opt){
+  let r;
+  try{ r=await fetch(url,Object.assign({cache:'no-store'},opt||{})); }
+  catch(e){ const er=new Error('net'); er.net=true; throw er; }
+  if(!r.ok){ const e=new Error('HTTP '+r.status); e.status=r.status; throw e; }
+  try{ return await r.json(); }catch(e){ const er=new Error('json'); er.msg='Antwort unlesbar'; throw er; }
+}
+async function getText(url){
+  let r;
+  try{ r=await fetch(url,{cache:'no-store'}); }catch(e){ const er=new Error('net'); er.net=true; throw er; }
+  if(!r.ok){ const e=new Error('HTTP '+r.status); e.status=r.status; throw e; }
+  return r.text();
+}
+function errNote(e){
+  if(e&&e.msg) return e.msg;
+  if(e&&e.status) return 'HTTP '+e.status+(e.status===429?' · Abruflimit':'');
+  return 'nicht erreichbar (Netz oder CORS)';
+}
+function fail(msg){ const e=new Error(msg); e.msg=msg; return e; }
+
+// ---------------------------------------------------------------- places
+const PLACES=[
+  {id:'ist',name:'Istanbul, Dolapdere',lat:41.037,lon:28.978},
+  {id:'bos',name:'Bosporus, Nordeinfahrt',lat:41.30,lon:29.20},
+  {id:'la',name:'Los Angeles, Grand Avenue',lat:34.055,lon:-118.249},
+  {id:'nyc',name:'New York, MoMA',lat:40.7614,lon:-73.9776},
+  {id:'mel',name:'Melbourne, NGV',lat:-37.8226,lon:144.9689},
+  {id:'acre',name:'Rio Gregório, Acre',lat:-7.9,lon:-71.2},
+  {id:'vat',name:'Vatnajökull, Island',lat:64.40,lon:-16.80},
+  {id:'ama',name:'Amazonas bei Manaus',lat:-3.10,lon:-60.02},
+  {id:'ber',name:'Berlin',lat:52.520,lon:13.405},
+  {id:'ham',name:'Hamburg',lat:53.551,lon:9.994},
+  {id:'muc',name:'München',lat:48.137,lon:11.575},
+  {id:'cgn',name:'Köln',lat:50.938,lon:6.960},
+  {id:'vie',name:'Wien',lat:48.208,lon:16.373},
+  {id:'zrh',name:'Zürich',lat:47.377,lon:8.540},
+  {id:'tok',name:'Tokio',lat:35.681,lon:139.767}
+];
+const placeById=id=>PLACES.find(p=>p.id===id);
+
+// ---------------------------------------------------------------- rooms
+const P=(a,b,c,d)=>({pa:a,pb:b,pc:c,pd:d});
+const ROOMS=[
+  {
+    title:'Melting <em>Memories</em>', plain:'Melting Memories', year:'2018', accent:'#c9ccd1',
+    source:'EEG · 32 Kanäle', place:'Pilevneli Gallery, Istanbul', site:'ist', proj:'world',
+    data:'Elektroenzephalogramme von Menschen beim Erinnern an Kindheitsmomente, aufgenommen am Neuroscape Lab der UCSF',
+    method:'Datenskulptur, Projektion, 3D-gefräste Reliefs; monochrom',
+    text:'Ausgangspunkt war die Alzheimer-Diagnose seines Onkels. Anadol ließ Hirnströme aufzeichnen, während Probanden sich an Kindheitsmomente erinnerten, und übersetzte die elektrische Aktivität in ein monochromes Relief: eine sandartige Oberfläche, die sich hebt, faltet und wieder zerfließt. Erinnern wird nicht als Bild gezeigt, sondern als physikalischer Vorgang, der Form annimmt und sie wieder verliert.',
+    hint:'Hirnströme gibt es hier nicht, also übernimmt dein Körper: Schalte die Kamera ein, und jede Bewegung drückt sich als Relief in die Fläche. Ohne Kamera zittert das Relief mit der seismischen Energie der Erde der letzten Stunde, der Luftdruck in Istanbul hebt und senkt es.',
+    sensors:{quakes:{map:{e1:['pulse',.8],n1:['turb',.35]}}, weather:{map:{pressure_msl:['relief',.7],wind_speed_10m:['speed',.35]}}},
+    suggest:['cam','mic'],
+    look:Object.assign(P([.5,.5,.5],[.5,.5,.5],[1,1,1],[0,0,0]),{mono:1,curl:.45,flow:[0,0],wave:0,injBase:.012,injMask:.06,palScale:1,drift:0,desat:0,hi:[1,1,1],hiK:0,relief:.75,glow:.2})
+  },
+  {
+    title:'Bosphorus: <em>Data Sculpture</em>', plain:'Bosphorus', year:'2018', accent:'#5fa8d3',
+    source:'Radar · Meeresoberfläche · 30 Tage', place:'Pilevneli Gallery, Istanbul', site:'bos', proj:'world',
+    data:'Hochfrequente Radardaten der Meeresoberfläche des Bosporus, 30 Tage, Türkischer Wetterdienst',
+    method:'Fluid-Simulation, LED-Datenskulptur',
+    text:'Das Studio ließ einen Monat lang Radarmessungen der Wasseroberfläche sammeln: Wellenhöhe, Strömung, Wind. Daraus entstand eine blauschwarze Materie, die in einem Rahmen aus Licht wogt wie ein Gemälde, das nie stillsteht. Anadol nennt die Form Data Sculpture: Daten bekommen Masse, Trägheit und Oberfläche, und die Meerenge, die Istanbul teilt, wird zu einem Körper, den man betrachten kann.',
+    hint:'Live: Wellenhöhe, -richtung und -periode an der Nordeinfahrt des Bosporus bestimmen Turbulenz, Richtung und Tempo, die Meeresströmung schiebt mit. Ziehe den Cursor horizontal, um selbst Wind zu sein.',
+    sensors:{marine:{map:{wave_height:['turb',.9],wave_direction:['dir',.7],wave_period:['speed',.5],ocean_current_velocity:['pulse',.3]}}, weather:{map:{wind_speed_10m:['speed',.3],wind_gusts_10m:['glow',.4]}}},
+    suggest:['motion'],
+    look:Object.assign(P([.06,.14,.26],[.14,.28,.38],[1,1,1],[.55,.6,.68]),{mono:0,curl:1,flow:[.9,0],wave:.25,injBase:.012,injMask:.06,palScale:1,drift:0,desat:0,hi:[.55,.72,.85],hiK:.8,relief:.55,glow:.4})
+  },
+  {
+    title:'WDCH <em>Dreams</em>', plain:'WDCH Dreams', year:'2018', accent:'#e2b26e',
+    source:'Archiv der LA Phil · rund 45 TB', place:'Walt Disney Concert Hall, Los Angeles', site:'la', proj:'world',
+    data:'Digitales Archiv der Los Angeles Philharmonic seit 1919: Fotografien, Videos, Tonaufnahmen und Programmhefte, zusammen rund 45 Terabyte',
+    method:'Maschinelles Lernen mit Google Arts & Culture, Fassadenprojektion auf Edelstahl',
+    text:'Zum hundertsten Jahr der LA Phil projizierte das Studio eine Woche lang die „Träume“ des Konzerthauses auf Frank Gehrys geschwungene Stahlfassade. Ein Netz hatte das gesamte Archiv des Orchesters gelesen: Programmhefte, Fotos, Mitschnitte. Das Gebäude schien sich an seine eigenen Konzerte zu erinnern, eine Haut aus Licht über einer Haut aus Stahl.',
+    hint:'Live: Wind und Temperatur an der Grand Avenue in Los Angeles, die Sonnenstrahlung dort lässt die Fassade glänzen. Schalte das Mikrofon ein, und Musik im Raum wird zum Taktgeber.',
+    sensors:{weather:{map:{wind_speed_10m:['speed',.6],temperature_2m:['hue',.5],shortwave_radiation:['glow',.7],wind_direction_10m:['dir',.35]}}},
+    suggest:['mic'],
+    look:Object.assign(P([.52,.47,.42],[.45,.4,.36],[1,1,1],[0,.1,.2]),{mono:0,curl:.8,flow:[0,.15],wave:.1,injBase:.012,injMask:.06,palScale:1.4,drift:.03,desat:.15,hi:[1,.86,.62],hiK:.55,relief:.7,glow:.55})
+  },
+  {
+    title:'Machine <em>Hallucinations</em>', plain:'Machine Hallucinations', year:'seit 2019', accent:'#f07fd0',
+    source:'113 Mio. Fotografien · New York', place:'Artechouse, New York; später München, Istanbul, Seoul', site:'nyc', proj:'local', radius:300,
+    data:'Über 113 Millionen öffentlich zugängliche Fotografien New Yorks; spätere Kapitel: 300 Mio. Naturbilder, Aufnahmen von NASA und ISS',
+    method:'StyleGAN2, Latent Space Browser, 16K-Projektion',
+    text:'Das seit 2019 laufende Forschungsprojekt ist der Kern der Studioarbeit. Aus Millionen Stadtfotografien lernte ein generatives Netz die Ästhetik New Yorks und träumte daraus Ansichten, die nie fotografiert wurden. Die Bilder fließen ineinander wie Pigment im Wasser; kein Einzelbild bleibt stehen. Spätere Kapitel verarbeiteten Naturaufnahmen (Nature Dreams, Kunsthalle München 2021) und Weltraumdaten (Space).',
+    hint:'Live: Jedes Flugzeug im Umkreis von 150 Seemeilen um New York (ADS-B-Transponder) zieht eine Pigmentspur in Flugrichtung. Die Zahl der Maschinen steuert die Dichte, die Bewölkung über Manhattan den Glanz.',
+    sensors:{flights:{opt:{scope:'local'},map:{n:['dens',.5],spd:['speed',.4]}}, weather:{map:{cloud_cover:['glow',-.5],wind_speed_10m:['turb',.4]}}},
+    suggest:['mic','cam'],
+    look:Object.assign(P([.5,.5,.5],[.5,.5,.5],[1,1,1],[0,.33,.67]),{mono:0,curl:1,flow:[0,0],wave:0,injBase:.012,injMask:.06,palScale:1.6,drift:.06,desat:.28,hi:[1,1,1],hiK:0,relief:.4,glow:.45})
+  },
+  {
+    title:'Quantum <em>Memories</em>', plain:'Quantum Memories', year:'2020', accent:'#8fa2ff',
+    source:'200 Mio. Naturbilder · Quantenrauschen', place:'National Gallery of Victoria, Melbourne', site:'mel', proj:'world',
+    data:'Rund 200 Millionen öffentlich zugängliche Natur- und Landschaftsbilder; Rauschdaten eines Quantenprozessors von Google AI Quantum',
+    method:'Generatives Modell, Quantenrauschen als Zufallsquelle, großformatige LED-Wand',
+    text:'Für die erste NGV Triennial verband Anadol ein auf Naturbilder trainiertes Modell mit Messdaten eines Quantencomputers. Das Rauschen der Qubits, eigentlich ein Störfaktor, wurde zur Quelle der Bewegung: Landschaften, die zwischen möglichen Zuständen schwanken, ohne sich festzulegen. Hier übernimmt eine andere physikalische Rauschquelle diese Rolle: der Sonnenwind, gemessen von Satelliten am Lagrange-Punkt L1, 1,5 Millionen Kilometer vor der Erde.',
+    hint:'Live: Die Geschwindigkeit des Sonnenwinds steuert das Tempo, die Nord-Süd-Komponente seines Magnetfelds (Bz) die Turbulenz, der planetare Kp-Index den Farbton. Röntgenblitze der Sonne (GOES) lösen Impulse aus.',
+    sensors:{space:{map:{vsw:['speed',.7],bz:['turb',-.8],kp:['hue',.6],xray:['pulse',.6],dens:['dens',.4]}}},
+    suggest:[],
+    look:Object.assign(P([.32,.3,.48],[.38,.34,.46],[1,1,1],[.62,.42,.22]),{mono:0,curl:.9,flow:[0,0],wave:0,injBase:.014,injMask:.07,palScale:1.3,drift:.08,desat:.05,hi:[.7,.95,1],hiK:.5,relief:.35,glow:.6})
+  },
+  {
+    title:'Unsupervised · <em>MoMA</em>', plain:'Unsupervised', year:'2022', accent:'#f2b84b',
+    source:'138 151 Werke · MoMA-Sammlung', place:'Gund Lobby, Museum of Modern Art, New York', site:'nyc', proj:'world',
+    data:'138.151 Bilder aus über 200 Jahren Sammlung des MoMA; live: Licht, Bewegung und Wetter im Atrium',
+    method:'StyleGAN2-ADA, Latent Space Browser, 7,3 m LED-Wand, Echtzeit',
+    text:'Für das Atrium des Museum of Modern Art trainierte das Studio ein Modell auf der gesamten digitalisierten Sammlung. Die Software navigiert unbeaufsichtigt durch den Raum der gelernten Formen und erzeugt Bilder, die wie Erinnerungen an Werke wirken, die man gesehen haben könnte. Sensoren speisen Licht, Besucherbewegung und Wetter in Echtzeit ein. 2023 nahm das MoMA die Arbeit in seine Sammlung auf, als eine der ersten KI-generierten Arbeiten dort.',
+    hint:'Wie im Original speist das Wetter an der 53rd Street das Bild: Temperatur färbt, Bewölkung dünnt aus, Wind beschleunigt, Sonnenstrahlung lässt glänzen. Die Kamera ersetzt die Besuchersensoren im Atrium. Jeder Klick ist ein Sprung im latenten Raum.',
+    sensors:{weather:{map:{temperature_2m:['hue',.8],cloud_cover:['dens',-.5],wind_speed_10m:['speed',.6],shortwave_radiation:['glow',.7],wind_direction_10m:['dir',.35]}}},
+    suggest:['cam','light'],
+    look:Object.assign(P([.62,.5,.45],[.38,.42,.5],[1,.8,.5],[0,.18,.28]),{mono:0,curl:.7,flow:[0,0],wave:0,injBase:.012,injMask:.06,palScale:1.2,drift:0,desat:0,hi:[.96,.93,.86],hiK:.5,relief:.5,glow:.4})
+  },
+  {
+    title:'Winds of <em>Yawanawá</em>', plain:'Winds of Yawanawá', year:'2023', accent:'#e88a5c',
+    source:'Winddaten · Amazonas · Yawanawá', place:'Acre, Brasilien; online', site:'acre', proj:'world',
+    data:'Winddaten aus dem Amazonasgebiet und die Bildsprache der Yawanawá',
+    method:'Generative Serie in Zusammenarbeit mit der Gemeinschaft, Windfeld-Simulation',
+    text:'Gemeinsam mit den Yawanawá, einem indigenen Volk im brasilianischen Bundesstaat Acre, entstand eine Serie, in der Winddaten des Regenwaldes und die Bildsprache der Gemeinschaft ineinanderfließen. Erlöse gingen an die Yawanawá, unter anderem für Projekte vor Ort. Wind ist hier nicht Kulisse, sondern Autor.',
+    hint:'Live: Der globale Windteppich aus 288 Gitterpunkten treibt das Feld, der Wind am Rio Gregório in Acre gibt Richtung und Kraft vor, die Feuchte des Waldes die Dichte.',
+    sensors:{windfield:{map:{vavg:['speed',.3]}}, weather:{map:{wind_direction_10m:['dir',.9],wind_speed_10m:['turb',.6],relative_humidity_2m:['dens',.4]}}},
+    suggest:['motion'],
+    look:Object.assign(P([.55,.36,.26],[.42,.3,.24],[1,1,1],[0,.15,.3]),{mono:0,curl:.85,flow:[0,0],wave:0,injBase:.012,injMask:.065,palScale:1.25,drift:.02,desat:.08,hi:[.98,.85,.5],hiK:.45,relief:.45,glow:.35})
+  },
+  {
+    title:'Glacier <em>Dreams</em>', plain:'Glacier Dreams', year:'2023', accent:'#a6d8e6',
+    source:'Gletscherbilder · Klimadaten · Island', place:'Island; Ausstellungen weltweit', site:'vat', proj:'world',
+    data:'Fotografien, Zeitraffer und Klimamessungen isländischer Gletscher, auf Expeditionen des Studios gesammelt',
+    method:'Generatives Modell, Datenskulptur',
+    text:'Das Studio reiste zu den Gletschern Islands und sammelte Bilder, Zeitraffer und Klimadaten. Daraus entstanden Skulpturen aus Eis, die es nie gab, und eine Erinnerung an das, was schmilzt. Die Arbeit gehört zu einer Reihe, in der Anadol generative Modelle auf Naturarchive richtet, um auf den Klimawandel aufmerksam zu machen.',
+    hint:'Live: Temperatur, Wind und Strahlung am Vatnajökull. Je wärmer es dort ist, desto weiter kippt die Palette aus dem Eisblau, Böen brechen das Eis auf.',
+    sensors:{weather:{map:{temperature_2m:['hue',.6],wind_gusts_10m:['turb',.7],wind_direction_10m:['dir',.5],shortwave_radiation:['glow',.6]}}},
+    suggest:['light'],
+    look:Object.assign(P([.66,.76,.84],[.26,.24,.22],[1,1,1],[.5,.52,.56]),{mono:0,curl:.75,flow:[0,-.1],wave:0,injBase:.012,injMask:.06,palScale:1.1,drift:.01,desat:.2,hi:[1,1,1],hiK:.7,relief:.85,glow:.5})
+  },
+  {
+    title:'Machine Dreams: <em>Rainforest</em>', plain:'Machine Dreams: Rainforest', year:'2026', accent:'#7fc97f',
+    source:'Large Nature Model · 500 Mio. Bilder', place:'DATALAND, The Grand LA, Los Angeles', site:'ama', proj:'world',
+    data:'Über 500 Millionen Naturbilder und mehr als 50.000 Tonaufnahmen (Vogelstimmen, Regen), u. a. Smithsonian, Cornell Lab of Ornithology',
+    method:'Large Nature Model (Open Source), multisensorische Installation über fünf Galerien',
+    text:'Das Large Nature Model ist ein offenes generatives Modell, das ausschließlich mit ökologischen Daten trainiert wurde. Die Eröffnungsausstellung von DATALAND, dem ersten Museum für KI-Kunst, simuliert daraus mögliche Regenwälder: Blätter, Pilze, Vogelstimmen und Regen als digitale Skulpturen, ergänzt um Duft und Klang. Die Frage dahinter: Kann eine Maschine, die nur Natur gesehen hat, Natur anders zeigen als wir?',
+    hint:'Live: Regen und Feuchte über dem Amazonas bei Manaus lassen den Wald wachsen, Brände aus NASA EONET glühen orange darin. Mit Mikrofon fallen Stimme und Atem als Regen dazu.',
+    sensors:{weather:{map:{precipitation:['pulse',.9],relative_humidity_2m:['dens',.6],temperature_2m:['hue',.3]}}, eonet:{map:{fires:['glow',.4]}}},
+    suggest:['mic'],
+    look:Object.assign(P([.22,.38,.18],[.3,.32,.26],[1,1,.75],[.14,.34,.12]),{mono:0,curl:1,flow:[0,-.35],wave:0,injBase:.012,injMask:.06,palScale:1,drift:0,desat:0,hi:[.9,.35,.55],hiK:.6,relief:.5,glow:.35})
+  },
+  {
+    title:'Erde, <em>jetzt</em>', plain:'Erde, jetzt', year:'Live', accent:'#f0c27a', site:null, proj:'world',
+    source:'Flüge · Beben · Satelliten · Ereignisse · Wind', place:'Dieser Browser, Plattkarte der ganzen Erde',
+    data:'Flugtransponder weltweit (OpenSky Network), Erdbeben der letzten 24 h (USGS), Satellitenbahnen (CelesTrak, SGP4), Naturereignisse (NASA EONET), Wind an 288 Gitterpunkten (Open-Meteo)',
+    method:'Punkt-Injektion realer Positionen und Kurse in das Strömungsfeld, Koppelnavigation zwischen den Abrufen',
+    text:'Anadols Datenskulpturen beginnen immer bei einem realen Strom: Radar, EEG, Archive. Dieser Raum lässt öffentliche Datenströme der ganzen Erde als Pigment in das Feld fallen. Jedes Flugzeug zieht in Flugrichtung eine Spur, jedes Beben pulsiert nach Magnitude, Satelliten kreuzen auf ihren gerechneten Bahnen, Brände und Stürme glühen, und der Wind von jetzt treibt die Farbe. Es entsteht keine Karte, sondern ein Abdruck der Erde im Moment des Betrachtens: Die Kontinente zeichnen sich nur dort ab, wo Menschen fliegen.',
+    hint:'Taste G blendet Kartennetz und Beschriftungen ein oder aus. Unter „Sensoren“ lässt sich jede Quelle einzeln schalten; Taste W legt den Wind auch über die anderen Räume.',
+    sensors:{quakes:{map:{e1:['pulse',.6]}}, flights:{opt:{scope:'world'},map:{}}, sats:{map:{}}, eonet:{map:{}}, windfield:{map:{}}},
+    suggest:[],
+    look:Object.assign(P([.03,.05,.09],[.015,.025,.04],[1,1,1],[0,0,0]),{mono:0,curl:.35,flow:[0,0],wave:0,injBase:.02,injMask:0,palScale:1,drift:0,desat:0,hi:[0,0,0],hiK:0,relief:.3,glow:.55}),
+    live:true
+  },
+  {
+    title:'Dein <em>Ort</em>', plain:'Dein Ort', year:'Jetzt', accent:'#9fe3b4', site:null, proj:'local', radius:45,
+    source:'Bürger-Messnetze · Pegel · DWD', place:'Dein gewählter Messort',
+    data:'openSenseMap (senseBox), Sensor.Community (Feinstaub, Lärm, Klima), PEGELONLINE (Wasserstände der Bundeswasserstraßen), Stationen des Deutschen Wetterdienstes über Bright Sky',
+    method:'Lokale Projektion im Umkreis von 45 km, Messstationen als Pigmentquellen',
+    text:'Anadol arbeitet mit Daten, die irgendwo gemessen werden. Dieser Raum dreht die Richtung um: Er zeigt, was rund um dich gemessen wird, von Tausenden selbstgebauten Messstationen, Pegeln an Flüssen und Wetterstationen. Jede Station ist ein Pigmentpunkt, ihre Werte färben und bewegen das Feld.',
+    hint:'Unter „Sensoren“ wählst du den Ort (Liste, Suche oder GPS), suchst dir eine senseBox, eine Feinstaubstation oder einen Pegel aus und ordnest jeden einzelnen Messwert einer Größe des Feldes zu. Pegel und DWD-Stationen gibt es vor allem in Deutschland.',
+    sensors:{osm:{map:{}}, sc:{map:{P1:['turb',.6],P2:['dens',.4],noise_LAeq:['pulse',.5],temperature:['hue',.5]}}, dwd:{map:{wind_speed_10:['speed',.5],wind_direction_10:['dir',.5],solar_60:['glow',.4]}}, pegel:{map:{W:['relief',.6]}}},
+    suggest:['motion','mic'],
+    look:Object.assign(P([.42,.46,.44],[.42,.38,.34],[1,1,1],[.1,.28,.46]),{mono:0,curl:.8,flow:[0,0],wave:0,injBase:.014,injMask:.05,palScale:1.2,drift:.02,desat:.12,hi:[.85,1,.9],hiK:.4,relief:.5,glow:.4})
+  }
+];
+
+// ---------------------------------------------------------------- WebGL
+const canvas=$('gl');
+const gl=canvas.getContext('webgl',{antialias:false,alpha:false,depth:false,stencil:false,preserveDrawingBuffer:false});
+if(!gl){ document.querySelector('.brand-sub').textContent='WebGL ist in diesem Browser nicht verfügbar.'; return; }
+
+function compile(type,src){
+  const s=gl.createShader(type); gl.shaderSource(s,src); gl.compileShader(s);
+  if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)){ console.error(gl.getShaderInfoLog(s)); }
+  return s;
+}
+function program(vsId,fsId,attrs){
+  const p=gl.createProgram();
+  gl.attachShader(p,compile(gl.VERTEX_SHADER,$(vsId).textContent));
+  gl.attachShader(p,compile(gl.FRAGMENT_SHADER,$(fsId).textContent));
+  gl.linkProgram(p);
+  if(!gl.getProgramParameter(p,gl.LINK_STATUS)){ console.error(gl.getProgramInfoLog(p)); }
+  const u={}; const n=gl.getProgramParameter(p,gl.ACTIVE_UNIFORMS);
+  for(let i=0;i<n;i++){ const info=gl.getActiveUniform(p,i); u[info.name]=gl.getUniformLocation(p,info.name); }
+  const a={}; (attrs||[]).forEach(k=>{ a[k]=gl.getAttribLocation(p,k); });
+  return {p,u,a};
+}
+const sim=program('vs','fsSim'), disp=program('vs','fsDisp');
+const pointProg=program('vsPoint','fsPoint',['aPos','aVel','aSize','aKind','aPhase']);
+const U=(prog,name)=>prog.u[name]===undefined?null:prog.u[name];
+
+const quad=gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER,quad);
+gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]),gl.STATIC_DRAW);
+function bindQuad(prog){
+  const loc=gl.getAttribLocation(prog,'aPos');
+  gl.bindBuffer(gl.ARRAY_BUFFER,quad);
+  gl.enableVertexAttribArray(loc);
+  gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+}
+function makeTex(w,h,data,repeatS){
+  const t=gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D,t);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,w,h,0,gl.RGBA,gl.UNSIGNED_BYTE,data||null);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,repeatS?gl.REPEAT:gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+  return t;
+}
+function makeTarget(w,h){
+  const t=makeTex(w,h,null,false);
+  const f=gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER,f);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,t,0);
+  gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+  return {t,f};
+}
+const WIND_W=24, WIND_H=12, CAM_W=64, CAM_H=48;
+const windTex=makeTex(WIND_W,WIND_H,new Uint8Array(WIND_W*WIND_H*4).fill(128),true);
+const camTex=makeTex(CAM_W,CAM_H,new Uint8Array(CAM_W*CAM_H*4),false);
+
+let simW=0,simH=0,tex=[],fbo=[],read=0,write=1,injTex=[],injFbo=[],reset=1;
+const hud=$('hud'), hctx=hud.getContext('2d');
+function resize(){
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  const cw=canvas.clientWidth||1, ch=canvas.clientHeight||1;
+  const W=Math.floor(cw*dpr), Hh=Math.floor(ch*dpr);
+  if(canvas.width!==W||canvas.height!==Hh){ canvas.width=W; canvas.height=Hh; }
+  if(hud.width!==W||hud.height!==Hh){ hud.width=W; hud.height=Hh; }
+  const target=cw*state.res;
+  const s=Math.min(1,1600/Math.max(1,target));
+  const w=Math.max(2,Math.floor(target*s)), h=Math.max(2,Math.floor(ch*state.res*s));
+  if(w!==simW||h!==simH){
+    simW=w; simH=h;
+    tex.forEach(x=>gl.deleteTexture(x)); fbo.forEach(x=>gl.deleteFramebuffer(x));
+    injTex.forEach(x=>gl.deleteTexture(x)); injFbo.forEach(x=>gl.deleteFramebuffer(x));
+    tex=[];fbo=[];injTex=[];injFbo=[];
+    for(let i=0;i<2;i++){ const r=makeTarget(w,h); tex.push(r.t); fbo.push(r.f); }
+    for(let i=0;i<2;i++){ const r=makeTarget(w,h); injTex.push(r.t); injFbo.push(r.f); }
+    reset=1; $('roRes').textContent='· '+w+'×'+h;
+  }
+}
+window.addEventListener('resize',resize);
+
+// ---------------------------------------------------------------- state
+const state={
+  room:0, turb:0.5, speed:0.5, dens:0.6, detail:6, relief:0.45, glow:0.35, res:0.8, ptSize:1,
+  hud:true, inject:true, ticker:true,
+  mouse:[0.5,0.5], prevMouse:[0.5,0.5], vel:[0,0], down:0, hasMouse:false,
+  seed:[0,0], seedTarget:[0,0], blend:1, mirror:0, mirrorTarget:0,
+  inputs:0, shot:false, windK:0, coupleLoc:true, look:null, lookT:null
+};
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const LOC={cur:Object.assign({},placeById('ber'))};
+
+// ---------------------------------------------------------------- channels
+const TARGETS=[
+  ['none','— keine Wirkung'],['turb','Turbulenz'],['speed','Tempo'],['dens','Datendichte'],
+  ['hue','Farbton'],['glow','Glanz'],['relief','Relief'],['pulse','Impuls'],
+  ['dir','Strömungsrichtung'],['flowX','Strömung ↔'],['flowY','Strömung ↕']
+];
+const TLABEL=Object.fromEntries(TARGETS);
+function C(id,label,unit,min,max,o){
+  return Object.assign({id,label,unit,min,max,dec:1,value:null,norm:null,hist:[],target:'none',amt:.6,angle:null,log:false,auto:false,ts:0,lo:min,hi:max},o||{});
+}
+function normCh(c){
+  const v=c.value; if(v==null||!isFinite(v)){ c.norm=null; return; }
+  if(c.angle){ c.norm=(((v%360)+360)%360)/360; return; }
+  let lo=c.min,hi=c.max;
+  if(c.auto&&c.hist.length>1){
+    lo=Infinity;hi=-Infinity;
+    for(const x of c.hist){ if(x<lo) lo=x; if(x>hi) hi=x; }
+    if(v<lo) lo=v; if(v>hi) hi=v;
+    const pv=Math.max((hi-lo)*.12,Math.abs(hi)*.005,1e-6); lo-=pv; hi+=pv;
+  }
+  c.lo=lo; c.hi=hi;
+  const f=c.log?(x=>Math.log10(Math.max(x,1e-12))):(x=>x);
+  c.norm=clamp((f(v)-f(lo))/((f(hi)-f(lo))||1));
+}
+function push(c,v){
+  if(v==null||v===''||!isFinite(v=+v)) return false;
+  if(c.scale) v*=c.scale;
+  c.value=v; c.ts=Date.now(); c.hist.push(v);
+  if(c.hist.length>180) c.hist.splice(0,c.hist.length-180);
+  normCh(c); return true;
+}
+function live(c,v){
+  if(v==null||!isFinite(v)) return;
+  c.value=v; const now=performance.now();
+  if(now-(c._t||0)>300){ c.hist.push(v); if(c.hist.length>180) c.hist.shift(); c._t=now; }
+  normCh(c);
+}
+function seedHist(c,arr){ const h=arr.map(Number).filter(x=>isFinite(x)); if(h.length){ c.hist=downsample(h,150).map(x=>c.scale?x*c.scale:x); } }
+function clearData(s){ s.channels.forEach(c=>{ c.value=null; c.norm=null; c.hist=[]; c.seeded=false; }); s.points=null; s.hasData=false; }
+
+// ---------------------------------------------------------------- sensors
+const SENSORS=[], S={};
+const KINDLABEL={mess:'Messung',model:'Modell',device:'Gerät',calc:'Bahnmodell'};
+const GROUPS=[
+  ['device','Dein Gerät'],
+  ['localm','Am Messort · Messnetze'],
+  ['localmod','Am Messort · Modelle'],
+  ['global','Erde · global'],
+  ['space','Weltraum']
+];
+function sensor(o){
+  const s=Object.assign({on:false,state:'off',note:'aus',channels:[],points:null,pointsAt:0,timer:null,gen:0,chVer:0,selVer:0,flash:0,dirty:true,mapPref:null,byRoom:false,hasData:false,opt:{},sel:null,options:null},o);
+  if(o.ch) s.channels=o.ch.map(a=>C.apply(null,a));
+  SENSORS.push(s); S[s.id]=s; return s;
+}
+function mark(s,st,note){ s.state=st; if(note!=null) s.note=note; s.dirty=true; }
+function applyMap(s){
+  for(const c of s.channels){
+    if(s.mapPref){ const p=s.mapPref[c.id]; c.target=p?p[0]:'none'; c.amt=p?p[1]:.6; }
+    else if(c.def){ c.target=c.def[0]; c.amt=c.def[1]; }
+    else { c.target='none'; }
+  }
+  s.chVer++; s.dirty=true;
+}
+function setChannels(s,list){
+  const prev={}; s.channels.forEach(c=>prev[c.id]=c);
+  for(const c of list){
+    const p=prev[c.id];
+    if(p){ c.target=p.target; c.amt=p.amt; if(!c.hist.length&&p.hist.length&&p.unit===c.unit) c.hist=p.hist; }
+    else if(s.mapPref){ const m=s.mapPref[c.id]; if(m){ c.target=m[0]; c.amt=m[1]; } }
+    else if(c.def){ c.target=c.def[0]; c.amt=c.def[1]; }
+  }
+  s.channels=list; s.chVer++; s.dirty=true;
+}
+function locKey(){ return LOC.cur.lat.toFixed(3)+','+LOC.cur.lon.toFixed(3); }
+
+function startPoll(s){
+  stopPoll(s);
+  const g=++s.gen;
+  const stale=()=>g!==s.gen||!s.on;
+  const run=async()=>{
+    if(stale()) return;
+    if(!s.hasData) mark(s,'wait','lädt …');
+    try{ await s.load(s,stale); }
+    catch(e){ if(!stale()){ mark(s,'err',errNote(e)); console.warn(s.id,e); } }
+  };
+  run();
+  const every=typeof s.every==='function'?s.every(s):s.every;
+  s.timer=setInterval(run,every);
+}
+function stopPoll(s){ if(s.timer){ clearInterval(s.timer); s.timer=null; } }
+
+async function setSensor(s,on,byRoom){
+  if(on===s.on) { if(on&&!byRoom) s.byRoom=false; return; }
+  s.on=on; s.dirty=true;
+  if(on){
+    s.byRoom=!!byRoom;
+    if(!byRoom) s.mapPref=null;
+    applyMap(s);
+    if(s.start){
+      mark(s,'wait','Zugriff anfragen …');
+      try{ await s.start(s); if(s.on&&s.state==='wait') mark(s,'live','aktiv'); }
+      catch(e){ s.on=false; if(s.stop) try{s.stop(s);}catch(_){} mark(s,'err',errNote(e)); }
+    } else {
+      startPoll(s);
+    }
+  } else {
+    s.byRoom=false; s.gen++; stopPoll(s);
+    if(s.stop) try{ s.stop(s); }catch(e){}
+    s.points=null; s.flash=0;
+    mark(s,'off','aus');
+  }
+  syncChips(); renderBinds();
+}
+
+// ---- Open-Meteo helper
+async function omLoad(s,stale,base,extra){
+  const L=LOC.cur; const vars=s.channels.map(c=>c.id).join(',');
+  const q='?latitude='+L.lat.toFixed(3)+'&longitude='+L.lon.toFixed(3)+'&current='+vars+'&timezone=auto'+(extra||'');
+  let j;
+  try{ j=await getJson(base+q+'&hourly='+vars+'&past_hours=24&forecast_hours=1'); }
+  catch(e){ if(e.status===400) j=await getJson(base+q); else throw e; }
+  if(stale()) return null;
+  const cur=j.current||{}, hr=j.hourly||{}; let any=0;
+  for(const c of s.channels){
+    if(!c.seeded&&Array.isArray(hr[c.id])){ seedHist(c,hr[c.id].slice(0,-1).filter(x=>x!=null)); c.seeded=true; }
+    if(push(c,cur[c.id])) any++;
+  }
+  s.hasData=any>0;
+  const t=cur.time?cur.time.slice(11,16):'';
+  return {any,t,j};
+}
+
+// ---- device: microphone
+let audioCtx=null;
+sensor({
+  id:'mic', group:'device', name:'Mikrofon', prov:'Web Audio · dein Gerät', kind:'device',
+  info:'Pegel, Klangfarbe und Bass aus dem Mikrofon. Wird nur lokal analysiert.',
+  ch:[
+    ['level','Pegel','dBFS',-60,0,{dec:0,def:['pulse',.8]}],
+    ['centroid','Klanghelligkeit','Hz',150,6000,{dec:0,log:true,def:['hue',.4]}],
+    ['bass','Bass','',0,1,{dec:2,def:['turb',.4]}]
+  ],
+  async start(s){
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia) throw fail('nicht verfügbar (HTTPS nötig)');
+    let st; try{ st=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}}); }
+    catch(e){ throw fail('abgelehnt'); }
+    if(!s.on){ st.getTracks().forEach(t=>t.stop()); return; }
+    audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
+    if(audioCtx.state==='suspended') await audioCtx.resume();
+    const src=audioCtx.createMediaStreamSource(st);
+    const an=audioCtx.createAnalyser(); an.fftSize=2048; an.smoothingTimeConstant=.6;
+    src.connect(an);
+    s.stream=st; s.an=an; s.src=src; s.td=new Float32Array(an.fftSize); s.fd=new Uint8Array(an.frequencyBinCount);
+    mark(s,'live','hört zu');
+  },
+  stop(s){ if(s.stream) s.stream.getTracks().forEach(t=>t.stop()); if(s.src) s.src.disconnect(); s.stream=null; s.an=null; },
+  tick(s){
+    if(!s.an) return;
+    s.an.getFloatTimeDomainData(s.td);
+    let sum=0; for(let i=0;i<s.td.length;i++) sum+=s.td[i]*s.td[i];
+    const rms=Math.sqrt(sum/s.td.length);
+    live(s.channels[0],clamp(20*Math.log10(rms+1e-6),-80,0));
+    s.an.getByteFrequencyData(s.fd);
+    const binHz=audioCtx.sampleRate/s.an.fftSize; let w=0,ws=0,bass=0,bn=0;
+    for(let i=1;i<s.fd.length;i++){ const m=s.fd[i]; w+=m; ws+=m*i*binHz; if(i*binHz<160){ bass+=m; bn++; } }
+    if(w>0) live(s.channels[1],ws/w);
+    live(s.channels[2],bn?bass/bn/255:0);
+  }
+});
+
+// ---- device: camera
+sensor({
+  id:'cam', group:'device', name:'Kamera', prov:'getUserMedia · dein Gerät', kind:'device',
+  info:'Bewegung, Helligkeit und Farbe vor der Kamera; deine Bewegung prägt sich als Abdruck ins Feld. Das Bild verlässt den Browser nicht.',
+  ch:[
+    ['motion','Bewegung','',0,1,{dec:2,def:['pulse',.5]}],
+    ['bright','Helligkeit','',0,1,{dec:2,def:['glow',.4]}],
+    ['hue','Farbton','°',0,360,{dec:0}]
+  ],
+  amt:.8,
+  async start(s){
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia) throw fail('nicht verfügbar (HTTPS nötig)');
+    let st; try{ st=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:320},height:{ideal:240}},audio:false}); }
+    catch(e){ throw fail('abgelehnt'); }
+    if(!s.on){ st.getTracks().forEach(t=>t.stop()); return; }
+    const v=document.createElement('video'); v.muted=true; v.playsInline=true; v.setAttribute('playsinline',''); v.srcObject=st;
+    await v.play().catch(()=>{});
+    const cv=document.createElement('canvas'); cv.width=CAM_W; cv.height=CAM_H;
+    s.stream=st; s.video=v; s.cv=cv; s.cx=cv.getContext('2d',{willReadFrequently:true});
+    s.prevL=new Float32Array(CAM_W*CAM_H); s.alpha=new Float32Array(CAM_W*CAM_H); s.buf=new Uint8Array(CAM_W*CAM_H*4); s.last=0; s.first=true;
+    s.extra=cv; s.chVer++;
+    mark(s,'live','sieht zu');
+  },
+  stop(s){ if(s.stream) s.stream.getTracks().forEach(t=>t.stop()); s.stream=null; s.video=null; s.extra=null; s.chVer++; },
+  tick(s,now){
+    if(!s.video||s.video.readyState<2||now-s.last<40) return; s.last=now;
+    const cx=s.cx; cx.save(); cx.setTransform(-1,0,0,1,CAM_W,0); cx.drawImage(s.video,0,0,CAM_W,CAM_H); cx.restore();
+    const d=cx.getImageData(0,0,CAM_W,CAM_H).data;
+    let mot=0,br=0,r=0,g=0,b=0;
+    for(let y=0;y<CAM_H;y++){
+      for(let x=0;x<CAM_W;x++){
+        const i=y*CAM_W+x, k=i*4;
+        const l=(d[k]*.299+d[k+1]*.587+d[k+2]*.114)/255;
+        const diff=s.first?0:Math.abs(l-s.prevL[i]); s.prevL[i]=l;
+        const a=Math.max(clamp((diff-.035)*7),s.alpha[i]*.86); s.alpha[i]=a;
+        mot+=diff; br+=l; r+=d[k]; g+=d[k+1]; b+=d[k+2];
+        const o=((CAM_H-1-y)*CAM_W+x)*4;
+        s.buf[o]=d[k]; s.buf[o+1]=d[k+1]; s.buf[o+2]=d[k+2]; s.buf[o+3]=Math.round(a*255);
+      }
+    }
+    s.first=false;
+    const n=CAM_W*CAM_H;
+    gl.bindTexture(gl.TEXTURE_2D,camTex);
+    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,CAM_W,CAM_H,0,gl.RGBA,gl.UNSIGNED_BYTE,s.buf);
+    live(s.channels[0],clamp(mot/n*12));
+    live(s.channels[1],br/n);
+    r/=n;g/=n;b/=n; const mx=Math.max(r,g,b),mn=Math.min(r,g,b);
+    if(mx-mn>4){ let h; if(mx===r) h=((g-b)/(mx-mn))%6; else if(mx===g) h=(b-r)/(mx-mn)+2; else h=(r-g)/(mx-mn)+4; live(s.channels[2],((h*60)+360)%360); }
+  }
+});
+
+// ---- device: motion / orientation
+sensor({
+  id:'motion', group:'device', name:'Neigung und Bewegung', prov:'DeviceOrientation · dein Gerät', kind:'device',
+  info:'Kippen lenkt die Strömung, Schütteln macht sie turbulent. Auf Tablets und Telefonen; iOS fragt nach Erlaubnis.',
+  ch:[
+    ['gamma','Neigung links/rechts','°',-60,60,{dec:0,def:['flowX',.8]}],
+    ['beta','Neigung vor/zurück','°',-60,60,{dec:0,def:['flowY',-.8]}],
+    ['alpha','Kompass','°',0,360,{dec:0,angle:'to'}],
+    ['shake','Erschütterung','m/s²',0,8,{dec:1,def:['turb',.6]}]
+  ],
+  async start(s){
+    const DOE=window.DeviceOrientationEvent, DME=window.DeviceMotionEvent;
+    if(!DOE&&!DME) throw fail('nicht unterstützt');
+    try{
+      if(DOE&&typeof DOE.requestPermission==='function'){ if(await DOE.requestPermission()!=='granted') throw 0; }
+      if(DME&&typeof DME.requestPermission==='function'){ if(await DME.requestPermission()!=='granted') throw 0; }
+    }catch(e){ throw fail('abgelehnt'); }
+    s.got=false;
+    s.onO=e=>{ if(e.beta==null) return; s.got=true; live(s.channels[0],e.gamma); live(s.channels[1],e.beta-35); if(e.alpha!=null) live(s.channels[2],360-e.alpha); };
+    s.onM=e=>{ const a=e.acceleration&&e.acceleration.x!=null?e.acceleration:null; let m;
+      if(a) m=Math.hypot(a.x||0,a.y||0,a.z||0);
+      else { const g=e.accelerationIncludingGravity; if(!g||g.x==null) return; m=Math.abs(Math.hypot(g.x,g.y,g.z)-9.81); }
+      s.got=true; const c=s.channels[3]; live(c,Math.max(m,(c.value||0)*.9)); };
+    window.addEventListener('deviceorientation',s.onO); window.addEventListener('devicemotion',s.onM);
+    mark(s,'wait','warte auf Daten …');
+    s.to=setTimeout(()=>{ if(s.on&&!s.got) mark(s,'err','keine Daten – Gerät ohne Lagesensor?'); },3000);
+    s.ok=setInterval(()=>{ if(s.on&&s.got&&s.state!=='live') mark(s,'live','aktiv'); },500);
+  },
+  stop(s){ window.removeEventListener('deviceorientation',s.onO); window.removeEventListener('devicemotion',s.onM); clearTimeout(s.to); clearInterval(s.ok); }
+});
+
+// ---- device: ambient light
+sensor({
+  id:'light', group:'device', name:'Umgebungslicht', prov:'Generic Sensor API · dein Gerät', kind:'device',
+  info:'Beleuchtungsstärke in Lux. Nur in Browsern mit AmbientLightSensor (z. B. Chrome mit aktivierten Sensor-Features).',
+  ch:[['lux','Beleuchtung','lx',1,20000,{dec:0,log:true,def:['glow',.6]}]],
+  async start(s){
+    if(!('AmbientLightSensor' in window)) throw fail('von diesem Browser nicht unterstützt');
+    try{
+      const ls=new window.AmbientLightSensor({frequency:5});
+      ls.addEventListener('reading',()=>{ live(s.channels[0],Math.max(1,ls.illuminance)); if(s.state!=='live') mark(s,'live','misst'); });
+      ls.addEventListener('error',e=>{ mark(s,'err',(e.error&&e.error.name==='NotAllowedError')?'abgelehnt':'Sensorfehler'); });
+      ls.start(); s.ls=ls;
+    }catch(e){ throw fail('nicht verfügbar'); }
+  },
+  stop(s){ if(s.ls) s.ls.stop(); s.ls=null; }
+});
+
+// ---- openSenseMap
+sensor({
+  id:'osm', group:'localm', name:'senseBox in der Nähe', prov:'openSenseMap', kind:'mess', loc:true, every:60e3,
+  link:'https://opensensemap.org', lic:'PDDL 1.0',
+  info:'Selbstgebaute Umweltstationen von Schulen, Initiativen und Privatleuten. Box auswählen, jeder ihrer Sensoren wird zum zuordenbaren Kanal.',
+  selLabel:'senseBox',
+  async load(s,stale){
+    const L=LOC.cur, key=locKey();
+    if(s.boxesFor!==key){
+      const arr=await getJson('https://api.opensensemap.org/boxes?near='+L.lon.toFixed(4)+','+L.lat.toFixed(4)+'&maxDistance=30000&format=json');
+      if(stale()) return;
+      const now=Date.now();
+      const boxes=(Array.isArray(arr)?arr:[]).map(b=>{
+        const co=(b.currentLocation&&b.currentLocation.coordinates)||(b.loc&&b.loc[0]&&b.loc[0].geometry&&b.loc[0].geometry.coordinates)||[];
+        const last=Date.parse(b.lastMeasurementAt||b.updatedAt||0)||0;
+        return {id:b._id,name:b.name||'senseBox',lon:+co[0],lat:+co[1],last,n:(b.sensors||[]).length,exp:b.exposure};
+      }).filter(b=>isFinite(b.lat)&&isFinite(b.lon)&&b.n>0&&now-b.last<12*H)
+        .map(b=>Object.assign(b,{d:distKm(L.lat,L.lon,b.lat,b.lon)})).sort((a,b)=>a.d-b.d).slice(0,60);
+      s.boxes=boxes; s.boxesFor=key;
+      s.options=boxes.map(b=>({v:b.id,t:b.name+' · '+fmt(b.d,1)+' km'+(b.exp&&b.exp!=='outdoor'?' · '+b.exp:'')}));
+      s.selVer++;
+      if(!boxes.find(b=>b.id===s.sel)) s.sel=boxes.length?boxes[0].id:null;
+      s.points=boxes.map(b=>({lat:b.lat,lon:b.lon,vlat:0,vlon:0,size:3,kind:8,phase:0,label:b.name,id:b.id})); s.pointsAt=Date.now();
+    }
+    if(!s.sel){ s.channels=[]; s.chVer++; mark(s,'err','keine aktive senseBox in 30 km'); return; }
+    const box=await getJson('https://api.opensensemap.org/boxes/'+encodeURIComponent(s.sel)+'?format=json');
+    if(stale()) return;
+    const sensors=(box.sensors||[]).filter(x=>x.lastMeasurement&&isFinite(parseFloat(x.lastMeasurement.value)));
+    if(s.chFor!==s.sel){
+      s.chFor=s.sel;
+      const list=sensors.slice(0,12).map(x=>C(x._id,x.title||x.sensorType||'Sensor',x.unit||'',0,1,{auto:true,dec:2,box:s.sel}));
+      setChannels(s,list);
+      const since=new Date(Date.now()-24*H).toISOString();
+      await Promise.all(list.map(async c=>{
+        try{
+          const h=await getJson('https://api.opensensemap.org/boxes/'+encodeURIComponent(s.sel)+'/data/'+encodeURIComponent(c.id)+'?format=json&from-date='+encodeURIComponent(since));
+          if(stale()||!Array.isArray(h)) return;
+          const vals=h.map(m=>({t:Date.parse(m.createdAt),v:parseFloat(m.value)})).filter(m=>isFinite(m.v)).sort((a,b)=>a.t-b.t).map(m=>m.v);
+          seedHist(c,vals.slice(0,-1));
+        }catch(e){}
+      }));
+      if(stale()) return;
+    }
+    let newest=0;
+    for(const x of sensors){
+      const c=s.channels.find(c=>c.id===x._id); if(!c) continue;
+      const t=Date.parse(x.lastMeasurement.createdAt)||0; newest=Math.max(newest,t);
+      if(t!==c.mt){ c.mt=t; push(c,parseFloat(x.lastMeasurement.value)); }
+    }
+    const b=s.boxes.find(b=>b.id===s.sel);
+    if(s.points) s.points.forEach(p=>{ p.size=p.id===s.sel?8:3; });
+    s.hasData=true;
+    mark(s,'live',(b?fmt(b.d,1)+' km · ':'')+ago(newest));
+  }
+});
+
+// ---- Sensor.Community
+const SC_TYPES={
+  P1:['PM10','µg/m³',0,60,{def:['turb',.5]}],
+  P2:['PM2,5','µg/m³',0,40,{def:['dens',.4]}],
+  temperature:['Temperatur','°C',-15,35,{}],
+  humidity:['Rel. Feuchte','%',0,100,{dec:0}],
+  pressure_at_sealevel:['Luftdruck','hPa',985,1035,{dec:0,scale:.01}],
+  pressure:['Luftdruck (Station)','hPa',900,1040,{dec:0,scale:.01}],
+  noise_LAeq:['Lärm LAeq','dB(A)',30,85,{dec:0,def:['pulse',.5]}],
+  noise_LA_max:['Lärm Spitze','dB(A)',30,100,{dec:0}]
+};
+sensor({
+  id:'sc', group:'localm', name:'Feinstaub, Lärm, Klima', prov:'Sensor.Community', kind:'mess', loc:true, every:150e3,
+  link:'https://sensor.community', lic:'ODbL 1.0',
+  info:'Bürger-Messnetz mit zehntausenden Stationen weltweit, Werte der letzten fünf Minuten im Umkreis von 12 km. Median aller Stationen oder eine einzelne auswählen.',
+  selLabel:'Station',
+  async load(s,stale){
+    const L=LOC.cur;
+    const arr=await getJson('https://data.sensor.community/airrohr/v1/filter/area='+L.lat.toFixed(4)+','+L.lon.toFixed(4)+',12');
+    if(stale()) return;
+    const st={};
+    for(const r of (Array.isArray(arr)?arr:[])){
+      const sid=r.sensor&&r.sensor.id; const lo=r.location||{}; if(sid==null) continue;
+      const ts=Date.parse(String(r.timestamp||'').replace(' ','T')+'Z')||0;
+      const cur=st[sid];
+      if(cur&&cur.ts>=ts) continue;
+      const vals={}; (r.sensordatavalues||[]).forEach(v=>{ const x=parseFloat(v.value); if(isFinite(x)) vals[v.value_type]=x; });
+      const lat=parseFloat(lo.latitude), lon=parseFloat(lo.longitude);
+      st[sid]={id:sid,type:(r.sensor.sensor_type&&r.sensor.sensor_type.name)||'',lat,lon,ts,vals,d:distKm(L.lat,L.lon,lat,lon)};
+    }
+    const list=Object.values(st).filter(x=>isFinite(x.lat)).sort((a,b)=>a.d-b.d);
+    if(!list.length){ s.channels=[]; s.chVer++; s.points=null; mark(s,'err','keine Stationen in 12 km'); return; }
+    s.options=[{v:'all',t:'Median aller '+list.length+' Stationen'}].concat(list.slice(0,80).map(x=>({v:String(x.id),t:'#'+x.id+' · '+x.type+' · '+fmt(x.d,1)+' km'})));
+    s.selVer++;
+    if(!s.sel||(s.sel!=='all'&&!st[s.sel])) s.sel='all';
+    const types={};
+    const use=s.sel==='all'?list:[st[s.sel]];
+    for(const x of use) for(const k in x.vals) if(SC_TYPES[k]) (types[k]=types[k]||[]).push(x.vals[k]);
+    const ids=Object.keys(SC_TYPES).filter(k=>types[k]);
+    const key=ids.join(',')+'|'+s.sel;
+    if(s.chKey!==key){ s.chKey=key; setChannels(s,ids.map(k=>{ const t=SC_TYPES[k]; return C(k,t[0],t[1],t[2],t[3],Object.assign({},t[4])); })); }
+    for(const c of s.channels) push(c,median(types[c.id]||[]));
+    s.points=list.map(x=>{ const v=x.vals.P1; const k=v!=null?clamp(v/50):.2; return {lat:x.lat,lon:x.lon,vlat:0,vlon:0,size:2.5+k*6+(String(x.id)===s.sel?5:0),kind:8,phase:0,label:'#'+x.id}; });
+    s.pointsAt=Date.now(); s.hasData=true;
+    const newest=Math.max.apply(null,list.map(x=>x.ts));
+    mark(s,'live',(s.sel==='all'?list.length+' Stationen':'#'+s.sel)+' · '+ago(newest));
+  }
+});
+
+// ---- PEGELONLINE
+const PEGEL_NAMES={W:'Wasserstand',Q:'Abfluss',WT:'Wassertemperatur',LT:'Lufttemperatur',VA:'Fließgeschwindigkeit',DFH:'Durchfahrtshöhe',LF:'Leitfähigkeit',WG:'Windgeschwindigkeit',WR:'Windrichtung',GRU:'Grundwasser',O2:'Sauerstoff',PH:'pH-Wert',TR:'Trübung',HL:'Luftfeuchte',LD:'Luftdruck',NIEDERSCHLAG:'Niederschlag'};
+sensor({
+  id:'pegel', group:'localm', name:'Pegel an Flüssen', prov:'PEGELONLINE · WSV', kind:'mess', loc:true, every:5*60e3,
+  link:'https://www.pegelonline.wsv.de', lic:'DL-DE Zero 2.0',
+  info:'Amtliche Pegel an Bundeswasserstraßen (Deutschland), meist alle 15 Minuten. Pegel auswählen; Wasserstand, Abfluss und Temperaturen werden zu Kanälen.',
+  selLabel:'Pegel',
+  async load(s,stale){
+    const L=LOC.cur, key=locKey(), base='https://www.pegelonline.wsv.de/webservices/rest-api/v2/stations';
+    if(s.stFor!==key){
+      const arr=await getJson(base+'.json?latitude='+L.lat.toFixed(4)+'&longitude='+L.lon.toFixed(4)+'&radius=80&includeTimeseries=true&includeCurrentMeasurement=true');
+      if(stale()) return;
+      const sts=(Array.isArray(arr)?arr:[]).filter(x=>isFinite(x.latitude)&&(x.timeseries||[]).some(t=>t.currentMeasurement))
+        .map(x=>({id:x.uuid,name:x.longname||x.shortname,water:(x.water&&(x.water.longname||x.water.shortname))||'',lat:x.latitude,lon:x.longitude,d:distKm(L.lat,L.lon,x.latitude,x.longitude)}))
+        .sort((a,b)=>a.d-b.d).slice(0,40);
+      s.sts=sts; s.stFor=key;
+      s.options=sts.map(x=>({v:x.id,t:x.water+' · '+x.name+' · '+fmt(x.d,0)+' km'})); s.selVer++;
+      if(!sts.find(x=>x.id===s.sel)) s.sel=sts.length?sts[0].id:null;
+      s.points=sts.map(x=>({lat:x.lat,lon:x.lon,vlat:0,vlon:0,size:4,kind:3,phase:0,label:x.name,id:x.id})); s.pointsAt=Date.now();
+    }
+    if(!s.sel){ s.channels=[]; s.chVer++; mark(s,'err','kein Pegel in 80 km (nur Deutschland)'); return; }
+    const x=await getJson(base+'/'+encodeURIComponent(s.sel)+'.json?includeTimeseries=true&includeCurrentMeasurement=true');
+    if(stale()) return;
+    const ts=(x.timeseries||[]).filter(t=>t.currentMeasurement&&isFinite(t.currentMeasurement.value));
+    if(s.chFor!==s.sel){
+      s.chFor=s.sel;
+      const list=ts.slice(0,8).map(t=>C(t.shortname,PEGEL_NAMES[t.shortname]||t.longname||t.shortname,t.unit||'',0,1,{auto:true,dec:t.shortname==='W'?0:1,def:t.shortname==='W'?['dens',.5]:t.shortname==='Q'?['speed',.4]:null,angle:t.shortname==='WR'?'from':null}));
+      setChannels(s,list);
+      await Promise.all(list.slice(0,4).map(async c=>{
+        try{ const h=await getJson(base+'/'+encodeURIComponent(s.sel)+'/'+encodeURIComponent(c.id)+'/measurements.json?start=P1D'); if(!stale()&&Array.isArray(h)) seedHist(c,h.slice(0,-1).map(m=>m.value)); }catch(e){}
+      }));
+      if(stale()) return;
+    }
+    let newest=0, trend='';
+    for(const t of ts){
+      const c=s.channels.find(c=>c.id===t.shortname); if(!c) continue;
+      const m=t.currentMeasurement, tt=Date.parse(m.timestamp)||0; newest=Math.max(newest,tt);
+      if(tt!==c.mt){ c.mt=tt; push(c,m.value); }
+      if(t.shortname==='W') trend=m.trend>0?' · steigt':m.trend<0?' · fällt':' · gleich';
+    }
+    if(s.points) s.points.forEach(p=>{ p.size=p.id===s.sel?9:4; });
+    s.hasData=true;
+    mark(s,'live',(x.shortname||'')+trend+' · '+ago(newest));
+  }
+});
+
+// ---- DWD via Bright Sky
+sensor({
+  id:'dwd', group:'localm', name:'Wetterstation (DWD)', prov:'Deutscher Wetterdienst · Bright Sky', kind:'mess', loc:true, every:10*60e3,
+  link:'https://brightsky.dev', lic:'Quelle: Deutscher Wetterdienst',
+  info:'Echte Beobachtungen der nächstgelegenen Station des Deutschen Wetterdienstes (bis 50 km), nicht Modellwerte.',
+  ch:[
+    ['temperature','Temperatur','°C',-15,35,{def:['hue',.5]}],
+    ['relative_humidity','Rel. Feuchte','%',0,100,{dec:0}],
+    ['pressure_msl','Luftdruck','hPa',985,1035,{dec:0}],
+    ['wind_speed_10','Wind','km/h',0,60,{def:['speed',.5]}],
+    ['wind_direction_10','Windrichtung','°',0,360,{dec:0,angle:'from',def:['dir',.5]}],
+    ['wind_gust_speed_10','Böen','km/h',0,90,{}],
+    ['cloud_cover','Bewölkung','%',0,100,{dec:0}],
+    ['precipitation_60','Niederschlag 1 h','mm',0,5,{}],
+    ['solar_60','Sonnenenergie 1 h','kWh/m²',0,.9,{dec:2,def:['glow',.4]}],
+    ['sunshine_60','Sonnenschein 1 h','min',0,60,{dec:0}],
+    ['visibility','Sichtweite','m',0,50000,{dec:0}]
+  ],
+  async load(s,stale){
+    const L=LOC.cur; let j;
+    try{ j=await getJson('https://api.brightsky.dev/current_weather?lat='+L.lat.toFixed(4)+'&lon='+L.lon.toFixed(4)+'&max_dist=50000'); }
+    catch(e){ if(e.status===404) throw fail('keine DWD-Station in 50 km'); throw e; }
+    if(stale()) return;
+    const w=j.weather||{}; let any=0;
+    for(const c of s.channels) if(push(c,w[c.id])) any++;
+    const src=(j.sources||[])[0];
+    s.hasData=any>0;
+    if(src&&isFinite(src.lat)) { s.points=[{lat:src.lat,lon:src.lon,vlat:0,vlon:0,size:9,kind:6,phase:0,label:src.station_name}]; s.pointsAt=Date.now(); }
+    mark(s,any?'live':'err',src?(src.station_name+' · '+fmt((src.distance||0)/1000,0)+' km · '+ago(Date.parse(w.timestamp))):'keine Werte');
+  }
+});
+
+// ---- Open-Meteo weather (model)
+sensor({
+  id:'weather', group:'localmod', name:'Wetter am Ort', prov:'Open-Meteo', kind:'model', loc:true, every:15*60e3,
+  link:'https://open-meteo.com', lic:'CC BY 4.0',
+  info:'Aktuelle Analyse aus Wettermodellen und Stationen am Gitterpunkt des Messorts, weltweit. Verlauf: letzte 24 Stunden.',
+  ch:[
+    ['temperature_2m','Temperatur','°C',-15,35,{def:['hue',.5]}],
+    ['relative_humidity_2m','Rel. Feuchte','%',0,100,{dec:0}],
+    ['precipitation','Niederschlag','mm',0,4,{}],
+    ['cloud_cover','Bewölkung','%',0,100,{dec:0,def:['dens',-.4]}],
+    ['pressure_msl','Luftdruck','hPa',985,1035,{dec:0}],
+    ['wind_speed_10m','Wind 10 m','m/s',0,18,{def:['speed',.5]}],
+    ['wind_direction_10m','Windrichtung','°',0,360,{dec:0,angle:'from',def:['dir',.5]}],
+    ['wind_gusts_10m','Böen','m/s',0,30,{def:['turb',.4]}],
+    ['shortwave_radiation','Globalstrahlung','W/m²',0,900,{dec:0,def:['glow',.4]}]
+  ],
+  async load(s,stale){
+    const r=await omLoad(s,stale,'https://api.open-meteo.com/v1/forecast','&wind_speed_unit=ms');
+    if(!r) return;
+    mark(s,r.any?'live':'err',r.any?(LOC.cur.name+' · '+r.t+' Ortszeit'):'keine Werte');
+  }
+});
+sensor({
+  id:'aq', group:'localmod', name:'Luftqualität am Ort', prov:'Open-Meteo · CAMS', kind:'model', loc:true, every:30*60e3,
+  link:'https://open-meteo.com/en/docs/air-quality-api', lic:'CC BY 4.0 · Copernicus',
+  info:'Feinstaub, Stickstoffdioxid, Ozon und UV aus dem Copernicus-Atmosphärendienst, weltweit.',
+  ch:[
+    ['european_aqi','Luftqualitätsindex','EAQI',0,100,{dec:0,def:['turb',.4]}],
+    ['pm10','PM10','µg/m³',0,60,{}],
+    ['pm2_5','PM2,5','µg/m³',0,40,{}],
+    ['nitrogen_dioxide','Stickstoffdioxid','µg/m³',0,80,{dec:0}],
+    ['ozone','Ozon','µg/m³',0,180,{dec:0}],
+    ['uv_index','UV-Index','',0,11,{def:['glow',.4]}]
+  ],
+  async load(s,stale){
+    const r=await omLoad(s,stale,'https://air-quality-api.open-meteo.com/v1/air-quality','');
+    if(!r) return;
+    mark(s,r.any?'live':'err',r.any?(LOC.cur.name+' · '+r.t):'keine Werte');
+  }
+});
+sensor({
+  id:'marine', group:'localmod', name:'Meer und Wellen', prov:'Open-Meteo Marine', kind:'model', loc:true, every:30*60e3,
+  link:'https://open-meteo.com/en/docs/marine-weather-api', lic:'CC BY 4.0',
+  info:'Wellenhöhe, -richtung und -periode, Meeresströmung und Wassertemperatur am nächsten Meeresgitterpunkt. Funktioniert nur an Küsten.',
+  ch:[
+    ['wave_height','Wellenhöhe','m',0,4,{dec:2,def:['turb',.7]}],
+    ['wave_direction','Wellenrichtung','°',0,360,{dec:0,angle:'from',def:['dir',.6]}],
+    ['wave_period','Wellenperiode','s',2,14,{dec:1,def:['speed',.4]}],
+    ['ocean_current_velocity','Meeresströmung','km/h',0,4,{dec:2}],
+    ['ocean_current_direction','Strömungsrichtung','°',0,360,{dec:0,angle:'to'}],
+    ['sea_surface_temperature','Wassertemperatur','°C',0,30,{dec:1}]
+  ],
+  async load(s,stale){
+    const r=await omLoad(s,stale,'https://marine-api.open-meteo.com/v1/marine','');
+    if(!r) return;
+    mark(s,r.any?'live':'err',r.any?(LOC.cur.name+' · '+r.t):'kein Meer hier – Küstenort wählen');
+  }
+});
+
+// ---- USGS earthquakes
+sensor({
+  id:'quakes', group:'global', name:'Erdbeben', prov:'USGS · seismische Netze', kind:'mess', every:2*60e3,
+  link:'https://earthquake.usgs.gov/earthquakes/feed/', lic:'Public Domain',
+  info:'Alle registrierten Beben der letzten 24 Stunden, im Minutentakt aktualisiert. Neue Beben lösen einen Impuls aus.',
+  ch:[
+    ['n24','Beben in 24 h','',0,400,{dec:0,auto:true}],
+    ['n1','Beben letzte Stunde','',0,20,{dec:0,def:['turb',.3]}],
+    ['mmax','Stärkstes in 24 h','M',0,8,{dec:1}],
+    ['e1','Seismische Energie 1 h','log J',9,15,{dec:1,def:['pulse',.5]}],
+    ['near','Nächstes Beben zum Ort','km',0,5000,{dec:0}]
+  ],
+  async load(s,stale){
+    const j=await getJson('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson');
+    if(stale()) return;
+    const now=Date.now(), L=LOC.cur; const pts=[]; let n1=0,e1=0,mmax=0,near=Infinity;
+    const first=!s.seen; s.seen=s.seen||new Set();
+    const fresh=[];
+    for(const f of j.features||[]){
+      const c=f.geometry&&f.geometry.coordinates; if(!c) continue;
+      const p=f.properties||{}; const mag=+p.mag||0; const t=p.time||now;
+      if(now-t<H){ n1++; e1+=Math.pow(10,1.5*mag+4.8); }
+      mmax=Math.max(mmax,mag); near=Math.min(near,distKm(L.lat,L.lon,c[1],c[0]));
+      pts.push({lat:c[1],lon:c[0],vlat:0,vlon:0,size:4+Math.max(.5,mag)*3.2,kind:1,phase:((f.id||'').length%7)/7+(now-t)/(24*H),mag,label:p.place||'',t});
+      if(!s.seen.has(f.id)){ s.seen.add(f.id); if(!first&&mag>=2) fresh.push({mag,place:p.place,t}); }
+    }
+    fresh.sort((a,b)=>a.t-b.t).forEach(q=>{ s.flash=Math.max(s.flash,clamp((q.mag-1)/6)); addTicker('Beben','M'+q.mag.toFixed(1),q.place||''); });
+    s.points=pts; s.pointsAt=now;
+    push(s.channels[0],pts.length); push(s.channels[1],n1); push(s.channels[2],mmax);
+    push(s.channels[3],e1>0?Math.log10(e1):9); push(s.channels[4],isFinite(near)?near:null);
+    s.hasData=true;
+    mark(s,'live',pts.length+' Beben · max M'+mmax.toFixed(1));
+  }
+});
+
+// ---- flights
+sensor({
+  id:'flights', group:'global', name:'Flugverkehr', prov:'OpenSky Network · adsb.lol', kind:'mess',
+  every:s=>s.opt.scope==='world'?15*60e3:20e3,
+  link:'https://opensky-network.org', lic:'OpenSky: nicht-kommerziell · adsb.lol: ODbL',
+  info:'ADS-B-Transponder, empfangen von Freiwilligen weltweit. „Weltweit“ fragt OpenSky alle 15 Minuten ab (anonymes Kontingent) und rechnet die Positionen dazwischen per Kurs und Tempo weiter; „Umkreis“ holt alle 20 s die Maschinen bis 150 Seemeilen um den Messort.',
+  selLabel:'Bereich',
+  ch:[
+    ['n','Flugzeuge','',0,1000,{dec:0,auto:true,def:['dens',.4]}],
+    ['alt','Mittlere Höhe','m',0,11000,{dec:0}],
+    ['spd','Mittleres Tempo','km/h',0,850,{dec:0,def:['speed',.3]}],
+    ['climb','Steigend','%',0,50,{dec:0}]
+  ],
+  init(s){ s.opt.scope=s.opt.scope||'world'; s.sel=s.opt.scope; s.options=[{v:'world',t:'Weltweit (OpenSky, 15 min)'},{v:'local',t:'Umkreis 150 nm um den Messort (adsb.lol, 20 s)'}]; s.selVer++; },
+  onSelect(s,v){ s.opt.scope=v; s.sel=v; clearData(s); if(s.on) startPoll(s); },
+  loc:s=>s.opt.scope==='local',
+  async load(s,stale){
+    const L=LOC.cur; const rows=[]; let src='';
+    const add=(lat,lon,mps,track,altM,ground,vr,label)=>{
+      if(lat==null||lon==null) return;
+      const r=(track||0)*D2R, m=mps||0;
+      rows.push({lat,lon,vlat:m*Math.cos(r)/111320,vlon:m*Math.sin(r)/(111320*Math.max(.2,Math.cos(lat*D2R))),size:ground?1.8:3,kind:0,phase:0,alt:altM,mps:m,vr:vr||0,ground,label:(label||'').trim()});
+    };
+    const fromOpenSky=j=>{ for(const a of j.states||[]) add(a[6],a[5],a[9],a[10],a[13]!=null?a[13]:a[7],a[8],a[11],a[1]); };
+    const fromAdsb=j=>{ for(const a of j.ac||[]) { const g=a.alt_baro==='ground'; add(a.lat,a.lon,(a.gs||0)*.5144,a.track,g?0:(+a.alt_geom||+a.alt_baro||0)*.3048,g,(a.baro_rate||0)*.00508,a.flight||a.r||a.hex); } };
+    if(s.opt.scope==='world'){
+      const j=await getJson('https://opensky-network.org/api/states/all'); if(stale()) return; fromOpenSky(j); src='OpenSky';
+    } else {
+      const urls=['https://api.adsb.lol/v2/point/'+L.lat.toFixed(3)+'/'+L.lon.toFixed(3)+'/150','https://api.airplanes.live/v2/point/'+L.lat.toFixed(3)+'/'+L.lon.toFixed(3)+'/150'];
+      let ok=false, lastErr=null;
+      for(const u of urls){ try{ const j=await getJson(u); if(stale()) return; fromAdsb(j); src=u.indexOf('adsb.lol')>0?'adsb.lol':'airplanes.live'; ok=true; break; }catch(e){ lastErr=e; } }
+      if(!ok){
+        try{ const j=await getJson('https://opensky-network.org/api/states/all?lamin='+(L.lat-2.5).toFixed(2)+'&lomin='+(L.lon-3.5).toFixed(2)+'&lamax='+(L.lat+2.5).toFixed(2)+'&lomax='+(L.lon+3.5).toFixed(2)); if(stale()) return; fromOpenSky(j); src='OpenSky'; }
+        catch(e){ throw lastErr||e; }
+      }
+    }
+    s.points=rows; s.pointsAt=Date.now();
+    const air=rows.filter(r=>!r.ground);
+    push(s.channels[0],rows.length);
+    push(s.channels[1],air.length?air.reduce((a,r)=>a+(r.alt||0),0)/air.length:0);
+    push(s.channels[2],air.length?air.reduce((a,r)=>a+r.mps,0)/air.length*3.6:0);
+    push(s.channels[3],air.length?air.filter(r=>r.vr>1).length/air.length*100:0);
+    s.hasData=true;
+    mark(s,'live',fmt(rows.length,0)+' · '+src+' · '+new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}));
+  }
+});
+
+// ---- satellites
+sensor({
+  id:'sats', group:'global', name:'Satelliten', prov:'CelesTrak · SGP4', kind:'calc', every:6*H,
+  link:'https://celestrak.org', lic:'frei, Dr. T.S. Kelso',
+  info:'Hellste Satelliten und Raumstationen; Positionen jede Sekunde aus den aktuellen Bahnelementen gerechnet. Zählt auch, wie viele gerade über deinem Horizont stehen.',
+  ch:[
+    ['over','Über dem Horizont (>10°)','',0,12,{dec:0,auto:true,def:['dens',.3]}],
+    ['issAlt','ISS: Höhe','km',400,430,{dec:1,auto:true}],
+    ['issDist','ISS: Entfernung zu dir','km',0,13000,{dec:0,def:['glow',-.3]}],
+    ['issEl','ISS: Elevation','°',-90,90,{dec:0}]
+  ],
+  async load(s,stale){
+    if(!window.satellite) throw fail('satellite.js nicht geladen');
+    const texts=await Promise.all(['visual','stations'].map(g=>getText('https://celestrak.org/NORAD/elements/gp.php?GROUP='+g+'&FORMAT=tle')));
+    if(stale()) return;
+    const recs=[]; const seen=new Set();
+    for(const t of texts){
+      const lines=t.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+      for(let i=0;i+2<lines.length;i++){
+        if(!lines[i+1].startsWith('1 ')||!lines[i+2].startsWith('2 ')) continue;
+        const id=lines[i+1].slice(2,7); if(!seen.has(id)){ seen.add(id); try{ recs.push({name:lines[i],rec:satellite.twoline2satrec(lines[i+1],lines[i+2])}); }catch(e){} }
+        i+=2;
+      }
+    }
+    if(!recs.length) throw fail('keine Bahndaten');
+    s.recs=recs; s.lastProp=0; s.tick(s,performance.now(),true); s.hasData=true;
+    mark(s,'live',recs.length+' Bahnen');
+  },
+  tick(s,now,force){
+    if(!s.recs||(!force&&now-(s.lastProp||0)<1000)) return; s.lastProp=now;
+    const d=new Date(), d2=new Date(d.getTime()+1000), g1=satellite.gstime(d), g2=satellite.gstime(d2);
+    const L=LOC.cur, obs={longitude:L.lon*D2R,latitude:L.lat*D2R,height:.05};
+    const rows=[]; let over=0, iss=null;
+    for(const r of s.recs){
+      let a,b; try{ a=satellite.propagate(r.rec,d); b=satellite.propagate(r.rec,d2); }catch(e){ continue; }
+      if(!a||!a.position||!b||!b.position) continue;
+      const ga=satellite.eciToGeodetic(a.position,g1), gb=satellite.eciToGeodetic(b.position,g2);
+      const lat=ga.latitude/D2R, lon=ga.longitude/D2R;
+      let dlon=(gb.longitude-ga.longitude)/D2R; if(dlon>180) dlon-=360; if(dlon<-180) dlon+=360;
+      const look=satellite.ecfToLookAngles(obs,satellite.eciToEcf(a.position,g1)); const el=look.elevation/D2R;
+      if(el>10) over++;
+      const isISS=/^ISS/.test(r.name);
+      if(isISS&&!iss) iss={lat,lon,alt:ga.height,el,range:look.rangeSat};
+      rows.push({lat,lon,vlat:(gb.latitude-ga.latitude)/D2R,vlon:dlon,size:isISS?7:3,kind:2,phase:0,label:isISS?'ISS':r.name,iss:isISS,alt:ga.height});
+    }
+    s.points=rows; s.pointsAt=Date.now(); s.iss=iss;
+    push(s.channels[0],over);
+    if(iss){ push(s.channels[1],iss.alt); push(s.channels[2],iss.range); push(s.channels[3],iss.el); }
+    if(s.state==='live') s.note=rows.length+' Bahnen · '+over+' über dir';
+    s.dirty=true;
+  }
+});
+
+// ---- NASA EONET
+const EONET_KIND={wildfires:4,severeStorms:6,volcanoes:7,seaLakeIce:2};
+sensor({
+  id:'eonet', group:'global', name:'Naturereignisse', prov:'NASA EONET', kind:'mess', every:30*60e3,
+  link:'https://eonet.gsfc.nasa.gov', lic:'Public Domain',
+  info:'Laufende Brände, Stürme, Vulkanausbrüche und Eisereignisse, kuratiert aus Satelliten- und Behördendaten.',
+  ch:[
+    ['fires','Aktive Brände','',0,200,{dec:0,auto:true}],
+    ['storms','Stürme','',0,20,{dec:0,auto:true,def:['turb',.3]}],
+    ['volc','Vulkane','',0,30,{dec:0,auto:true}],
+    ['ice','Meereis und Eisberge','',0,40,{dec:0,auto:true}]
+  ],
+  async load(s,stale){
+    const j=await getJson('https://eonet.gsfc.nasa.gov/api/v3/events?status=open&days=30');
+    if(stale()) return;
+    const cnt={wildfires:0,severeStorms:0,volcanoes:0,seaLakeIce:0}; const pts=[];
+    for(const e of j.events||[]){
+      const cat=(e.categories&&e.categories[0]&&e.categories[0].id)||''; if(cat in cnt) cnt[cat]++;
+      const g=(e.geometry||[]).slice(-1)[0]; if(!g) continue;
+      let lon,lat; if(g.type==='Point'){ lon=g.coordinates[0]; lat=g.coordinates[1]; }
+      else if(g.type==='Polygon'){ const ring=g.coordinates[0]||[]; lon=0;lat=0; ring.forEach(p=>{lon+=p[0];lat+=p[1];}); lon/=ring.length||1; lat/=ring.length||1; }
+      if(!isFinite(lat)) continue;
+      pts.push({lat,lon,vlat:0,vlon:0,size:cat==='severeStorms'?9:cat==='volcanoes'?7:4,kind:EONET_KIND[cat]!=null?EONET_KIND[cat]:4,phase:Math.random(),label:e.title,cat});
+    }
+    s.points=pts; s.pointsAt=Date.now();
+    push(s.channels[0],cnt.wildfires); push(s.channels[1],cnt.severeStorms); push(s.channels[2],cnt.volcanoes); push(s.channels[3],cnt.seaLakeIce);
+    s.hasData=true;
+    mark(s,'live',pts.length+' Ereignisse');
+  }
+});
+
+// ---- global wind field
+sensor({
+  id:'windfield', group:'global', name:'Globales Windfeld', prov:'Open-Meteo · 288 Gitterpunkte', kind:'model', every:60*60e3,
+  link:'https://open-meteo.com', lic:'CC BY 4.0',
+  info:'Wind in 10 m Höhe auf einem Raster von 24 × 12 Punkten zwischen 70° S und 70° N. Treibt die Strömung direkt an, in jedem Raum.',
+  ch:[
+    ['vmax','Stärkster Wind','m/s',0,30,{dec:1}],
+    ['vavg','Mittlerer Wind','m/s',0,12,{dec:1}]
+  ],
+  async load(s,stale){
+    const lats=[],lons=[];
+    for(let j=0;j<WIND_H;j++) for(let i=0;i<WIND_W;i++){ lats.push((-70+(j+.5)*140/WIND_H).toFixed(2)); lons.push((-180+(i+.5)*360/WIND_W).toFixed(2)); }
+    const j=await getJson('https://api.open-meteo.com/v1/forecast?latitude='+lats.join(',')+'&longitude='+lons.join(',')+'&current=wind_speed_10m,wind_direction_10m&wind_speed_unit=ms');
+    if(stale()) return;
+    const arr=Array.isArray(j)?j:[j]; const px=new Uint8Array(WIND_W*WIND_H*4); let max=0,sum=0;
+    arr.forEach((pt,k)=>{
+      const c=pt.current||{}; const sp=+c.wind_speed_10m||0, dir=(+c.wind_direction_10m||0)*D2R;
+      const wx=-Math.sin(dir)*sp, wy=-Math.cos(dir)*sp; max=Math.max(max,sp); sum+=sp;
+      const n=v=>Math.max(0,Math.min(255,Math.round(128+v/25*127)));
+      px[k*4]=n(wx); px[k*4+1]=n(wy); px[k*4+2]=Math.min(255,Math.round(sp*8)); px[k*4+3]=255;
+    });
+    gl.bindTexture(gl.TEXTURE_2D,windTex);
+    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,WIND_W,WIND_H,0,gl.RGBA,gl.UNSIGNED_BYTE,px);
+    push(s.channels[0],max); push(s.channels[1],arr.length?sum/arr.length:0);
+    s.hasData=true;
+    mark(s,'live',arr.length+' Punkte · max '+max.toFixed(0)+' m/s');
+  }
+});
+
+// ---- NOAA SWPC space weather
+function flareClass(f){ if(!(f>0)) return '—'; const L=[['X',1e-4],['M',1e-5],['C',1e-6],['B',1e-7],['A',1e-8]]; for(const [k,v] of L) if(f>=v) return k+(f/v).toFixed(1); return 'A'+(f/1e-8).toFixed(1); }
+sensor({
+  id:'space', group:'space', name:'Weltraumwetter', prov:'NOAA SWPC · DSCOVR/ACE · GOES', kind:'mess', every:60e3,
+  link:'https://www.swpc.noaa.gov', lic:'Public Domain',
+  info:'Sonnenwind am Lagrange-Punkt L1, geomagnetischer Kp-Index und Röntgenfluss der Sonne. Eruptionen ab Klasse C lösen einen Impuls aus.',
+  ch:[
+    ['vsw','Sonnenwind','km/s',250,800,{dec:0,def:['speed',.6]}],
+    ['dens','Teilchendichte','p/cm³',0,25,{dec:1}],
+    ['bz','Magnetfeld Bz','nT',-15,15,{dec:1,def:['turb',-.6]}],
+    ['bt','Magnetfeld gesamt','nT',0,25,{dec:1}],
+    ['kp','Kp-Index','',0,9,{dec:2,def:['hue',.5]}],
+    ['xray','Röntgenfluss 0,1–0,8 nm','W/m²',1e-8,1e-3,{log:true,dec:2,fmt:flareClass,def:['pulse',.5]}]
+  ],
+  async load(s,stale){
+    const B='https://services.swpc.noaa.gov/';
+    const [pl,mg,kp,xr]=await Promise.allSettled([
+      getJson(B+'products/solar-wind/plasma-2-hour.json'), getJson(B+'products/solar-wind/mag-2-hour.json'),
+      getJson(B+'json/planetary_k_index_1m.json'), getJson(B+'json/goes/primary/xrays-6-hour.json')
+    ]);
+    if(stale()) return;
+    const C_=id=>s.channels.find(c=>c.id===id);
+    const tab=(r,col)=>{ if(r.status!=='fulfilled'||!Array.isArray(r.value)||r.value.length<2) return null; const h=r.value[0]; const i=h.indexOf(col); if(i<0) return null; return r.value.slice(1).map(row=>({t:Date.parse(String(row[0]).replace(' ','T')+'Z'),v:parseFloat(row[i])})).filter(x=>isFinite(x.v)); };
+    const setSeries=(c,ser)=>{ if(!ser||!ser.length) return false; if(!c.seeded){ seedHist(c,ser.slice(0,-1).map(x=>x.v)); c.seeded=true; } push(c,ser[ser.length-1].v); return ser[ser.length-1].t; };
+    let ok=0, at=0;
+    for(const [id,r,col] of [['vsw',pl,'speed'],['dens',pl,'density'],['bz',mg,'bz_gsm'],['bt',mg,'bt']]){ const t=setSeries(C_(id),tab(r,col)); if(t){ ok++; at=Math.max(at,t); } }
+    if(kp.status==='fulfilled'&&Array.isArray(kp.value)){ const ser=kp.value.map(x=>({t:Date.parse(x.time_tag+'Z'),v:parseFloat(x.estimated_kp!=null?x.estimated_kp:x.kp_index)})).filter(x=>isFinite(x.v)); if(setSeries(C_('kp'),ser)) ok++; }
+    if(xr.status==='fulfilled'&&Array.isArray(xr.value)){
+      const ser=xr.value.filter(x=>x.energy==='0.1-0.8nm').map(x=>({t:Date.parse(x.time_tag),v:parseFloat(x.flux)})).filter(x=>x.v>0);
+      const c=C_('xray'); const prev=c.value;
+      if(setSeries(c,ser)){ ok++; const f=c.value; if(prev&&f>=1e-6&&f>prev*1.8){ s.flash=Math.max(s.flash,clamp(Math.log10(f/1e-7)/3)); addTicker('Sonne','Eruption '+flareClass(f),'Röntgenfluss GOES'); } }
+    }
+    if(!ok) throw fail('SWPC nicht erreichbar');
+    s.hasData=true;
+    mark(s,'live',ok+'/6 Kanäle · '+(at?ago(at):''));
+  }
+});
+
+SENSORS.forEach(s=>{ if(s.init) s.init(s); });
+
+// ---------------------------------------------------------------- ticker
+const tickerEl=$('ticker'); const tickerItems=[];
+function addTicker(kind,strong,rest){
+  tickerItems.unshift({t:Date.now(),kind,strong,rest});
+  if(tickerItems.length>5) tickerItems.length=5;
+  renderTicker();
+}
+function renderTicker(){
+  tickerEl.hidden=!state.ticker;
+  tickerEl.innerHTML=tickerItems.map(x=>'<li><span>'+new Date(x.t).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})+'</span><span><b>'+esc(x.strong)+'</b> '+esc(x.rest)+'</span></li>').join('');
+}
+
+// ---------------------------------------------------------------- modulation
+const MOD0={turb:0,speed:0,dens:0,hue:0,glow:0,relief:0,flowX:0,flowY:0,pulse:0};
+const mod=Object.assign({},MOD0);
+const eff={turb:.5,speed:.5,dens:.6,glow:.35,relief:.45};
+function computeMods(){
+  const m=Object.assign({},MOD0);
+  for(const s of SENSORS){
+    if(!s.on) continue;
+    if(s.flash){ m.pulse+=s.flash; s.flash*=.965; if(s.flash<.01) s.flash=0; }
+    for(const c of s.channels){
+      if(c.target==='none'||c.norm==null) continue;
+      const a=c.amt;
+      switch(c.target){
+        case 'dir': { let deg=c.value; if(c.angle==='from') deg+=180; if(!c.angle) deg=c.norm*360; m.flowX+=a*Math.sin(deg*D2R)*.7; m.flowY+=a*Math.cos(deg*D2R)*.7; break; }
+        case 'hue': m.hue+=a*c.norm*.6; break;
+        case 'flowX': case 'flowY': m[c.target]+=a*(c.norm-.5)*1.6; break;
+        case 'pulse': m.pulse+=Math.max(0,a*c.norm); break;
+        default: m[c.target]+=a*(c.norm-.5);
+      }
+    }
+  }
+  for(const k in m){ mod[k]+=(m[k]-mod[k])*(k==='pulse'?.18:.04); }
+  eff.turb=clamp(state.turb+mod.turb); eff.speed=clamp(state.speed+mod.speed); eff.dens=clamp(state.dens+mod.dens);
+  eff.glow=clamp(state.glow+mod.glow); eff.relief=clamp(state.relief+mod.relief);
+}
+
+// ---------------------------------------------------------------- UI: tabs, rooms
+const worksEl=$('works');
+ROOMS.forEach((r,i)=>{
+  const b=document.createElement('button');
+  b.className='work'; b.type='button'; b.setAttribute('aria-current','false');
+  b.innerHTML='<span class="y">'+esc(r.year)+'<i>'+(i<9?i+1:i===9?'0':'')+'</i></span><span class="t">'+esc(r.plain)+'</span><span class="s">'+esc(r.source)+'</span>';
+  b.addEventListener('click',()=>setRoom(i));
+  worksEl.appendChild(b);
+});
+let curTab='werk';
+function setTab(t){
+  curTab=t;
+  document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===t?'true':'false'));
+  ['werk','sens','feld'].forEach(k=>{ $('pane-'+k).hidden=k!==t; });
+  $('drawerScroll').scrollTop=0;
+  if(t==='sens') SENSORS.forEach(s=>{ s.dirty=true; s.chVerR=-1; });
+}
+document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.tab)));
+
+function lerpLook(a,b,k){
+  const o={};
+  for(const key in b){
+    const x=a[key], y=b[key];
+    if(Array.isArray(y)) o[key]=y.map((v,i)=>x[i]+(v-x[i])*k);
+    else if(typeof y==='number') o[key]=x+(y-x)*k;
+    else o[key]=y;
+  }
+  return o;
+}
+
+function setRoom(i){
+  state.room=i; state.blend=1;
+  state.seedTarget=[state.seedTarget[0]+(Math.random()-.5)*.6, state.seedTarget[1]+(Math.random()-.5)*.6];
+  const r=ROOMS[i];
+  state.lookT=r.look; if(!state.look) state.look=JSON.parse(JSON.stringify(r.look));
+  if(r.look.mono!==state.look.mono) state.look.mono=r.look.mono;
+  document.documentElement.style.setProperty('--accent',r.accent);
+  $('wEyebrow').textContent='Raum '+pad(i+1,2)+' / '+pad(ROOMS.length,2)+' · '+r.year+' · '+r.place.split(',')[0];
+  $('wTitle').innerHTML=r.title;
+  $('wData').textContent=r.data; $('wPlace').textContent=r.place; $('wMethod').textContent=r.method;
+  $('wText').textContent=r.text; $('wHint').textContent=r.hint;
+  $('roMode').textContent=pad(i+1,2); $('roName').textContent=r.plain;
+  [...worksEl.children].forEach((b,k)=>b.setAttribute('aria-current',k===i?'true':'false'));
+  document.title='Latent Space Browser · '+r.plain;
+  // site
+  if(state.coupleLoc&&r.site){ const p=placeById(r.site); if(p) setLocation(p,'room',true); }
+  // sensors: turn off room-driven ones not wanted here, enable this room's
+  for(const s of SENSORS){
+    const want=r.sensors[s.id];
+    if(s.on&&s.byRoom&&!want) setSensor(s,false);
+  }
+  for(const id in r.sensors){
+    const s=S[id], cfg=r.sensors[id]; if(!s) continue;
+    if(s.on&&!s.byRoom) continue;
+    s.mapPref=cfg.map||{};
+    if(cfg.opt&&cfg.opt.scope&&s.onSelect&&s.opt.scope!==cfg.opt.scope){ s.opt.scope=cfg.opt.scope; s.sel=cfg.opt.scope; s.selVer++; if(s.on){ clearData(s); applyMap(s); startPoll(s); } }
+    if(s.on) applyMap(s); else setSensor(s,true,true);
+  }
+  renderBinds(); syncChips();
+}
+
+function bindDesc(s,c){ return c.label+' → '+TLABEL[c.target]+(c.amt<0?' (umgekehrt)':''); }
+function renderBinds(){
+  const r=ROOMS[state.room];
+  const ids=Object.keys(r.sensors);
+  SENSORS.forEach(s=>{ if(s.on&&!ids.includes(s.id)) ids.push(s.id); });
+  const rows=ids.map(id=>{
+    const s=S[id]; if(!s) return '';
+    const mapped=s.channels.filter(c=>c.target!=='none');
+    const sub=s.on?(mapped.length?mapped.map(c=>bindDesc(s,c)).join(' · '):'speist Punkte ins Feld'):'aus';
+    return '<div class="bind" data-state="'+s.state+'" data-sid="'+s.id+'"><span class="sd"></span><span class="bn">'+esc(s.name)+' <small>'+esc(sub)+'</small></span><span class="bv">'+esc(s.on?s.note:'')+'</span></div>';
+  }).join('');
+  $('bindRows').innerHTML=rows||'<div class="empty">Keine Datenströme aktiv.</div>';
+  $('wLive').textContent=ids.filter(id=>S[id]&&S[id].on).map(id=>S[id].prov.split(' · ')[0]).filter((v,i,a)=>a.indexOf(v)===i).join(', ')||'—';
+  const sug=$('suggest'); sug.innerHTML='';
+  (r.suggest||[]).forEach(id=>{
+    const s=S[id]; const b=document.createElement('button'); b.className='chip'; b.type='button';
+    b.setAttribute('aria-pressed',s.on?'true':'false');
+    b.innerHTML='<span class="dot"></span>'+esc(s.name);
+    b.addEventListener('click',()=>setSensor(s,!s.on,false));
+    sug.appendChild(b);
+  });
+}
+
+// ---------------------------------------------------------------- location UI
+const locPreset=$('locPreset');
+function renderPresets(){
+  locPreset.innerHTML='<option value="">Ort wählen …</option>'+PLACES.map(p=>'<option value="'+p.id+'">'+esc(p.name)+'</option>').join('');
+}
+renderPresets();
+function renderLoc(){
+  const L=LOC.cur;
+  $('locName').textContent=L.name;
+  $('locCoord').textContent=Math.abs(L.lat).toFixed(3)+'° '+(L.lat>=0?'N':'S')+' · '+Math.abs(L.lon).toFixed(3)+'° '+(L.lon>=0?'O':'W');
+  $('roLoc').textContent=L.name;
+  const p=PLACES.find(p=>Math.abs(p.lat-L.lat)<1e-3&&Math.abs(p.lon-L.lon)<1e-3);
+  locPreset.value=p?p.id:'';
+}
+function setLocation(p,why,silent){
+  const same=Math.abs(LOC.cur.lat-p.lat)<1e-4&&Math.abs(LOC.cur.lon-p.lon)<1e-4;
+  LOC.cur={name:p.name,lat:+p.lat,lon:+p.lon};
+  if(why!=='room'){ state.coupleLoc=false; $('locCouple').checked=false; }
+  renderLoc();
+  if(same) return;
+  for(const s of SENSORS){
+    if(!(typeof s.loc==='function'?s.loc(s):s.loc)) continue;
+    s.boxesFor=s.stFor=s.chFor=s.chKey=null; if(s.id!=='flights') s.sel=null;
+    clearData(s);
+    if(s.on){ s.dirty=true; startPoll(s); }
+  }
+  if(S.sats.recs) S.sats.tick(S.sats,performance.now(),true);
+  if(S.quakes.on) startPoll(S.quakes);
+  if(!silent) toast('Messort: '+p.name);
+}
+locPreset.addEventListener('change',()=>{ const p=placeById(locPreset.value); if(p) setLocation(p,'user'); });
+$('locCouple').addEventListener('change',e=>{ state.coupleLoc=e.target.checked; if(state.coupleLoc){ const r=ROOMS[state.room]; if(r.site) setLocation(placeById(r.site),'room'); } });
+$('locGps').addEventListener('click',()=>{
+  const msg=$('locMsg');
+  if(!navigator.geolocation){ msg.textContent='Standortbestimmung nicht verfügbar.'; return; }
+  msg.textContent='Standort wird bestimmt …';
+  navigator.geolocation.getCurrentPosition(pos=>{
+    msg.textContent='GPS: ± '+fmt(pos.coords.accuracy,0)+' m';
+    setLocation({name:'Mein Standort',lat:+pos.coords.latitude.toFixed(4),lon:+pos.coords.longitude.toFixed(4)},'gps');
+  },err=>{ msg.textContent=err.code===1?'Standort abgelehnt.':'Standort nicht bestimmbar.'; },{enableHighAccuracy:false,timeout:15000,maximumAge:600000});
+});
+$('locForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const q=$('locQ').value.trim(); const res=$('locRes'), msg=$('locMsg');
+  if(!q) return; msg.textContent='suche …'; res.innerHTML='';
+  try{
+    const j=await getJson('https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(q)+'&count=6&language=de&format=json');
+    const list=j.results||[];
+    msg.textContent=list.length?'':'Nichts gefunden.';
+    list.forEach(r=>{
+      const b=document.createElement('button'); b.type='button';
+      b.innerHTML=esc(r.name)+'<small>'+esc([r.admin1,r.country].filter(Boolean).join(', '))+'</small>';
+      b.addEventListener('click',()=>{ res.innerHTML=''; $('locQ').value=''; setLocation({name:r.name,lat:r.latitude,lon:r.longitude},'user'); });
+      res.appendChild(b);
+    });
+  }catch(err){ msg.textContent='Suche fehlgeschlagen: '+errNote(err); }
+});
+
+// ---------------------------------------------------------------- sensor cards
+const listEl=$('sensorList');
+const targetOptions=TARGETS.map(t=>'<option value="'+t[0]+'">'+t[1]+'</option>').join('');
+GROUPS.forEach(([g,label])=>{
+  const sec=document.createElement('div'); sec.className='sgroup';
+  sec.innerHTML='<span class="eyebrow"><span>'+esc(label)+'</span><span data-gcount="'+g+'"></span></span>';
+  SENSORS.filter(s=>s.group===g).forEach(s=>{
+    const card=document.createElement('div'); card.className='scard'; card.dataset.state='off'; card.dataset.on='0';
+    card.innerHTML='<div class="shead"><button class="sw" type="button" role="switch" aria-checked="false" aria-label="'+esc(s.name)+' ein oder aus"></button>'
+      +'<div class="sname">'+esc(s.name)+'<small>'+esc(s.prov)+' <i class="badge b-'+s.kind+'">'+KINDLABEL[s.kind]+'</i></small></div>'
+      +'<span class="sstat"><span class="snote"></span><span class="sd"></span></span></div>'
+      +'<p class="sinfo">'+esc(s.info)+(s.link?' <a href="'+s.link+'" target="_blank" rel="noopener">Quelle</a>':'')+(s.lic?' · '+esc(s.lic):'')+'</p>'
+      +'<div class="sbody" hidden><div class="ssel"></div><div class="sextra"></div><div class="chs"></div></div>';
+    card.querySelector('.sw').addEventListener('click',()=>setSensor(s,!s.on,false));
+    s.el=card; s.chVerR=-1; s.selVerR=-1;
+    sec.appendChild(card);
+  });
+  listEl.appendChild(sec);
+});
+function renderSel(s){
+  const box=s.el.querySelector('.ssel');
+  if(!s.options||!s.options.length){ box.innerHTML=''; return; }
+  box.innerHTML='<label>'+esc(s.selLabel||'Auswahl')+'</label><select>'+s.options.map(o=>'<option value="'+esc(o.v)+'">'+esc(o.t)+'</option>').join('')+'</select>';
+  const sel=box.querySelector('select'); sel.value=s.sel==null?'':String(s.sel);
+  sel.addEventListener('change',()=>{
+    const v=sel.value;
+    if(s.onSelect) s.onSelect(s,v);
+    else { s.sel=v; s.chFor=null; s.chKey=null; s.channels.forEach(c=>{c.hist=[];}); if(s.on) startPoll(s); }
+  });
+}
+function renderChannels(s){
+  const box=s.el.querySelector('.chs'), ex=s.el.querySelector('.sextra');
+  ex.innerHTML='';
+  if(s.extra){
+    ex.appendChild(s.extra);
+    const d=document.createElement('div'); d.className='ctl';
+    d.innerHTML='<label>Abdruck im Feld</label><output>'+(s.amt*100|0)+' %</output><div class="track"><input type="range" min="0" max="1" step="0.05" value="'+s.amt+'"></div>';
+    d.querySelector('input').addEventListener('input',e=>{ s.amt=+e.target.value; d.querySelector('output').textContent=(s.amt*100|0)+' %'; });
+    ex.appendChild(d);
+  }
+  if(!s.channels.length){ box.innerHTML='<div class="empty">'+(s.on?'Noch keine Messwerte.':'')+'</div>'; return; }
+  box.innerHTML='';
+  s.channels.forEach(c=>{
+    const row=document.createElement('div'); row.className='ch';
+    row.innerHTML='<span class="ch-l" title="'+esc(c.label)+'">'+esc(c.label)+'</span><span class="ch-v">—</span><canvas></canvas>'
+      +'<div class="ch-map"><select aria-label="Wirkung von '+esc(c.label)+'">'+targetOptions+'</select><input type="range" min="-1" max="1" step="0.05" aria-label="Stärke"></div>';
+    const sel=row.querySelector('select'), rg=row.querySelector('input');
+    sel.value=c.target; rg.value=c.amt; rg.disabled=c.target==='none';
+    row.dataset.mapped=c.target!=='none'?'1':'0';
+    sel.addEventListener('change',()=>{ c.target=sel.value; rg.disabled=c.target==='none'; row.dataset.mapped=c.target!=='none'?'1':'0'; if(s.byRoom){ s.byRoom=false; } renderBinds(); });
+    rg.addEventListener('input',()=>{ c.amt=+rg.value; s.byRoom=false; });
+    c.el=row; c.vEl=row.querySelector('.ch-v'); c.cv=row.querySelector('canvas'); c.selEl=sel; c.rgEl=rg; c.hlen=-1;
+    box.appendChild(row);
+  });
+}
+function chText(c){
+  if(c.value==null) return '—';
+  if(c.fmt) return c.fmt(c.value);
+  if(c.angle) return fmt(c.value,0)+'° <small>'+compass(c.value)+'</small>';
+  return fmt(c.value,c.dec)+(c.unit?' <small>'+esc(c.unit)+'</small>':'');
+}
+function spark(c,col){
+  const cv=c.cv; if(!cv) return;
+  const dpr=Math.min(2,window.devicePixelRatio||1); const w=cv.clientWidth||300, h=26;
+  if(cv.width!==Math.round(w*dpr)){ cv.width=Math.round(w*dpr); cv.height=Math.round(h*dpr); }
+  const x=cv.getContext('2d'); x.setTransform(dpr,0,0,dpr,0,0); x.clearRect(0,0,w,h);
+  const a=c.hist;
+  if(c.norm!=null){ x.fillStyle='rgba(255,255,255,.06)'; x.fillRect(0,h-2,w,2); x.fillStyle=col; x.globalAlpha=.8; x.fillRect(0,h-2,w*c.norm,2); x.globalAlpha=1; }
+  if(a.length<2) return;
+  let lo=Infinity,hi=-Infinity; for(const v of a){ if(v<lo) lo=v; if(v>hi) hi=v; }
+  if(hi-lo<1e-9){ hi+=1; lo-=1; }
+  x.beginPath();
+  a.forEach((v,i)=>{ const px=i/(a.length-1)*(w-4)+2, py=3+(1-(v-lo)/(hi-lo))*(h-9); if(i) x.lineTo(px,py); else x.moveTo(px,py); });
+  x.strokeStyle=c.target!=='none'?col:'rgba(236,234,228,.45)'; x.lineWidth=1.2; x.stroke();
+  const lv=a[a.length-1]; x.fillStyle=col; x.beginPath(); x.arc(w-2,3+(1-(lv-lo)/(hi-lo))*(h-9),2,0,7); x.fill();
+}
+let uiT=0, sparkT=0;
+function updateUI(now){
+  if(now-uiT<250) return; uiT=now;
+  const doSpark=now-sparkT>900; if(doSpark) sparkT=now;
+  const accent=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()||'#ccc';
+  let onN=0; const gc={};
+  for(const s of SENSORS){
+    if(s.on){ onN++; gc[s.group]=(gc[s.group]||0)+1; }
+    if(curTab!=='sens') continue;
+    const el=s.el;
+    if(s.dirty){
+      s.dirty=false;
+      el.dataset.state=s.on?s.state:(s.state==='err'?'err':'off'); el.dataset.on=s.on?'1':'0';
+      el.querySelector('.sw').setAttribute('aria-checked',s.on?'true':'false');
+      el.querySelector('.snote').textContent=s.on||s.state==='err'?s.note:'';
+      el.querySelector('.sbody').hidden=!s.on;
+    }
+    if(!s.on) continue;
+    if(s.selVerR!==s.selVer){ s.selVerR=s.selVer; renderSel(s); }
+    if(s.chVerR!==s.chVer){ s.chVerR=s.chVer; renderChannels(s); }
+    for(const c of s.channels){
+      if(!c.vEl) continue;
+      const t=chText(c); if(c._t2!==t){ c.vEl.innerHTML=t; c._t2=t; }
+      if(c.selEl&&c.selEl.value!==c.target){ c.selEl.value=c.target; c.rgEl.value=c.amt; c.rgEl.disabled=c.target==='none'; c.el.dataset.mapped=c.target!=='none'?'1':'0'; }
+      if(doSpark||s.kind==='device') spark(c,accent);
+    }
+  }
+  $('tabN').textContent=onN;
+  document.querySelectorAll('[data-gcount]').forEach(e=>{ const n=gc[e.dataset.gcount]||0; e.textContent=n?n+' aktiv':''; });
+  // readout
+  const live=SENSORS.filter(s=>s.on&&s.state==='live').length;
+  $('roSens').innerHTML='<b>'+live+'</b> live · '+onN+' an';
+  $('roPts').textContent=fmt(ptsN,0);
+  if(curTab==='werk'){
+    document.querySelectorAll('#bindRows .bind').forEach(row=>{
+      const s=S[row.dataset.sid]; if(!s) return;
+      row.dataset.state=s.on?s.state:'off';
+      const bv=row.querySelector('.bv'); const t=s.on?s.note:''; if(bv.textContent!==t) bv.textContent=t;
+    });
+  }
+  if(curTab==='feld'){
+    const show=(id,base,e)=>{ const el=$(id); el.style.left=(e*100)+'%'; el.classList.toggle('on',Math.abs(e-base)>.01); };
+    show('eTurb',state.turb,eff.turb); show('eSpeed',state.speed,eff.speed); show('eDens',state.dens,eff.dens); show('eGlow',state.glow,eff.glow); show('eRelief',state.relief,eff.relief);
+  }
+}
+
+// ---------------------------------------------------------------- controls
+function bindRange(id,out,key,f){
+  const r=$(id),o=$(out);
+  const upd=()=>{ state[key]=parseFloat(r.value); o.textContent=f?f(state[key]):state[key].toFixed(2); if(key==='res') resize(); };
+  r.addEventListener('input',upd); upd();
+}
+bindRange('rTurb','oTurb','turb'); bindRange('rSpeed','oSpeed','speed'); bindRange('rDens','oDens','dens');
+bindRange('rDetail','oDetail','detail',v=>String(v|0)); bindRange('rRelief','oRelief','relief'); bindRange('rGlow','oGlow','glow');
+bindRange('rRes','oRes','res',v=>Math.round(v*100)+' %'); bindRange('rPt','oPt','ptSize',v=>v.toFixed(2)+'×');
+$('tHud').addEventListener('change',e=>{ state.hud=e.target.checked; });
+$('tPts').addEventListener('change',e=>{ state.inject=e.target.checked; });
+$('tTicker').addEventListener('change',e=>{ state.ticker=e.target.checked; renderTicker(); });
+const LEG=[['Flugzeug','#ffdb9e'],['Erdbeben','#ff5733'],['Satellit','#8ce6ff'],['Pegel','#4dd9bf'],['Brand','#ff8c26'],['Sturm, DWD-Station','#9eb3ff'],['Vulkan','#ff4080'],['Bürger-Messstation','#a6ff8c']];
+$('legend').innerHTML=LEG.map(l=>'<span><i style="background:'+l[1]+'"></i>'+l[0]+'</span>').join('');
+
+const btnMirror=$('btnMirror'), btnMic=$('btnMic'), btnInfo=$('btnInfo'), btnWind=$('btnWind'), btnSens=$('btnSens');
+function syncChips(){
+  btnMic.setAttribute('aria-pressed',S.mic.on?'true':'false');
+  btnWind.setAttribute('aria-pressed',S.windfield.on?'true':'false');
+  btnSens.setAttribute('aria-pressed',SENSORS.some(s=>s.on)?'true':'false');
+  document.querySelectorAll('#suggest .chip').forEach((b,i)=>{ const id=(ROOMS[state.room].suggest||[])[i]; if(id) b.setAttribute('aria-pressed',S[id].on?'true':'false'); });
+}
+function toggleMirror(){ state.mirrorTarget=state.mirrorTarget?0:1; btnMirror.setAttribute('aria-pressed',state.mirrorTarget?'true':'false'); }
+btnMirror.addEventListener('click',toggleMirror);
+btnMic.addEventListener('click',()=>setSensor(S.mic,!S.mic.on,false));
+btnWind.addEventListener('click',()=>setSensor(S.windfield,!S.windfield.on,false));
+function openSens(){ setTab('sens'); if(matchMedia('(max-width:860px)').matches&&!document.body.classList.contains('info-open')) btnInfo.click(); }
+btnSens.addEventListener('click',openSens);
+$('btnReset').addEventListener('click',()=>{ reset=1; });
+$('btnShot').addEventListener('click',()=>{ state.shot=true; });
+$('btnFull').addEventListener('click',()=>{
+  if(document.fullscreenElement) document.exitFullscreen(); else if(document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+});
+$('btnHide').addEventListener('click',()=>document.body.classList.add('hide-ui'));
+btnInfo.addEventListener('click',()=>{
+  const open=document.body.classList.toggle('info-open');
+  btnInfo.setAttribute('aria-pressed',open?'true':'false');
+});
+let toastT=0;
+function toast(t){ const el=$('toast'); el.textContent=t; el.classList.add('on'); clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove('on'),2200); }
+
+// pointer
+function toUv(e){ const r=canvas.getBoundingClientRect(); return [(e.clientX-r.left)/r.width, 1-(e.clientY-r.top)/r.height]; }
+canvas.addEventListener('pointermove',e=>{
+  const uv=toUv(e);
+  if(!state.hasMouse){ state.prevMouse=uv; state.hasMouse=true; }
+  state.mouse=uv; state.inputs++;
+});
+canvas.addEventListener('pointerdown',e=>{
+  canvas.setPointerCapture(e.pointerId);
+  const uv=toUv(e); state.mouse=uv; if(!state.hasMouse){ state.prevMouse=uv; state.hasMouse=true; }
+  state.down=1; state.inputs++;
+  const k=ROOMS[state.room].plain==='Unsupervised'?1.6:0.35;
+  state.seedTarget=[state.seedTarget[0]+(Math.random()-.5)*k, state.seedTarget[1]+(Math.random()-.5)*k];
+  if(document.body.classList.contains('hide-ui')) document.body.classList.remove('hide-ui');
+});
+const up=()=>{ state.down=0; };
+canvas.addEventListener('pointerup',up); canvas.addEventListener('pointercancel',up);
+canvas.addEventListener('pointerleave',()=>{ state.hasMouse=false; state.vel=[0,0]; });
+
+window.addEventListener('keydown',e=>{
+  const tg=e.target.tagName; if(tg==='INPUT'||tg==='SELECT'||tg==='TEXTAREA') return;
+  if(e.metaKey||e.ctrlKey||e.altKey) return;
+  const k=e.key.toLowerCase();
+  if(k>='1'&&k<='9'){ if(+k<=ROOMS.length) setRoom(+k-1); }
+  else if(k==='0') setRoom(9);
+  else if(k==='arrowright') setRoom((state.room+1)%ROOMS.length);
+  else if(k==='arrowleft') setRoom((state.room+ROOMS.length-1)%ROOMS.length);
+  else if(k==='m') toggleMirror();
+  else if(k==='w') btnWind.click();
+  else if(k==='s') openSens();
+  else if(k==='g'){ state.hud=!state.hud; $('tHud').checked=state.hud; }
+  else if(k==='h') document.body.classList.toggle('hide-ui');
+  else if(k==='r') reset=1;
+  else if(k==='f') $('btnFull').click();
+  else if(k==='i') btnInfo.click();
+  else if(k==='escape') document.body.classList.remove('hide-ui');
+});
+
+// ---------------------------------------------------------------- projection & points
+function projector(){
+  const r=ROOMS[state.room];
+  if(r.proj!=='local') return {world:true,f:(lat,lon)=>[(((lon+180)/360)%1+1)%1,(lat+90)/180],v:(vlat,vlon)=>[vlon/360,vlat/180]};
+  const L=LOC.cur, R=r.radius||100, asp=(simH||1)/(simW||1);
+  const kx=111.32*Math.cos(L.lat*D2R)/(2*R)*asp, ky=110.57/(2*R);
+  return {world:false,R,f:(lat,lon)=>{ const dl=((lon-L.lon+540)%360)-180; return [.5+dl*kx,.5+(lat-L.lat)*ky]; },v:(vlat,vlon)=>[vlon*kx,vlat*ky]};
+}
+const glBuf=gl.createBuffer(); let buf=null, ptsN=0, builtAt=0, lastBuild=0, curProj=null;
+function rebuild(now){
+  const pr=projector(); curProj=pr;
+  const srcs=SENSORS.filter(s=>s.on&&s.points&&s.points.length);
+  let n=0; for(const s of srcs) n+=s.points.length;
+  if(!buf||buf.length<n*7) buf=new Float32Array(Math.max(n*7,7));
+  let o=0, cnt=0; const ps=state.ptSize;
+  for(const s of srcs){
+    const dt=Math.min(1200,(now-s.pointsAt)/1000);
+    for(const r of s.points){
+      const lat=r.lat+r.vlat*dt, lon=r.lon+r.vlon*dt;
+      const uv=pr.f(lat,lon);
+      if(!pr.world&&(uv[0]<-.1||uv[0]>1.1||uv[1]<-.1||uv[1]>1.1)) continue;
+      const vv=pr.v(r.vlat,r.vlon);
+      buf[o++]=uv[0]; buf[o++]=uv[1]; buf[o++]=vv[0]; buf[o++]=vv[1]; buf[o++]=r.size*ps*(pr.world?1:1.4); buf[o++]=r.kind; buf[o++]=r.phase;
+      cnt++;
+    }
+  }
+  ptsN=cnt; builtAt=now; lastBuild=now;
+  gl.bindBuffer(gl.ARRAY_BUFFER,glBuf);
+  gl.bufferData(gl.ARRAY_BUFFER,buf.subarray(0,cnt*7),gl.DYNAMIC_DRAW);
+}
+function drawInjection(time){
+  const now=Date.now();
+  if(now-lastBuild>1000||!buf) rebuild(now);
+  const dt=(now-builtAt)/1000;
+  gl.useProgram(pointProg.p);
+  gl.bindBuffer(gl.ARRAY_BUFFER,glBuf);
+  const a=pointProg.a, st=7*4;
+  gl.enableVertexAttribArray(a.aPos); gl.vertexAttribPointer(a.aPos,2,gl.FLOAT,false,st,0);
+  gl.enableVertexAttribArray(a.aVel); gl.vertexAttribPointer(a.aVel,2,gl.FLOAT,false,st,8);
+  gl.enableVertexAttribArray(a.aSize); gl.vertexAttribPointer(a.aSize,1,gl.FLOAT,false,st,16);
+  gl.enableVertexAttribArray(a.aKind); gl.vertexAttribPointer(a.aKind,1,gl.FLOAT,false,st,20);
+  gl.enableVertexAttribArray(a.aPhase); gl.vertexAttribPointer(a.aPhase,1,gl.FLOAT,false,st,24);
+  gl.uniform1f(pointProg.u.uDt,dt);
+  gl.uniform1f(pointProg.u.uTime,time);
+  gl.uniform1f(pointProg.u.uScale,Math.max(.75,simW/1100));
+  gl.uniform1f(pointProg.u.uWrap,curProj&&curProj.world?1:0);
+  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE,gl.ONE);
+  gl.viewport(0,0,simW,simH);
+  for(let pass=0;pass<2;pass++){
+    gl.bindFramebuffer(gl.FRAMEBUFFER,injFbo[pass]);
+    gl.clearColor(0,0,0,0); gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.uniform1f(pointProg.u.uPass,pass);
+    if(ptsN>0) gl.drawArrays(gl.POINTS,0,ptsN);
+  }
+  gl.disable(gl.BLEND);
+  [a.aPos,a.aVel,a.aSize,a.aKind,a.aPhase].forEach(l=>gl.disableVertexAttribArray(l));
+}
+
+// ---------------------------------------------------------------- HUD
+function drawHud(){
+  const W=hud.width, Hh=hud.height; hctx.clearRect(0,0,W,Hh);
+  if(!state.hud||state.mirror>.05||!curProj) return;
+  const dpr=W/(hud.clientWidth||1), pr=curProj, now=Date.now();
+  const X=u=>u*W, Y=v=>(1-v)*Hh;
+  hctx.font=(10*dpr)+'px "IBM Plex Mono",ui-monospace,monospace'; hctx.textBaseline='middle';
+  const label=(x,y,t,al)=>{ const w=hctx.measureText(t).width; if(x+w>W-6*dpr) x=Math.max(6*dpr,W-6*dpr-w); hctx.globalAlpha=al==null?.8:al; hctx.fillStyle='#ecEae4'; hctx.fillText(t,x,y); hctx.globalAlpha=1; };
+  hctx.lineWidth=dpr;
+  if(pr.world){
+    hctx.strokeStyle='rgba(236,234,228,.07)';
+    hctx.beginPath();
+    for(let lon=-180;lon<=180;lon+=30){ const x=X((lon+180)/360); hctx.moveTo(x,0); hctx.lineTo(x,Hh); }
+    for(let lat=-60;lat<=60;lat+=30){ const y=Y((lat+90)/180); hctx.moveTo(0,y); hctx.lineTo(W,y); }
+    hctx.stroke();
+    hctx.strokeStyle='rgba(236,234,228,.16)'; hctx.beginPath(); hctx.moveTo(0,Y(.5)); hctx.lineTo(W,Y(.5)); hctx.stroke();
+    for(let lat=-60;lat<=60;lat+=30) label(8*dpr,Y((lat+90)/180)-7*dpr,Math.abs(lat)+'°'+(lat>0?'N':lat<0?'S':''),.35);
+  } else {
+    const c=[X(.5),Y(.5)], R=pr.R;
+    hctx.strokeStyle='rgba(236,234,228,.10)';
+    [1/3,2/3,1].forEach(f=>{ const rp=f*.5*Hh; hctx.beginPath(); hctx.arc(c[0],c[1],rp,0,Math.PI*2); hctx.stroke(); label(c[0]+4*dpr,c[1]-rp-7*dpr,fmt(R*f,0)+' km',.4); });
+    hctx.beginPath(); hctx.moveTo(c[0],c[1]-.5*Hh-14*dpr); hctx.lineTo(c[0],c[1]-.5*Hh+6*dpr); hctx.stroke();
+    label(c[0]-3*dpr,c[1]-.5*Hh-20*dpr,'N',.6);
+  }
+  // location
+  const lu=pr.f(LOC.cur.lat,LOC.cur.lon), lx=X(lu[0]), ly=Y(lu[1]);
+  hctx.strokeStyle='rgba(236,234,228,.75)';
+  hctx.beginPath(); hctx.arc(lx,ly,5*dpr,0,Math.PI*2); hctx.moveTo(lx-11*dpr,ly); hctx.lineTo(lx-7*dpr,ly); hctx.moveTo(lx+7*dpr,ly); hctx.lineTo(lx+11*dpr,ly); hctx.moveTo(lx,ly-11*dpr); hctx.lineTo(lx,ly-7*dpr); hctx.moveTo(lx,ly+7*dpr); hctx.lineTo(lx,ly+11*dpr); hctx.stroke();
+  label(lx+14*dpr,ly,LOC.cur.name.toUpperCase(),.9);
+  const pos=(s,r)=>{ const dt=Math.min(1200,(now-s.pointsAt)/1000); return pr.f(r.lat+r.vlat*dt,r.lon+r.vlon*dt); };
+  const inView=uv=>uv[0]>=0&&uv[0]<=1&&uv[1]>=0&&uv[1]<=1;
+  // quakes
+  if(S.quakes.on&&S.quakes.points){
+    const top=S.quakes.points.filter(p=>p.mag>=(pr.world?4.5:2)).sort((a,b)=>b.mag-a.mag).slice(0,pr.world?7:5);
+    hctx.strokeStyle='rgba(255,110,80,.7)';
+    for(const q of top){ const uv=pos(S.quakes,q); if(!inView(uv)) continue; const x=X(uv[0]),y=Y(uv[1]); const rr=(4+(q.mag-2)*4)*dpr; hctx.beginPath(); hctx.arc(x,y,rr,0,Math.PI*2); hctx.stroke(); label(x+rr+4*dpr,y,'M'+q.mag.toFixed(1)+' '+String(q.label).replace(/^.* of /,'').slice(0,28),.75); }
+  }
+  // ISS
+  if(S.sats.on&&S.sats.points){
+    const iss=S.sats.points.find(p=>p.iss);
+    if(iss){ const uv=pos(S.sats,iss); if(inView(uv)){ const x=X(uv[0]),y=Y(uv[1]); hctx.strokeStyle='rgba(140,230,255,.85)'; hctx.strokeRect(x-5*dpr,y-5*dpr,10*dpr,10*dpr); label(x+10*dpr,y,'ISS '+fmt(iss.alt,0)+' km',.9); } }
+  }
+  // volcanoes & storms
+  if(S.eonet.on&&S.eonet.points&&pr.world){
+    for(const e of S.eonet.points){ if(e.cat!=='volcanoes'&&e.cat!=='severeStorms') continue; const uv=pos(S.eonet,e); const x=X(uv[0]),y=Y(uv[1]); label(x+7*dpr,y,(e.label||'').slice(0,26),.5); }
+  }
+  // local flights
+  if(!pr.world&&S.flights.on&&S.flights.points){
+    const L=LOC.cur;
+    const near=S.flights.points.filter(p=>!p.ground&&p.label).map(p=>({p,d:distKm(L.lat,L.lon,p.lat,p.lon)})).sort((a,b)=>a.d-b.d).slice(0,9);
+    for(const {p} of near){ const uv=pos(S.flights,p); if(!inView(uv)) continue; const x=X(uv[0]),y=Y(uv[1]); label(x+6*dpr,y,p.label+' · '+fmt(p.alt,0)+' m',.6); }
+  }
+  // selected local stations
+  if(!pr.world){
+    for(const s of [S.osm,S.pegel,S.dwd]){
+      if(!s.on||!s.points) continue;
+      const p=s.points.find(p=>p.id!=null?p.id===s.sel:true); if(!p) continue;
+      const uv=pr.f(p.lat,p.lon); if(!inView(uv)) continue;
+      const x=X(uv[0]),y=Y(uv[1]); hctx.strokeStyle='rgba(166,255,140,.8)'; hctx.strokeRect(x-6*dpr,y-6*dpr,12*dpr,12*dpr); label(x+10*dpr,y,String(p.label||'').slice(0,30),.85);
+    }
+  }
+}
+
+// ---------------------------------------------------------------- loop
+let frames=0,fpsT=performance.now(),t0=performance.now(),hudT=0;
+function frame(now){
+  resize();
+  const time=(now-t0)/1000;
+  if(state.hasMouse){
+    const raw=[state.mouse[0]-state.prevMouse[0], state.mouse[1]-state.prevMouse[1]];
+    state.vel=[state.vel[0]*.55+raw[0]*.45, state.vel[1]*.55+raw[1]*.45];
+    state.prevMouse=state.mouse.slice();
+  } else { state.vel=[state.vel[0]*.8,state.vel[1]*.8]; }
+  state.seed=[state.seed[0]+(state.seedTarget[0]-state.seed[0])*.03, state.seed[1]+(state.seedTarget[1]-state.seed[1])*.03];
+  state.blend*=.965;
+  state.mirror+=(state.mirrorTarget-state.mirror)*.06;
+  if(state.lookT) state.look=lerpLook(state.look,state.lookT,.05);
+  for(const s of SENSORS) if(s.on&&s.tick) s.tick(s,now);
+  computeMods();
+  const lk=state.look;
+  const speed=eff.speed*(reduced?.35:1);
+  const windTarget=(S.windfield.on&&S.windfield.state==='live')?(ROOMS[state.room].live?2.2:1.6):0;
+  state.windK+=(windTarget-state.windK)*.04;
+  const anyPts=state.inject&&SENSORS.some(s=>s.on&&s.points&&s.points.length);
+  if(anyPts) drawInjection(time); else { ptsN=0; curProj=projector(); }
+  const camK=S.cam.on&&S.cam.video?S.cam.amt:0;
+
+  gl.bindFramebuffer(gl.FRAMEBUFFER,fbo[write]);
+  gl.viewport(0,0,simW,simH);
+  gl.useProgram(sim.p); bindQuad(sim.p);
+  const u=sim.u;
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,tex[read]); gl.uniform1i(u.uPrev,0);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D,injTex[0]); gl.uniform1i(u.uInjC,1);
+  gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D,injTex[1]); gl.uniform1i(u.uInjV,2);
+  gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D,windTex); gl.uniform1i(u.uWind,3);
+  gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D,camTex); gl.uniform1i(u.uCam,4);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.uniform2f(u.uRes,simW,simH);
+  gl.uniform1f(u.uTime,time);
+  gl.uniform2f(u.uMouse,state.mouse[0],state.mouse[1]);
+  gl.uniform2f(u.uMouseVel,state.vel[0],state.vel[1]);
+  gl.uniform1f(u.uDown,state.down);
+  gl.uniform1f(u.uTurb,eff.turb);
+  gl.uniform1f(u.uSpeed,speed);
+  gl.uniform1f(u.uDensity,eff.dens);
+  gl.uniform1f(u.uPulse,clamp(mod.pulse,0,1.5));
+  gl.uniform1f(u.uBlend,state.blend);
+  gl.uniform1f(u.uReset,reset);
+  gl.uniform2f(u.uSeed,state.seed[0],state.seed[1]);
+  gl.uniform1f(u.uWindK,state.windK);
+  gl.uniform1f(u.uLive,anyPts?1:0);
+  gl.uniform1f(u.uCamK,camK);
+  gl.uniform1f(u.uOct,state.detail);
+  gl.uniform1f(u.uCurlK,lk.curl);
+  gl.uniform1f(u.uWave,lk.wave);
+  gl.uniform2f(u.uFlowBias,lk.flow[0],lk.flow[1]);
+  gl.uniform2f(u.uFlowVec,clamp(mod.flowX,-1.5,1.5),clamp(mod.flowY,-1.5,1.5));
+  gl.uniform1f(u.uInjBase,lk.injBase);
+  gl.uniform1f(u.uInjMask,lk.injMask);
+  gl.uniform1f(u.uHue,mod.hue);
+  gl.uniform1f(u.uMono,lk.mono>.5?1:0);
+  gl.uniform3fv(u.uPA,lk.pa); gl.uniform3fv(u.uPB,lk.pb); gl.uniform3fv(u.uPC,lk.pc); gl.uniform3fv(u.uPD,lk.pd);
+  gl.uniform3fv(u.uHi,lk.hi);
+  gl.uniform1f(u.uHiK,lk.hiK);
+  gl.uniform1f(u.uPalScale,lk.palScale);
+  gl.uniform1f(u.uPalDrift,lk.drift);
+  gl.uniform1f(u.uDesat,lk.desat);
+  gl.drawArrays(gl.TRIANGLES,0,6);
+  reset=0;
+
+  gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+  gl.viewport(0,0,canvas.width,canvas.height);
+  gl.useProgram(disp.p); bindQuad(disp.p);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,tex[write]);
+  gl.uniform1i(disp.u.uTex,0);
+  gl.uniform2f(disp.u.uRes,canvas.width,canvas.height);
+  gl.uniform2f(disp.u.uSimRes,simW,simH);
+  gl.uniform1f(disp.u.uTime,time);
+  gl.uniform1f(disp.u.uMirror,state.mirror);
+  gl.uniform1f(disp.u.uMono,lk.mono>.5?1:0);
+  gl.uniform1f(disp.u.uRelief,clamp(eff.relief*(.4+lk.relief)));
+  gl.uniform1f(disp.u.uGlow,clamp(eff.glow*(.5+lk.glow),0,1.4));
+  gl.drawArrays(gl.TRIANGLES,0,6);
+
+  if(state.shot){
+    state.shot=false;
+    canvas.toBlob(b=>{
+      if(!b) return;
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(b);
+      a.download='latent-space-browser-'+ROOMS[state.room].plain.replace(/[^a-z0-9]+/gi,'-').toLowerCase()+'.png';
+      document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },500);
+    },'image/png');
+  }
+
+  const r=read; read=write; write=r;
+
+  if(now-hudT>100){ hudT=now; drawHud(); }
+  updateUI(now);
+  frames++;
+  if(now-fpsT>=1000){ $('roFps').textContent=String(Math.round(frames*1000/(now-fpsT))); frames=0; fpsT=now; }
+  $('roInputs').textContent=pad(Math.min(state.inputs,99999),5);
+  requestAnimationFrame(frame);
+}
+
+// expose for debugging in the console
+window.LSB={S,SENSORS,ROOMS,LOC,state,setRoom,setSensor,setLocation};
+
+renderLoc();
+resize();
+setRoom(3);
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
