@@ -1,0 +1,1927 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="RIFFWERK — Hochleistungs-Wachstumsengine für marine Skelettformen. Simulation im Web Worker, WebGL2-Instanzrenderer, bis zu einer Million Streben.">
+<meta name="theme-color" content="#07131a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="RIFFWERK">
+<title>RIFFWERK · Wachstumsengine</title>
+<style>
+  :root{
+    --ink:#07131a; --ink2:#0b1d25; --ink3:#12303a;
+    --bone:#e8e2d3; --dim:#93a3a3; --rule:rgba(232,226,211,.13);
+    --cyan:#79d8d0; --rose:#ff86a8; --amber:#ffbf7f; --lime:#9be38a;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Roboto Mono",monospace;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --rail:320px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;overscroll-behavior:none}
+  body{background:var(--ink);color:var(--bone);font:12px/1.4 var(--mono);overflow:hidden;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+  #gl{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+  #nogl{position:fixed;inset:0;display:none;place-items:center;padding:28px;text-align:center;font-family:var(--serif);font-size:16px;line-height:1.6}
+
+  /* ---------- Schublade ---------- */
+  #rail{position:fixed;top:0;left:0;bottom:0;width:var(--rail);z-index:10;display:flex;flex-direction:column;
+    background:linear-gradient(180deg,rgba(7,19,26,.93),rgba(7,19,26,.86));border-right:1px solid var(--rule);
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);transition:transform .28s cubic-bezier(.4,0,.2,1);
+    padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+  #rail.hidden{transform:translateX(calc(-1 * var(--rail)))}
+  .head{padding:16px 18px 10px;border-bottom:1px solid var(--rule)}
+  .head h1{font:400 20px var(--serif);letter-spacing:.16em;margin:0 0 2px}
+  .head p{margin:0;font-size:9.5px;letter-spacing:.14em;color:var(--dim);text-transform:uppercase}
+  #tabs{display:flex;gap:5px;padding:9px 14px 8px;border-bottom:1px solid var(--rule)}
+  #tabs button{flex:1;min-width:0;padding:7px 4px;font:9.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--dim);background:transparent;border:1px solid var(--rule);cursor:pointer}
+  #tabs button:hover,#tabs button[aria-pressed="true"]{color:var(--cyan);border-color:var(--cyan);background:rgba(121,216,208,.07)}
+  .scroll{overflow-y:auto;flex:1;scrollbar-width:thin;scrollbar-color:var(--ink3) transparent;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+  .scroll::-webkit-scrollbar{width:7px}.scroll::-webkit-scrollbar-thumb{background:var(--ink3)}
+  .pane{display:none}.pane.on{display:block}
+  .eyebrow{font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:var(--dim);padding:14px 18px 6px;border-bottom:1px solid var(--rule)}
+  .ghead{display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:rgba(121,216,208,.04);border:0;border-bottom:1px solid var(--rule);color:var(--dim);padding:9px 18px;cursor:pointer;font:10px var(--mono);letter-spacing:.14em;text-transform:uppercase}
+  .ghead:hover{background:rgba(121,216,208,.09);color:var(--bone)}
+  .ghead .chev{display:inline-block;transition:transform .2s;color:var(--cyan)}
+  .ghead.closed .chev{transform:rotate(-90deg)}
+  .ghead .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ghead .ct{opacity:.6;font-variant-numeric:tabular-nums}
+  .gbody.closed{display:none}
+  .spec{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--rule);color:var(--bone);padding:8px 18px 9px 26px;cursor:pointer;position:relative}
+  .spec:hover{background:rgba(121,216,208,.06)}
+  .spec .nr{display:block;font-size:9.5px;letter-spacing:.14em;opacity:.42;font-variant-numeric:tabular-nums}
+  .spec .bino{font:italic 14px var(--serif);display:block}
+  .spec .auth{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-top:2px;display:block}
+  .spec[aria-current="true"]{background:rgba(255,134,168,.08)}
+  .spec[aria-current="true"]::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--rose)}
+
+  /* ---------- Regler ---------- */
+  .par{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:7px 18px 6px;border-bottom:1px solid rgba(232,226,211,.06);align-items:center}
+  .par label{font-size:10.5px;color:var(--bone);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .par .val{font-size:10.5px;color:var(--cyan);font-variant-numeric:tabular-nums;text-align:right;min-width:52px}
+  .par input[type=range]{grid-column:1/3;width:100%;margin:2px 0 0;height:22px;accent-color:var(--cyan);background:transparent;touch-action:pan-y}
+  .par.rebuild label::after{content:" ·";color:var(--amber)}
+  .par.changed .val{color:var(--rose)}
+  .colors{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:10px 18px;border-bottom:1px solid var(--rule)}
+  .colors label{display:flex;flex-direction:column;gap:4px;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+  .colors input[type=color]{width:100%;height:28px;border:1px solid var(--rule);background:transparent;padding:0;cursor:pointer}
+  .kinfo{padding:10px 18px;font-size:10.5px;color:var(--dim);line-height:1.5;border-bottom:1px solid var(--rule)}
+  .kinfo b{color:var(--bone);font-weight:400}
+  .btnrow{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;padding:9px 12px;border-top:1px solid var(--rule)}
+  .act{font:9.5px var(--mono);letter-spacing:.1em;text-transform:uppercase;padding:9px 4px;color:var(--bone);background:transparent;border:1px solid var(--rule);cursor:pointer;min-height:34px}
+  .act:hover{border-color:var(--cyan);color:var(--cyan)}
+  .act.on{border-color:var(--rose);color:var(--rose)}
+  .act.flash{border-color:var(--lime);color:var(--lime)}
+  .seedrow{display:flex;gap:6px;align-items:center;padding:8px 18px;border-bottom:1px solid var(--rule)}
+  .seedrow input{flex:1;background:var(--ink2);border:1px solid var(--rule);color:var(--bone);font:11px var(--mono);padding:5px 7px;min-width:0}
+  .seedrow button{font:9px var(--mono);letter-spacing:.1em;text-transform:uppercase;padding:6px 8px;color:var(--bone);background:transparent;border:1px solid var(--rule);cursor:pointer}
+  textarea#pasteBox{width:100%;height:120px;background:var(--ink2);border:1px solid var(--rule);color:var(--bone);font:10px var(--mono);padding:6px;resize:vertical}
+
+  #toggle{position:fixed;left:14px;top:calc(14px + env(safe-area-inset-top));z-index:12;background:rgba(7,19,26,.7);border:1px solid var(--rule);color:var(--bone);font:9.5px var(--mono);letter-spacing:.14em;text-transform:uppercase;padding:8px 10px;cursor:pointer;backdrop-filter:blur(8px)}
+  #toggle:hover{border-color:var(--cyan);color:var(--cyan)}
+  body:not(.railhidden) #toggle{left:calc(var(--rail) + 14px)}
+
+  /* ---------- Anzeige ---------- */
+  #hud{position:fixed;right:14px;top:calc(14px + env(safe-area-inset-top));z-index:9;display:grid;grid-template-columns:auto auto;gap:3px 12px;padding:10px 12px;background:rgba(7,19,26,.55);border:1px solid var(--rule);backdrop-filter:blur(8px);pointer-events:none}
+  #hud .k{font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+  #hud .v{font-size:11px;color:var(--bone);font-variant-numeric:tabular-nums;text-align:right}
+  #hud .v.warn{color:var(--amber)}
+  #bar{grid-column:1/3;height:3px;background:rgba(232,226,211,.1);margin-top:4px}
+  #bar i{display:block;height:100%;width:0;background:var(--cyan);transition:width .25s}
+  #plate{position:fixed;right:14px;bottom:calc(14px + env(safe-area-inset-bottom));z-index:9;text-align:right;pointer-events:none}
+  #plate .nr{font-size:10px;letter-spacing:.16em;opacity:.5;font-variant-numeric:tabular-nums}
+  #plate .bino{font:italic 22px var(--serif);text-shadow:0 1px 12px rgba(0,0,0,.6)}
+  #plate .auth{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+  #toast{position:fixed;left:50%;bottom:calc(28px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);z-index:20;background:rgba(7,19,26,.85);border:1px solid var(--cyan);color:var(--bone);padding:8px 14px;font-size:11px;opacity:0;transition:all .25s;pointer-events:none;max-width:90vw}
+  #toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+  #help{position:fixed;inset:0;z-index:30;display:none;place-items:center;background:rgba(7,19,26,.78);backdrop-filter:blur(6px)}
+  #help.on{display:grid}
+  #help .card{max-width:560px;width:92vw;background:var(--ink2);border:1px solid var(--rule);padding:22px 26px;font-size:12px;line-height:1.6}
+  #help h2{font:400 18px var(--serif);letter-spacing:.14em;margin:0 0 10px}
+  #help kbd{display:inline-block;border:1px solid var(--rule);padding:0 6px;border-radius:3px;font:10.5px var(--mono);color:var(--cyan);margin-right:4px}
+  #help .row{display:grid;grid-template-columns:110px 1fr;gap:4px 10px;margin:8px 0}
+  @media (max-width:760px){
+    :root{--rail:min(86vw,320px)}
+    #hud{right:8px;top:calc(8px + env(safe-area-inset-top));padding:7px 9px;gap:2px 8px}
+    #plate .bino{font-size:16px}
+    .btnrow{grid-template-columns:1fr 1fr}
+    body:not(.railhidden) #hud, body:not(.railhidden) #plate{display:none}
+  }
+</style>
+</head>
+<body class="railhidden">
+<canvas id="gl"></canvas>
+<div id="nogl"><div>RIFFWERK braucht WebGL2.<br><small>Dieser Browser stellt es nicht bereit. Chrome, Edge, Firefox und Safari ab Version 15 können es.</small></div></div>
+
+<aside id="rail" class="hidden">
+  <div class="head">
+    <h1>RIFFWERK</h1>
+    <p>Wachstumsengine · Worker-Simulation · WebGL2</p>
+  </div>
+  <nav id="tabs" aria-label="Arbeitsbereiche">
+    <button type="button" data-tab="arten" aria-pressed="true">Arten</button>
+    <button type="button" data-tab="gestalt" aria-pressed="false">Gestalt</button>
+    <button type="button" data-tab="bild" aria-pressed="false">Bild</button>
+    <button type="button" data-tab="werte" aria-pressed="false">Werte</button>
+  </nav>
+  <div class="scroll">
+    <section class="pane on" data-pane="arten">
+      <div id="species"></div>
+    </section>
+    <section class="pane" data-pane="gestalt">
+      <div class="kinfo" id="kinfo"></div>
+      <div class="seedrow"><span class="eyebrow" style="padding:0;border:0">Zucht-Nr.</span><input id="seed" type="number" min="0" max="999999" step="1" value="1"><button id="seedNext" type="button">Nächste</button><button id="seedRnd" type="button">Zufall</button></div>
+      <div id="params"></div>
+    </section>
+    <section class="pane" data-pane="bild">
+      <div class="eyebrow">Farbe</div>
+      <div class="colors">
+        <label>Basis<input type="color" id="colBase"></label>
+        <label>Spitze<input type="color" id="colTip"></label>
+        <label>Fluo<input type="color" id="colFluo"></label>
+      </div>
+      <div id="lookparams"></div>
+      <div class="eyebrow">Qualität</div>
+      <div id="quality"></div>
+    </section>
+    <section class="pane" data-pane="werte">
+      <div class="eyebrow">Genom als JSON</div>
+      <div style="padding:10px 18px;border-bottom:1px solid var(--rule)">
+        <textarea id="pasteBox" spellcheck="false" placeholder='{"g":{...},"r":{...},"seed":1}'></textarea>
+        <div class="btnrow" style="padding:8px 0 0;border:0;grid-template-columns:1fr 1fr">
+          <button class="act" id="btnCopy" type="button">Werte kopieren</button>
+          <button class="act" id="btnApply" type="button">Einfügen &amp; wachsen</button>
+          <button class="act" id="btnShare" type="button">Link teilen</button>
+          <button class="act" id="btnMutate" type="button">Mutation</button>
+        </div>
+      </div>
+      <div class="eyebrow">Diagnose</div>
+      <div class="kinfo" id="diag"></div>
+    </section>
+  </div>
+  <div class="btnrow">
+    <button class="act" id="btnPlay" type="button">Pause</button>
+    <button class="act" id="btnReset" type="button">Neu wachsen</button>
+    <button class="act on" id="btnSpin" type="button">Drehung</button>
+    <button class="act" id="btnShot" type="button">Bild sichern</button>
+    <button class="act" id="btnInstant" type="button">Sofort fertig</button>
+    <button class="act" id="btnHelp" type="button">Hilfe</button>
+  </div>
+</aside>
+<button id="toggle" type="button">Menü</button>
+
+<div id="hud">
+  <div class="k">Streben</div><div class="v" id="hCount">0</div>
+  <div class="k">Zuwachs/s</div><div class="v" id="hRate">–</div>
+  <div class="k">Bild</div><div class="v" id="hFrame">–</div>
+  <div class="k">Simulation</div><div class="v" id="hSim">–</div>
+  <div class="k">Qualität</div><div class="v" id="hQual">–</div>
+  <div id="bar"><i id="barFill"></i></div>
+</div>
+<div id="plate"><div class="nr" id="pNr"></div><div class="bino" id="pBino"></div><div class="auth" id="pAuth"></div></div>
+<div id="toast"></div>
+<div id="help"><div class="card">
+  <h2>RIFFWERK</h2>
+  <p>Die Simulation läuft in einem eigenen Faden und schickt fertige Streben in 32-Byte-Paketen an die Grafikkarte. Der Bildaufbau wartet nie auf das Wachstum. Der Qualitätsregler hält die Bildzeit, indem er Auflösung, Kantenglättung und Umgebungsverdeckung stuft.</p>
+  <div class="row"><span><kbd>Leertaste</kbd></span><span>Wachstum anhalten / fortsetzen</span>
+  <span><kbd>R</kbd></span><span>Neu wachsen (gleiche Zucht-Nr.)</span>
+  <span><kbd>N</kbd></span><span>Nächste Zucht-Nr. und neu wachsen</span>
+  <span><kbd>S</kbd></span><span>Drehung an/aus</span>
+  <span><kbd>M</kbd></span><span>Menü ein/aus</span>
+  <span><kbd>B</kbd></span><span>Bild sichern (PNG)</span>
+  <span><kbd>F</kbd></span><span>Vollbild</span>
+  <span><kbd>←</kbd><kbd>→</kbd></span><span>Vorige / nächste Art</span>
+  <span><kbd>Ziehen</kbd></span><span>Drehen · <kbd>Rad</kbd>/<kbd>Zwei Finger</kbd> Zoom · <kbd>Doppelklick</kbd> Ansicht zurück</span></div>
+  <p style="color:var(--dim)">Klicken oder <kbd>Esc</kbd> schließt.</p>
+</div></div>
+<script type="text/plain" id="simsrc">
+/* ============================================================
+   RIFFWERK · SIMULATIONSKERN (läuft im Web Worker)
+   ------------------------------------------------------------
+   Dieser Code wird als Blob-Worker gestartet. Er kennt kein DOM und
+   kein WebGL. Er erzeugt Streben (Segmente) und schickt sie in
+   32-Byte-Records als übertragbare ArrayBuffer an den Hauptfaden.
+
+   Record (32 Byte, little endian):
+     f32  px py pz        Basis der Strebe
+     f16  dx dy dz len    Richtung (normiert) und Länge
+     f16  r0 r1 tip hue   Radius Basis/Spitze, Spitzenmaß, Farbspur
+     f32  aux             Tiefe/Generation (Kern-spezifisch)
+
+   Alles hier ist deterministisch: gleiche Zuchtnummer, gleiches Genom,
+   gleiche Kolonie — unabhängig von Bildrate und Gerät.
+   ============================================================ */
+'use strict';
+const STRIDE = 32;
+
+/* ---------- Zufall: mulberry32, bitgleich auf allen Geräten ---------- */
+let rs = 1;
+function rseed(s){ rs = (s|0) || 1; }
+function rnd(){ rs |= 0; rs = rs + 0x6D2B79F5 | 0; let t = Math.imul(rs ^ rs >>> 15, 1 | rs); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }
+function rndN(){ return rnd()*2-1; }
+function rndGauss(){ let u=0,v=0; while(u===0)u=rnd(); v=rnd(); return Math.sqrt(-2*Math.log(u))*Math.cos(6.283185307*v); }
+
+/* ---------- Rauschen (Wertrauschen, 3D) ---------- */
+function hash3(x,y,z){ let h = (x*374761393 + y*668265263 + z*2147483647)|0; h = Math.imul(h ^ (h>>>13), 1274126177); return ((h ^ (h>>>16))>>>0)/4294967296; }
+function vnoise(x,y,z){
+  const ix=Math.floor(x), iy=Math.floor(y), iz=Math.floor(z);
+  let fx=x-ix, fy=y-iy, fz=z-iz;
+  fx=fx*fx*(3-2*fx); fy=fy*fy*(3-2*fy); fz=fz*fz*(3-2*fz);
+  const c=(a,b,c2)=>hash3(ix+a,iy+b,iz+c2);
+  const x00=c(0,0,0)+(c(1,0,0)-c(0,0,0))*fx, x10=c(0,1,0)+(c(1,1,0)-c(0,1,0))*fx;
+  const x01=c(0,0,1)+(c(1,0,1)-c(0,0,1))*fx, x11=c(0,1,1)+(c(1,1,1)-c(0,1,1))*fx;
+  const y0=x00+(x10-x00)*fy, y1=x01+(x11-x01)*fy;
+  return (y0+(y1-y0)*fz)*2-1;
+}
+function curl3(x,y,z,s,o){ // divergenzfreies Feld aus drei Rauschkanälen
+  const e=0.01;
+  const n=(a,b,c2,k)=>vnoise(a*s+k,b*s,c2*s+o);
+  const dpdy=(n(x,y+e,z,0)-n(x,y-e,z,0))/(2*e), dpdz=(n(x,y,z+e,0)-n(x,y,z-e,0))/(2*e);
+  const dqdx=(n(x+e,y,z,37)-n(x-e,y,z,37))/(2*e), dqdz=(n(x,y,z+e,37)-n(x,y,z-e,37))/(2*e);
+  const drdx=(n(x+e,y,z,71)-n(x-e,y,z,71))/(2*e), drdy=(n(x,y+e,z,71)-n(x,y-e,z,71))/(2*e);
+  return [ (drdy-dqdz)*0.02, (dpdz-drdx)*0.02, (dqdx-dpdy)*0.02 ];
+}
+
+/* ---------- f16-Kodierung ohne Float16Array-Abhängigkeit ---------- */
+const _f32 = new Float32Array(1), _u32 = new Uint32Array(_f32.buffer);
+function f16(v){
+  _f32[0]=v; const x=_u32[0];
+  const sign=(x>>>16)&0x8000; let e=((x>>>23)&0xff)-112; const m=x&0x7fffff;
+  if(e<=0){ if(e< -10) return sign; const mm=(m|0x800000)>>>(1-e); return sign|((mm+0x1000)>>>13); }
+  if(e>=31){ return sign|0x7c00; }
+  return sign|(e<<10)|((m+0x1000)>>>13);
+}
+
+/* ---------- Ausgabepuffer: ein Batch je Pumpzyklus ---------- */
+const OUT = { cap:0, n:0, buf:null, f32:null, u16:null };
+function outAlloc(n){
+  OUT.cap=n; OUT.n=0; OUT.buf=new ArrayBuffer(n*STRIDE);
+  OUT.f32=new Float32Array(OUT.buf); OUT.u16=new Uint16Array(OUT.buf);
+}
+const BB = { minx:1e9,miny:1e9,minz:1e9,maxx:-1e9,maxy:-1e9,maxz:-1e9 };
+function bbReset(){ BB.minx=BB.miny=BB.minz=1e9; BB.maxx=BB.maxy=BB.maxz=-1e9; }
+let total=0, capacity=0;
+function outGrow(){ const nb=new ArrayBuffer(OUT.cap*2*STRIDE); new Uint8Array(nb).set(new Uint8Array(OUT.buf)); OUT.buf=nb; OUT.cap*=2; OUT.f32=new Float32Array(nb); OUT.u16=new Uint16Array(nb); }
+function emit(px,py,pz, dx,dy,dz, len, r0,r1, tip, hue, aux){
+  if(total>=capacity) return false;
+  if(OUT.n>=OUT.cap) outGrow();
+  const o=OUT.n*8, h=OUT.n*16;
+  const f=OUT.f32, u=OUT.u16;
+  f[o]=px; f[o+1]=py; f[o+2]=pz;
+  u[h+6]=f16(dx); u[h+7]=f16(dy); u[h+8]=f16(dz); u[h+9]=f16(len);
+  u[h+10]=f16(r0); u[h+11]=f16(r1); u[h+12]=f16(tip); u[h+13]=f16(hue);
+  f[o+7]=aux;
+  OUT.n++; total++;
+  const ex=px+dx*len, ey=py+dy*len, ez=pz+dz*len;
+  if(px<BB.minx)BB.minx=px; if(px>BB.maxx)BB.maxx=px; if(ex<BB.minx)BB.minx=ex; if(ex>BB.maxx)BB.maxx=ex;
+  if(py<BB.miny)BB.miny=py; if(py>BB.maxy)BB.maxy=py; if(ey<BB.miny)BB.miny=ey; if(ey>BB.maxy)BB.maxy=ey;
+  if(pz<BB.minz)BB.minz=pz; if(pz>BB.maxz)BB.maxz=pz; if(ez<BB.minz)BB.minz=ez; if(ez>BB.maxz)BB.maxz=ez;
+  return true;
+}
+function emitAB(ax,ay,az,bx,by,bz,r0,r1,tip,hue,aux){
+  const dx=bx-ax, dy=by-ay, dz=bz-az; const L=Math.hypot(dx,dy,dz); if(L<1e-6) return false;
+  return emit(ax,ay,az,dx/L,dy/L,dz/L,L,r0,r1,tip,hue,aux);
+}
+
+/* ============================================================
+   RÄUMLICHER HASH — ganzzahlig, ohne Zeichenketten, ohne GC-Last.
+   Zellschlüssel: 10 Bit je Achse (±512 Zellen), offen adressiert.
+   Zwei Fassungen: Zähler (Belegung) und Knotenlisten (nächster Nachbar).
+   ============================================================ */
+function cellKey(ix,iy,iz){ return ((ix+512)&1023) | (((iy+512)&1023)<<10) | (((iz+512)&1023)<<20); }
+class CountGrid {
+  constructor(cell, bits=18){ this.cell=cell; this.size=1<<bits; this.mask=this.size-1; this.keys=new Int32Array(this.size).fill(-1); this.vals=new Int32Array(this.size); this.used=0; }
+  clear(){ this.keys.fill(-1); this.vals.fill(0); this.used=0; }
+  _slot(k){ let h=(Math.imul(k,0x9E3779B1)>>>0)&this.mask; for(;;){ const kk=this.keys[h]; if(kk===k||kk===-1) return h; h=(h+1)&this.mask; } }
+  get(x,y,z){ const k=cellKey(Math.floor(x/this.cell),Math.floor(y/this.cell),Math.floor(z/this.cell)); const h=this._slot(k); return this.keys[h]===k?this.vals[h]:0; }
+  add(x,y,z,d=1){ if(this.used>this.size*0.7) return 0; const k=cellKey(Math.floor(x/this.cell),Math.floor(y/this.cell),Math.floor(z/this.cell)); const h=this._slot(k); if(this.keys[h]!==k){ this.keys[h]=k; this.used++; } return (this.vals[h]+=d); }
+}
+/* Knotengitter: Eimer je Zelle als verkettete Liste über Knotenindizes. */
+class NodeGrid {
+  constructor(cell, maxNodes, bits=18){ this.cell=cell; this.size=1<<bits; this.mask=this.size-1; this.keys=new Int32Array(this.size).fill(-1); this.head=new Int32Array(this.size).fill(-1); this.next=new Int32Array(maxNodes).fill(-1); this.used=0; this.px=null; this.py=null; this.pz=null; }
+  bind(px,py,pz){ this.px=px; this.py=py; this.pz=pz; }
+  _slot(k){ let h=(Math.imul(k,0x9E3779B1)>>>0)&this.mask; for(;;){ const kk=this.keys[h]; if(kk===k||kk===-1) return h; h=(h+1)&this.mask; } }
+  insert(i,x,y,z){ if(this.used>this.size*0.7) return; const k=cellKey(Math.floor(x/this.cell),Math.floor(y/this.cell),Math.floor(z/this.cell)); const h=this._slot(k); if(this.keys[h]!==k){ this.keys[h]=k; this.head[h]=-1; this.used++; } this.next[i]=this.head[h]; this.head[h]=i; }
+  /* nächster Knoten innerhalb sqrt(maxD2); Ergebnisabstand in ND2 */
+  nearest(x,y,z,maxD2,skip){
+    const px=this.px,py=this.py,pz=this.pz; const c=this.cell;
+    const r=Math.ceil(Math.sqrt(maxD2)/c); const cx=Math.floor(x/c), cy=Math.floor(y/c), cz=Math.floor(z/c);
+    let best=-1, bd=maxD2;
+    for(let a=-r;a<=r;a++)for(let b=-r;b<=r;b++)for(let d=-r;d<=r;d++){
+      const k=cellKey(cx+a,cy+b,cz+d); const h=this._slot(k); if(this.keys[h]!==k) continue;
+      for(let i=this.head[h]; i!==-1; i=this.next[i]){ if(skip&&skip[i]) continue; const ex=px[i]-x, ey=py[i]-y, ez=pz[i]-z; const q=ex*ex+ey*ey+ez*ez; if(q<bd){ bd=q; best=i; } }
+    }
+    ND2=bd; return best;
+  }
+  /* alle Knoten innerhalb sqrt(maxD2) in RANGE[0..RANGE_N) */
+  range(x,y,z,maxD2){
+    const px=this.px,py=this.py,pz=this.pz; const c=this.cell;
+    const r=Math.ceil(Math.sqrt(maxD2)/c); const cx=Math.floor(x/c), cy=Math.floor(y/c), cz=Math.floor(z/c);
+    RANGE_N=0;
+    for(let a=-r;a<=r;a++)for(let b=-r;b<=r;b++)for(let d=-r;d<=r;d++){
+      const k=cellKey(cx+a,cy+b,cz+d); const h=this._slot(k); if(this.keys[h]!==k) continue;
+      for(let i=this.head[h]; i!==-1; i=this.next[i]){ const ex=px[i]-x, ey=py[i]-y, ez=pz[i]-z; if(ex*ex+ey*ey+ez*ez<maxD2){ if(RANGE_N<RANGE.length) RANGE[RANGE_N++]=i; } }
+    }
+    return RANGE_N;
+  }
+}
+let ND2=0; const RANGE=new Int32Array(65536); let RANGE_N=0;
+
+/* ---------- Vektorhilfen auf Zahlen (keine Arrays je Aufruf) ---------- */
+let VX=0,VY=0,VZ=0; // Rückgaberegister
+function vnorm(x,y,z){ const l=Math.hypot(x,y,z)||1; VX=x/l; VY=y/l; VZ=z/l; }
+function rotAxis(vx,vy,vz, ax,ay,az, ang){ // Rodrigues
+  const c=Math.cos(ang), s=Math.sin(ang), d=(ax*vx+ay*vy+az*vz)*(1-c);
+  VX = vx*c + (ay*vz-az*vy)*s + ax*d;
+  VY = vy*c + (az*vx-ax*vz)*s + ay*d;
+  VZ = vz*c + (ax*vy-ay*vx)*s + az*d;
+}
+/* Verjüngung: asymptotisch gegen den Mindestradius statt multiplikativ
+   gegen null. Im Original starb jede Linie nach ~55 Schritten am
+   Mindestradius; hier entscheidet Raumkonkurrenz, Höchsttiefe und
+   Kapazität über das Ende — die Kolonie füllt ihren Raum. */
+function taperR(r, depth, taper, curve, rmin){
+  const t=Math.pow(taper, 1+curve*Math.min(1,depth/60));
+  return rmin + (r-rmin)*t;
+}
+
+/* ============================================================
+   KERN 1 — BRANCH: stochastisches L-System mit apikaler Dominanz
+   (Steinkorallen, Schwarzkorallen, Gorgonien als Fächer).
+   Struct-of-Arrays für die Spitzen, doppelt gepuffert.
+   ============================================================ */
+class TipSet {
+  constructor(n){ this.n=0; this.cap=n; this.px=new Float32Array(n); this.py=new Float32Array(n); this.pz=new Float32Array(n); this.dx=new Float32Array(n); this.dy=new Float32Array(n); this.dz=new Float32Array(n); this.r=new Float32Array(n); this.roll=new Float32Array(n); this.depth=new Uint16Array(n); this.hue=new Float32Array(n); this.energy=new Float32Array(n); }
+  push(px,py,pz,dx,dy,dz,r,roll,depth,hue,energy){ if(this.n>=this.cap) return false; const i=this.n++; this.px[i]=px;this.py[i]=py;this.pz[i]=pz;this.dx[i]=dx;this.dy[i]=dy;this.dz[i]=dz;this.r[i]=r;this.roll[i]=roll;this.depth[i]=depth;this.hue[i]=hue;this.energy[i]=energy; return true; }
+}
+class BranchKernel {
+  constructor(g){ this.g=g; this.a=new TipSet(65536); this.b=new TipSet(65536); this.grid=new CountGrid(g.segLen*1.35); this.tick=0; this.done=false;
+    const roots=Math.max(1,Math.round(g.roots||1));
+    for(let i=0;i<roots;i++){
+      const ang=i/roots*6.283, rr=roots>1?g.rootSpread*(0.6+0.4*rnd()):0;
+      vnorm(rndN()*0.08*(roots>1?1:0), 1, rndN()*0.08*(roots>1?1:0));
+      this.a.push(Math.cos(ang)*rr, g.floorY, Math.sin(ang)*rr, VX,VY,VZ, g.radius0, rnd()*6.283, 0, 0.5, 1);
+    }
+  }
+  progress(){ return this.done?1:Math.min(1,total/capacity); }
+  step(budget){
+    const g=this.g, A=this.a, B=this.b; B.n=0;
+    if(A.n===0){ this.done=true; return 0; }
+    let made=0;
+    const fa=g.flowAng, fcx=Math.cos(fa), fcz=Math.sin(fa);
+    const limit=Math.max(1,Math.round(10*(1.02-g.crowd)));
+    for(let i=0;i<A.n;i++){
+      if(made>=budget){ // Rest der Spitzen unverändert übernehmen
+        B.push(A.px[i],A.py[i],A.pz[i],A.dx[i],A.dy[i],A.dz[i],A.r[i],A.roll[i],A.depth[i],A.hue[i],A.energy[i]); continue; }
+      const px=A.px[i],py=A.py[i],pz=A.pz[i]; let dx=A.dx[i],dy=A.dy[i],dz=A.dz[i];
+      const r=A.r[i], depth=A.depth[i];
+      // Tropismen
+      dy += g.photo*0.5 - g.gravi*0.5;
+      dx += fcx*g.flow*0.5; dy += 0.12*g.flow*0.5; dz += fcz*g.flow*0.5;
+      if(g.turb>0.001){ const q=2.4*g.turbScale; dx+=vnoise(px*q,py*q,pz*q)*g.turb*0.75; dy+=vnoise(px*q+17.3,py*q,pz*q)*g.turb*0.75; dz+=vnoise(px*q,py*q+41.7,pz*q)*g.turb*0.75; }
+      if(g.planar>0.001){ // Fächer: Wuchsebene senkrecht zur Strömung
+        const pn=dx*fcx+dz*fcz; dx-=fcx*pn*g.planar; dz-=fcz*pn*g.planar;
+        if(g.planarBend>0.001){ const off=px*fcx+pz*fcz; dx+=-fcx*off*g.planarBend*0.6; dz+=-fcz*off*g.planarBend*0.6; }
+      }
+      vnorm(dx,dy,dz); dx=VX;dy=VY;dz=VZ;
+      if(g.plate>0.01){ // Plattenwuchs: in die Horizontale gedrückt
+        vnorm(dx,dy*0.12,dz); const fx=VX,fy=VY,fz=VZ; vnorm(px+1e-4,0.05,pz+1e-4);
+        vnorm(fx+VX*0.6,fy+VY*0.6,fz+VZ*0.6); vnorm(dx*(1-g.plate)+VX*g.plate, dy*(1-g.plate)+VY*g.plate, dz*(1-g.plate)+VZ*g.plate); dx=VX;dy=VY;dz=VZ;
+      }
+      const seg=g.segLen*(1+rndN()*g.segJitter);
+      const qx=px+dx*seg, qy=py+dy*seg, qz=pz+dz*seg;
+      const occ=this.grid.get(qx,qy,qz);
+      if(occ>limit){
+        if(g.anastom>0.001 && rnd()<g.anastom){ emit(px,py,pz,dx,dy,dz,seg*1.06,r*0.8,r*0.6,0.5,A.hue[i],depth); made++; }
+        continue;
+      }
+      this.grid.add(qx,qy,qz);
+      if(qy<g.floorY-0.07) continue;
+      const r2=taperR(r,depth,g.taper,g.taperCurve,g.minRadius);
+      if(depth>g.maxDepth) continue;
+      if(g.lifespan>0){ const ls=g.lifespan; const w=Math.min(1,Math.max(0,(depth-ls*0.7)/(ls*0.6))); if(rnd()<w*w*0.35) continue; }
+      const tip=Math.min(1,depth/70);
+      const hue=g.hueMode===1 ? A.hue[i] : tip;
+      if(!emit(px,py,pz,dx,dy,dz,seg*1.06,r,r2,tip,hue,depth)){ this.done=true; break; }
+      made++;
+      // Polypenbüschel (Nephtheidae)
+      if(g.polyps>0.001 && rnd()<g.polyps){
+        const ux=Math.abs(dy)<0.9?0:1, uy=Math.abs(dy)<0.9?1:0;
+        vnorm(uy*dz, -ux*dz, ux*dy-uy*dx); const bx=VX,by=VY,bz=VZ;
+        const cx=dy*bz-dz*by, cy=dz*bx-dx*bz, cz=dx*by-dy*bx;
+        const n=3+Math.floor(rnd()*3), f=0.25+rnd()*0.5, rh=r+(r2-r)*f;
+        for(let c=0;c<n;c++){ const an=c/n*6.283+rnd()*0.5, sx=bx*Math.cos(an)+cx*Math.sin(an), sy=by*Math.cos(an)+cy*Math.sin(an), sz=bz*Math.cos(an)+cz*Math.sin(an);
+          const ox=px+dx*f*seg+sx*rh*0.95, oy=py+dy*f*seg+sy*rh*0.95, oz=pz+dz*f*seg+sz*rh*0.95; const k=0.15+rnd()*0.15; vnorm(sx+dx*k,sy+dy*k,sz+dz*k);
+          const pl=Math.max(0.004,g.polypLen*(0.75+rnd()*0.5)); emit(ox,oy,oz,VX,VY,VZ,pl,pl*0.3,pl*0.09,1,0.55+0.35*tip,depth); }
+      }
+      const roll=A.roll[i], hueC=g.hueMode===1?Math.min(1,Math.max(0,A.hue[i]+rndN()*0.03)):0.5;
+      if(rnd()<g.branchProb*(1-0.35*g.apical*Math.min(1,depth/40))){
+        const ang=g.branchAngle*Math.PI/180, nroll=roll+g.divergence*Math.PI/180;
+        const ux=Math.abs(dy)<0.985?0:1, uy=Math.abs(dy)<0.985?1:0;
+        vnorm(uy*dz, -ux*dz, ux*dy-uy*dx); const tx=VX,ty=VY,tz=VZ;
+        rotAxis(tx,ty,tz, dx,dy,dz, nroll); const ax=VX,ay=VY,az=VZ;
+        rotAxis(dx,dy,dz, ax,ay,az, ang*(1-g.apical)*0.9); B.push(qx,qy,qz,VX,VY,VZ,r2,nroll,depth+1,hueC,1);
+        rotAxis(dx,dy,dz, ax,ay,az, -ang); B.push(qx,qy,qz,VX,VY,VZ,r2*g.radiusChild,nroll+1.1,depth+1,hueC,1);
+        if(g.apical<0.58 && rnd()<0.45){ rotAxis(tx,ty,tz, dx,dy,dz, nroll+2.09); const a2x=VX,a2y=VY,a2z=VZ; rotAxis(dx,dy,dz,a2x,a2y,a2z,-ang*0.85); B.push(qx,qy,qz,VX,VY,VZ,r2*g.radiusChild,nroll+2.09,depth+1,hueC,1); }
+      } else {
+        B.push(qx,qy,qz,dx,dy,dz,r2,roll,depth+1,A.hue[i],1);
+      }
+    }
+    this.a=B; this.b=A; this.tick++;
+    if(this.a.n===0) this.done=true;
+    return made;
+  }
+}
+
+/* ============================================================
+   KERN 2 — COLONIZE: Raumkolonisation (Runions et al. 2007)
+   Attraktoren füllen eine Hüllform; jeder Knoten wächst auf den
+   Schwerpunkt der Attraktoren zu, die ihn als nächsten sehen.
+   Ergibt selbstvermeidende, natürlich verteilte Verzweigung —
+   Tafel-Acropora, Fächer, Säulen, Kugeln.
+   ============================================================ */
+class ColonizeKernel {
+  constructor(g){
+    this.g=g; this.done=false;
+    const N=Math.round(g.attractors);
+    this.ax=new Float32Array(N); this.ay=new Float32Array(N); this.az=new Float32Array(N);
+    this.abest=new Int32Array(N).fill(-1); this.abd=new Float32Array(N).fill(1e9); this.adead=new Uint8Array(N); this.adx=new Float32Array(N); this.ady=new Float32Array(N); this.adz=new Float32Array(N);
+    const R=g.envR, H=g.envH, fy=g.floorY, th=g.flowAng;
+    let placed=0, tries=0;
+    while(placed<N && tries<N*40){
+      tries++; let x,y,z,ok=true;
+      switch(g.envelope|0){
+        case 0: { x=rndN()*R; z=rndN()*R; y=rnd()*H; ok=(x*x+z*z)/(R*R)+(y*y)/(H*H)<=1; y+=fy; break; }
+        case 1: { x=rndN()*R; z=rndN()*R; const v=rnd(); y=fy+0.15+v*H; const rr=R*(0.55+0.45*Math.sin(Math.PI*v)); ok=(x*x+z*z)<=rr*rr; break; }
+        case 2: { const u=rndN()*R, v=rnd()*H; x=-Math.sin(th)*u; z=Math.cos(th)*u; y=fy+v; ok=(u*u)/(R*R)+((v-H*0.55)*(v-H*0.55))/(H*H*0.42)<=1; x+=rndN()*g.envThick; z+=rndN()*g.envThick; break; }
+        case 3: { x=rndN()*R; z=rndN()*R; const rr=Math.hypot(x,z); y=fy+H*(0.78+0.22*rnd())-rr*g.envSag; ok=rr<=R && y>fy+0.1; break; }
+        case 4: { x=rndN()*R; y=rndN()*R; z=rndN()*R; ok=x*x+y*y+z*z<=R*R; y+=fy+H*0.5; break; }
+        default: { x=rndN()*R; z=rndN()*R; y=fy+rnd()*H; }
+      }
+      if(!ok) continue;
+      if(g.photo>0 && rnd()<g.photo*(1-Math.min(1,(y-fy)/Math.max(0.01,H)))*0.9) continue;
+      this.ax[placed]=x; this.ay[placed]=y; this.az[placed]=z; placed++;
+    }
+    this.na=placed; this.alive=placed;
+    this.agrid=new NodeGrid(Math.max(g.influence,g.kill)*0.5, placed+1, 19); this.agrid.bind(this.ax,this.ay,this.az);
+    for(let i=0;i<placed;i++) this.agrid.insert(i,this.ax[i],this.ay[i],this.az[i]);
+    const maxNodes=Math.min(capacity+4096, 1<<21);
+    this.nx=new Float32Array(maxNodes); this.ny=new Float32Array(maxNodes); this.nz=new Float32Array(maxNodes);
+    this.ndepth=new Uint16Array(maxNodes); this.nparent=new Int32Array(maxNodes); this.nkids=new Uint8Array(maxNodes); this.nblocked=new Uint8Array(maxNodes);
+    this.accx=new Float32Array(maxNodes); this.accy=new Float32Array(maxNodes); this.accz=new Float32Array(maxNodes); this.accn=new Uint16Array(maxNodes);
+    this.nn=0; this.ngrid=new NodeGrid(g.segLen*0.6, maxNodes); this.ngrid.bind(this.nx,this.ny,this.nz);
+    this.active=new Int32Array(placed); this.nact=0; this.inact=new Uint8Array(placed);
+    this.touched=new Int32Array(maxNodes); this.nt=0;
+    this.idle=0; this.tips=new Int32Array(4096); this.ntips=0;
+    const roots=Math.max(1,Math.round(g.roots||1));
+    for(let i=0;i<roots;i++){ const an=i/roots*6.283, rr=roots>1?g.rootSpread:0; this.addNode(Math.cos(an)*rr,fy,Math.sin(an)*rr,-1,0); }
+  }
+  /* neuer Knoten: eintragen und alle Attraktoren im Einflussradius neu zuordnen */
+  addNode(x,y,z,parent,depth){
+    const i=this.nn; if(i>=this.nx.length) return -1;
+    this.nx[i]=x;this.ny[i]=y;this.nz[i]=z;this.nparent[i]=parent;this.ndepth[i]=depth;this.nkids[i]=0; this.ngrid.insert(i,x,y,z); this.nn++;
+    const Di2=this.g.influence*this.g.influence, Dk2=this.g.kill*this.g.kill;
+    const n=this.agrid.range(x,y,z,Di2);
+    for(let k=0;k<n;k++){ const a=RANGE[k]; if(this.adead[a]) continue;
+      const ex=this.ax[a]-x, ey=this.ay[a]-y, ez=this.az[a]-z; const q=ex*ex+ey*ey+ez*ez;
+      if(q<Dk2){ this.adead[a]=1; this.alive--; continue; }
+      if(q<this.abd[a]){ this.abd[a]=q; this.abest[a]=i; const l=Math.sqrt(q)||1; this.adx[a]=ex/l; this.ady[a]=ey/l; this.adz[a]=ez/l; if(!this.inact[a]){ this.inact[a]=1; this.active[this.nact++]=a; } }
+    }
+    return i;
+  }
+  radiusAt(depth){ const g=this.g; return g.minRadius+(g.radius0-g.minRadius)*Math.pow(g.taper, depth); }
+  progress(){ return this.done?1:1-this.alive/Math.max(1,this.na); }
+  step(budget){
+    const g=this.g; let made=0; if(this.done) return 0; const Di2=g.influence*g.influence;
+    // 1) aktive Attraktoren → Richtungssummen an ihren nächsten Knoten
+    this.nt=0; let na=0;
+    for(let k=0;k<this.nact;k++){
+      const a=this.active[k]; if(this.adead[a]){ this.inact[a]=0; continue; }
+      let i=this.abest[a];
+      if(this.nblocked[i]){ // Knoten kann nicht mehr wachsen: anderen suchen oder Attraktor aufgeben
+        const j=this.ngrid.nearest(this.ax[a],this.ay[a],this.az[a],Di2,this.nblocked);
+        if(j<0){ this.adead[a]=1; this.alive--; this.inact[a]=0; continue; }
+        this.abest[a]=j; this.abd[a]=ND2; i=j; const l=Math.sqrt(ND2)||1; this.adx[a]=(this.ax[a]-this.nx[j])/l; this.ady[a]=(this.ay[a]-this.ny[j])/l; this.adz[a]=(this.az[a]-this.nz[j])/l;
+      }
+      if(this.accn[i]===0) this.touched[this.nt++]=i;
+      this.accx[i]+=this.adx[a]; this.accy[i]+=this.ady[a]; this.accz[i]+=this.adz[a]; this.accn[i]++;
+      this.active[na++]=a;
+    }
+    this.nact=na;
+    if(this.nt===0){
+      // keine Attraktoren in Reichweite: Spitzen blind nach oben (Stamm), bis Kontakt
+      if(this.alive<=0){ this.done=true; return 0; }
+      if(++this.idle>400){ this.done=true; return 0; }
+      let grew=0;
+      for(let i=this.nn-1;i>=0 && grew<Math.max(1,g.roots|0);i--){ if(this.nkids[i]===0 && !this.nblocked[i] && this.ny[i]<g.floorY+g.envH+0.2){
+        const j=this.addNode(this.nx[i]+rndN()*0.01,this.ny[i]+g.segLen,this.nz[i]+rndN()*0.01,i,this.ndepth[i]+1); if(j<0){this.done=true;break;}
+        this.nkids[i]++; if(!emitAB(this.nx[i],this.ny[i],this.nz[i],this.nx[j],this.ny[j],this.nz[j],this.radiusAt(this.ndepth[i]),this.radiusAt(this.ndepth[j]),0.1,0.1,this.ndepth[j])){ this.done=true; break; } grew++; made++; } }
+      return made;
+    }
+    this.idle=0;
+    // 2) berührte Knoten wachsen
+    const fcx=Math.cos(g.flowAng), fcz=Math.sin(g.flowAng);
+    for(let t=0;t<this.nt;t++){
+      const i=this.touched[t]; const n=this.accn[i];
+      let dx=this.accx[i]/n, dy=this.accy[i]/n, dz=this.accz[i]/n;
+      this.accx[i]=this.accy[i]=this.accz[i]=0; this.accn[i]=0;
+      if(made>=budget) continue;
+      dy+=g.photo*0.25-g.gravi*0.25; dx+=fcx*g.flow*0.3; dz+=fcz*g.flow*0.3;
+      dx+=rndN()*g.jitter; dy+=rndN()*g.jitter; dz+=rndN()*g.jitter;
+      const p=this.nparent[i]; if(p>=0&&g.inertia>0){ let ex=this.nx[i]-this.nx[p], ey=this.ny[i]-this.ny[p], ez=this.nz[i]-this.nz[p]; const el=Math.hypot(ex,ey,ez)||1; dx+=ex/el*g.inertia; dy+=ey/el*g.inertia; dz+=ez/el*g.inertia; }
+      vnorm(dx,dy,dz); const ddx=VX,ddy=VY,ddz=VZ;
+      const seg=g.segLen*(1+rndN()*0.15);
+      const qx=this.nx[i]+ddx*seg, qy=this.ny[i]+ddy*seg, qz=this.nz[i]+ddz*seg;
+      if(qy<g.floorY-0.02){ this.nblocked[i]=1; continue; }
+      const nb=this.ngrid.nearest(qx,qy,qz,(seg*0.45)*(seg*0.45));
+      if(nb>=0){ if(g.anastom>0&&rnd()<g.anastom){ emit(this.nx[i],this.ny[i],this.nz[i],ddx,ddy,ddz,seg,this.radiusAt(this.ndepth[i])*0.8,this.radiusAt(this.ndepth[i])*0.6,0.6,0.5,this.ndepth[i]); made++; }
+        if(++this.nkids[i]>=3) this.nblocked[i]=1;   // nach drei Fehlversuchen gilt der Knoten als eingeschlossen
+        continue; }
+      const depth=this.ndepth[i]+1;
+      const j=this.addNode(qx,qy,qz,i,depth); if(j<0){ this.done=true; break; }
+      this.nkids[i]++;
+      const tip=Math.min(1,depth/Math.max(10,g.tipDepth));
+      if(!emit(this.nx[i],this.ny[i],this.nz[i],ddx,ddy,ddz,seg,this.radiusAt(this.ndepth[i])*(this.nkids[i]>1?g.radiusChild:1),this.radiusAt(depth),tip,g.hueMode===1?(0.5+0.5*Math.sin(i*0.37)):tip,depth)){ this.done=true; break; }
+      made++;
+    }
+    if(this.alive<=0) this.done=true;
+    return made;
+  }
+}
+
+/* ============================================================
+   KERN 3 — DLA: diffusionsbegrenzte Anlagerung (gitterfrei)
+   Wanderer starten auf einer Hülle und laufen zufällig, bis sie
+   anhaften. Weite Schritte, solange der Cluster fern ist. Ergibt
+   Dendriten (Mangan), Hirnkorallen-Massen, Hydrokorallen.
+   ============================================================ */
+class DLAKernel {
+  constructor(g){
+    this.g=g; this.done=false; const maxNodes=Math.min(capacity+1024,1<<21);
+    this.nx=new Float32Array(maxNodes); this.ny=new Float32Array(maxNodes); this.nz=new Float32Array(maxNodes); this.ndepth=new Uint16Array(maxNodes); this.nn=0;
+    this.grid=new NodeGrid(g.particle*2.2, maxNodes); this.grid.bind(this.nx,this.ny,this.nz);
+    this.coarse=new CountGrid(g.particle*4.5); // grob und dilatiert: eine Abfrage sagt, ob ein Knoten in ~8 Teilchen Nähe liegt
+    this.cx=0; this.cy=g.floorY+ (g.planar?0.9:0.0); this.cz=0; this.R=g.particle*4;
+    const seeds=Math.max(1,Math.round(g.seeds));
+    for(let i=0;i<seeds;i++){ const an=i/seeds*6.283, rr=seeds>1?g.seedSpread:0; this.addNode(Math.cos(an)*rr, g.floorY+(g.planar?0.9:0), Math.sin(an)*rr, 0); }
+  }
+  addNode(x,y,z,depth){ const i=this.nn; if(i>=this.nx.length) return -1; this.nx[i]=x;this.ny[i]=y;this.nz[i]=z;this.ndepth[i]=depth; this.grid.insert(i,x,y,z); { const C=this.coarse, cc=C.cell; for(let a=-1;a<=1;a++)for(let b=-1;b<=1;b++)for(let c2=-1;c2<=1;c2++) C.add(x+a*cc,y+b*cc,z+c2*cc); } this.nn++;
+    const d=Math.hypot(x-this.cx,y-this.cy,z-this.cz); if(d>this.R) this.R=d; return i; }
+  progress(){ return this.done?1:Math.min(1,total/capacity); }
+  step(budget){
+    const g=this.g; let made=0; if(this.done) return 0;
+    const d=g.particle, d2=(d*2)*(d*2), launch=this.R+d*6;
+    const planar=g.planar>0.5;
+    let tries=0;
+    while(made<budget && tries<budget*400){
+      tries++;
+      // Start auf Hülle
+      let th=rnd()*6.283, ph=Math.acos(rndN());
+      let x=this.cx+Math.sin(ph)*Math.cos(th)*launch, y=this.cy+(planar?0:Math.cos(ph)*launch), z=this.cz+Math.sin(ph)*Math.sin(th)*launch;
+      if(planar) y=this.cy;
+      let stuck=-1, steps=0; const C=this.coarse, cc=C.cell;
+      while(steps++<3000){
+        let dc=Math.hypot(x-this.cx,y-this.cy,z-this.cz);
+        if(dc>launch*1.5){ // zurück auf die Starthülle (gleichverteilt, statt den Wanderer zu verlieren)
+          const k=launch/dc; x=this.cx+(x-this.cx)*k; y=this.cy+(y-this.cy)*k; z=this.cz+(z-this.cz)*k; if(planar) y=this.cy; dc=launch; }
+        // Nähe prüfen: erst grob (27 Zellen à 7 Teilchen), dann fein
+        const nearAny=C.get(x,y,z)>0;
+        const st = nearAny ? d*1.4 : Math.max(d*5, Math.min(d*14, dc-this.R-d*2));
+        let sx=rndN(), sy=planar?0:rndN(), sz=rndN(); const sl=Math.hypot(sx,sy,sz)||1;
+        sx=sx/sl*st; sy=sy/sl*st; sz=sz/sl*st;
+        if(!nearAny && dc>this.R+d*4){ const kk=st*0.3/Math.max(dc,1e-4); sx+=(this.cx-x)*kk; sy+=(this.cy-y)*kk*(planar?0:1); sz+=(this.cz-z)*kk; }
+        // Vorzugsrichtung (Gravitation / Licht / Strömung / Kristallachsen)
+        sy+=(g.photo-g.gravi)*st*0.35;
+        sx+=Math.cos(g.flowAng)*g.flow*st*0.4; sz+=Math.sin(g.flowAng)*g.flow*st*0.4;
+        if(g.aniso>0){ const k=g.aniso; const ax=Math.round(sx/st), az=Math.round(sz/st); sx=sx*(1-k)+ax*st*k; sz=sz*(1-k)+az*st*k; }
+        x+=sx; y+=sy; z+=sz;
+        if(y<g.floorY){ y=g.floorY+1e-3; }
+        if(nearAny){
+          const best=this.grid.nearest(x,y,z,d2);
+          if(best>=0 && rnd()<g.stick){ stuck=best; break; }
+        }
+      }
+      if(stuck<0) continue;
+      // an Oberfläche des Elternteilchens setzen
+      const px=this.nx[stuck],py=this.ny[stuck],pz=this.nz[stuck];
+      vnorm(x-px,y-py,z-pz); const qx=px+VX*d*2, qy=py+VY*d*2, qz=pz+VZ*d*2;
+      const depth=this.ndepth[stuck]+1;
+      const j=this.addNode(qx,qy,qz,depth); if(j<0){ this.done=true; break; }
+      const age=Math.min(1,depth/g.tipDepth);
+      const r=Math.max(g.minRadius, d*g.thick*(1.25-0.5*age));
+      if(!emit(px,py,pz,VX,VY,VZ,d*2.1,r,r*0.9,age,age,depth)){ this.done=true; break; }
+      made++;
+    }
+    if(tries>=budget*400 && made===0) this.idle=(this.idle||0)+1; else this.idle=0;
+    if(this.idle>30) this.done=true;
+    return made;
+  }
+}
+
+/* ============================================================
+   KERN 4 — LATTICE: Silikatgitter auf Rotationsfläche (Glasschwämme)
+   Reihe für Reihe von unten; Diagonalen fusionieren eine Reihe später.
+   ============================================================ */
+class LatticeKernel {
+  constructor(g){ this.g=g; this.i=0; this.R=Math.round(g.rings); this.S=Math.round(g.segs); this.done=false; this.ribPrev=new Float32Array(Math.round(g.ribs)*3).fill(NaN); }
+  radiusAt(v){ const g=this.g; const s=Math.sin(v*Math.PI); const flare=1+g.profile*(Math.pow(v,3.2)*1.6-Math.pow(1-v,2.4)*0.55); return g.latRadius*(0.42+0.58*Math.pow(s,0.55))*flare; }
+  point(i,j,out){ const g=this.g; const v=i/this.R, u=j/this.S, r=this.radiusAt(v); const jx=g.jitter?vnoise(i*0.6,j*0.6,0)*g.jitter*r:0, jy=g.jitter?vnoise(i*0.6,j*0.6,9)*g.jitter*0.05:0; const a=u*6.283185; out[0]=Math.cos(a)*(r+jx); out[1]=g.floorY+v*g.latHeight+jy; out[2]=Math.sin(a)*(r+jx); }
+  progress(){ return this.done?1:this.i/(this.R+1); }
+  step(budget){
+    const g=this.g; if(this.done) return 0; let made=0; const A=[0,0,0],B=[0,0,0],C=[0,0,0];
+    while(made<budget && this.i<=this.R){
+      const i=this.i, v=i/this.R, rad=g.strutR*(1-0.35*v), tipv=v;
+      for(let j=0;j<this.S;j++){
+        this.point(i,j,A); this.point(i,(j+1)%this.S,B);
+        if(emitAB(A[0],A[1],A[2],B[0],B[1],B[2],rad,rad,tipv*0.5,v,i)) made++;      // Ring
+        if(i<this.R){ this.point(i+1,j,C); if(emitAB(A[0],A[1],A[2],C[0],C[1],C[2],rad,rad*0.92,tipv*0.5,v,i)) made++; } // Vertikal
+        if(i>0 && g.diag>0 && ((i+j)%Math.max(1,Math.round(1/g.diag))===0)){ this.point(i-1,(j+1)%this.S,C); if(emitAB(A[0],A[1],A[2],C[0],C[1],C[2],rad*0.7,rad*0.7,tipv*0.5,v,i)) made++; }
+      }
+      // Helixrippen
+      const nR=Math.round(g.ribs);
+      for(let k=0;k<nR;k++){ const u=(k/nR+v*g.ribTwist)%1; const jf=u*this.S; const r=this.radiusAt(v)*1.04; const a=u*6.283185; const px=Math.cos(a)*r, py=g.floorY+v*g.latHeight, pz=Math.sin(a)*r;
+        const o=k*3; if(!Number.isNaN(this.ribPrev[o])){ if(emitAB(this.ribPrev[o],this.ribPrev[o+1],this.ribPrev[o+2],px,py,pz,rad*1.6,rad*1.6,0.2,0.9,i)) made++; }
+        this.ribPrev[o]=px; this.ribPrev[o+1]=py; this.ribPrev[o+2]=pz; }
+      this.i++;
+    }
+    if(this.i>this.R) this.done=true;
+    return made;
+  }
+}
+
+/* ============================================================
+   KERN 5 — ACCRETE: Oberflächenanlagerung (Eden-Wachstum)
+   Massive und krustenbildende Formen (Porites, Montipora): Knoten
+   setzen sich nur auf der Oberfläche an; wer eingeschlossen ist,
+   wächst nicht mehr. Licht von oben macht den Buckel.
+   ============================================================ */
+class AccreteKernel {
+  constructor(g){ this.g=g; this.done=false; const maxNodes=Math.min(capacity+1024,1<<21);
+    this.nx=new Float32Array(maxNodes); this.ny=new Float32Array(maxNodes); this.nz=new Float32Array(maxNodes); this.nn=0;
+    this.surf=new Int32Array(maxNodes); this.ns=0; this.fail=new Uint8Array(maxNodes);
+    this.grid=new CountGrid(g.cell);
+    const seeds=Math.max(1,Math.round(g.seeds));
+    for(let i=0;i<seeds;i++){ const an=i/seeds*6.283, rr=seeds>1?g.seedSpread*(0.5+rnd()*0.5):0; this.addNode(Math.cos(an)*rr,g.floorY,Math.sin(an)*rr); }
+    this.cx=0; this.cz=0;
+  }
+  addNode(x,y,z){ const i=this.nn; if(i>=this.nx.length) return -1; this.nx[i]=x;this.ny[i]=y;this.nz[i]=z; this.grid.add(x,y,z); this.surf[this.ns++]=i; this.fail[i]=0; this.nn++; return i; }
+  progress(){ return this.done?1:Math.min(1,total/capacity); }
+  step(budget){
+    const g=this.g; if(this.done) return 0; let made=0, tries=0;
+    const cell=g.cell, step=cell*1.0;
+    while(made<budget && tries<budget*30 && this.ns>0){
+      tries++;
+      const si=(rnd()*this.ns)|0; const i=this.surf[si];
+      const px=this.nx[i],py=this.ny[i],pz=this.nz[i];
+      // Außennormale: Summe der freien Nachbarrichtungen (Eden-Wuchs), Licht, Rauschen
+      const G2=this.grid, c=cell;
+      let nx=(G2.get(px-c,py,pz)>0?1:0)-(G2.get(px+c,py,pz)>0?1:0), ny=(G2.get(px,py-c,pz)>0?1:0)-(G2.get(px,py+c,pz)>0?1:0), nz=(G2.get(px,py,pz-c)>0?1:0)-(G2.get(px,py,pz+c)>0?1:0);
+      if(nx===0&&ny===0&&nz===0){ nx=rndN(); ny=0.6; nz=rndN(); }
+      ny*=g.flatten; const nl=Math.hypot(nx,ny,nz)||1; nx/=nl;ny/=nl;nz/=nl;
+      let dx=nx+rndN()*g.rough, dy=ny+g.photo*0.6+rndN()*g.rough, dz=nz+rndN()*g.rough;
+      if(g.lobes>0){ const q=g.lobeScale; dx+=vnoise(px*q,py*q,pz*q)*g.lobes; dy+=vnoise(px*q+9,py*q,pz*q)*g.lobes*0.5; dz+=vnoise(px*q,py*q+9,pz*q)*g.lobes; }
+      vnorm(dx,dy,dz);
+      const qx=px+VX*step, qy=py+VY*step, qz=pz+VZ*step;
+      if(qy<g.floorY){ this.fail[i]++; continue; }
+      if(this.grid.get(qx,qy,qz)>0 || Math.hypot(qx,qz)>g.envR || qy>g.floorY+g.envH){ // belegt → Fehlversuch
+        if(++this.fail[i]>g.patience){ this.surf[si]=this.surf[--this.ns]; }
+        continue;
+      }
+      const j=this.addNode(qx,qy,qz); if(j<0){ this.done=true; break; }
+      const h=Math.min(1,(qy-g.floorY)/Math.max(0.1,g.envH));
+      const r=g.nodule*(0.85+rnd()*0.3);
+      if(!emit(px,py,pz,VX,VY,VZ,step*1.15,r,r*0.92,h,h,0)){ this.done=true; break; }
+      made++;
+    }
+    if(this.ns===0) this.done=true;
+    return made;
+  }
+}
+
+/* ============================================================
+   KERN 6 — FEATHER: gefiederte Achse (Seefedern, Federsterne, Hydroiden)
+   Rachis mit paarigen Blättern, Blätter mit Fiedern. Deterministisch,
+   wächst von unten nach oben.
+   ============================================================ */
+class FeatherKernel {
+  constructor(g){ this.g=g; this.i=0; this.N=Math.round(g.height/g.segLen); this.done=false; this.ph=rnd()*6.283; }
+  progress(){ return this.done?1:this.i/this.N; }
+  step(budget){
+    const g=this.g; if(this.done) return 0; let made=0;
+    while(made<budget && this.i<this.N){
+      const i=this.i, v=i/this.N;
+      const bend=g.bend*v*v; const x=Math.sin(this.ph)*bend, z=Math.cos(this.ph)*bend;
+      const y0=g.floorY+i*g.segLen, y1=y0+g.segLen;
+      const r=g.radius0*(1-0.7*v);
+      emit(x,y0,z, Math.sin(this.ph)*2*g.bend*v*g.segLen/ g.segLen*0.1,1,Math.cos(this.ph)*2*g.bend*v*0.1, g.segLen*1.05, r, r*0.97, v*0.3, 0.1, i); made++;
+      // Blätter ab Stielhöhe
+      if(v>g.stalk && (i%Math.max(1,Math.round(g.leafEvery)))===0){
+        const span=g.leafLen*Math.sin(Math.PI*Math.min(1,(v-g.stalk)/(1-g.stalk)))**g.leafPow;
+        const a0=this.ph+ (g.spiral? i*g.divergence*Math.PI/180 : 0);
+        const pairs=Math.max(1,Math.round(g.leafPairs));
+        for(let s=0;s<pairs*2;s++){
+          const a=a0+Math.PI*s/pairs + (g.spiral?0:0);
+          const ux=Math.cos(a), uz=Math.sin(a);
+          const nP=Math.max(1,Math.round(span/g.pinnuleStep));
+          let lx=x,ly=y0,lz=z;
+          for(let p=0;p<nP;p++){
+            const f=(p+1)/nP; const up=g.leafAngle*(1-f*0.4);
+            const ex=x+ux*span*f, ey=y0+span*f*Math.tan(up)*(0.5+0.5*f)+ Math.sin(f*3.1)*g.leafCurl*span, ez=z+uz*span*f;
+            const rr=g.leafR*(1-0.6*f);
+            if(emitAB(lx,ly,lz,ex,ey,ez,rr,rr*0.85,0.5+0.5*f,0.6+0.3*f,i)) made++;
+            // Fiedern (Polypen) senkrecht zum Blatt
+            if(g.pinnules>0 && p%2===0){ const pl=g.pinnules*span*0.25*(1-0.5*f); vnorm(-uz*0.3, 1, ux*0.3); if(emit(ex,ey,ez,VX,VY,VZ,pl,rr*0.6,rr*0.2,1,0.95,i)) made++; vnorm(uz*0.3,0.7,-ux*0.3); if(emit(ex,ey,ez,VX,VY,VZ,pl*0.8,rr*0.5,rr*0.2,1,0.95,i)) made++; }
+            lx=ex;ly=ey;lz=ez;
+          }
+        }
+      }
+      this.i++;
+    }
+    if(this.i>=this.N) this.done=true;
+    return made;
+  }
+}
+
+const KERNELS = { branch:BranchKernel, colonize:ColonizeKernel, dla:DLAKernel, lattice:LatticeKernel, accrete:AccreteKernel, feather:FeatherKernel };
+
+/* ============================================================
+   PUMPE — fester Takt, Gegendruck, übertragbare Batches
+   ============================================================ */
+const S = { gen:0, kernel:null, running:false, paused:false, inflight:0, rate:4000, lastT:0, carry:0, timer:null, genome:null, batchMax:8192 };
+const now = ()=> (typeof performance!=='undefined' ? performance.now() : Date.now());
+function post(m, tr){ if(typeof self!=='undefined' && self.postMessage){ tr?self.postMessage(m,tr):self.postMessage(m); } else if(S.sink) S.sink(m); }
+function start(msg){
+  S.genome=msg.genome; S.gen=msg.gen|0; capacity=msg.capacity|0; total=0; bbReset();
+  rseed(msg.seed|0);
+  const K=KERNELS[msg.genome.kernel]||BranchKernel;
+  const t0=now();
+  S.kernel=new K(msg.genome);
+  S.rate=msg.genome.rate||4000; S.paused=false; S.running=true; S.inflight=0; S.carry=0; S.lastT=now();
+  outAlloc(S.batchMax);
+  post({t:'reset', gen:S.gen, initMs:now()-t0, kernel:msg.genome.kernel});
+  schedule(0);
+}
+function schedule(ms){ if(S.timer) clearTimeout(S.timer); S.timer=setTimeout(pump, ms); }
+function pump(){
+  S.timer=null;
+  if(!S.running || !S.kernel) return;
+  if(S.paused){ schedule(50); return; }
+  if(S.inflight>=2){ schedule(8); return; } // Gegendruck: Hauptfaden hinkt
+  const t=now(); let dt=Math.min(100, t-S.lastT); S.lastT=t;
+  // Budget: Streben je Sekunde, mit Übertrag für Bruchteile
+  let budget = S.rate>=1e6 ? S.batchMax : S.carry + S.rate*dt/1000;
+  const ib=Math.min(S.batchMax, Math.floor(budget)); S.carry=S.rate>=1e6?0:Math.min(S.batchMax, budget-ib);
+  const t0=now();
+  OUT.n=0;
+  let made=0, guard=0;
+  while(made<ib && !S.kernel.done && guard++<64){ const m=S.kernel.step(ib-made); made+=m; if(m===0) break; }
+  const simMs=now()-t0;
+  const done=S.kernel.done || total>=capacity;
+  if(OUT.n>0){
+    const buf=OUT.buf.slice(0, OUT.n*STRIDE);
+    S.inflight++;
+    post({t:'batch', gen:S.gen, buf, n:OUT.n, total, done, simMs, progress:S.kernel.progress(), bb:[BB.minx,BB.miny,BB.minz,BB.maxx,BB.maxy,BB.maxz]}, [buf]);
+  } else if(done){ post({t:'done', gen:S.gen, total, simMs}); }
+  if(done){ S.running=false; return; }
+  schedule(made===0?16:(ib>=S.batchMax?0:16));
+}
+function onMessage(m){
+  switch(m.t){
+    case 'start': start(m); break;
+    case 'ack': S.inflight=Math.max(0,S.inflight-1); break;
+    case 'pause': S.paused=true; break;
+    case 'resume': S.paused=false; S.lastT=now(); break;
+    case 'rate': S.rate=m.rate; break;
+    case 'stop': S.running=false; if(S.timer) clearTimeout(S.timer); break;
+  }
+}
+if(typeof self!=='undefined' && typeof self.onmessage!=='undefined' || (typeof self!=='undefined' && !self.document)){ self.onmessage=(e)=>onMessage(e.data); }
+if(typeof module!=='undefined'){ module.exports={ onMessage, S, KERNELS, f16, STRIDE, _setSink:(fn)=>{S.sink=fn;} }; }
+</script>
+<script>
+"use strict";
+/* ============================================================
+   RIFFWERK · GENOM-SCHEMA UND ARTENKATALOG
+   ------------------------------------------------------------
+   Eine Art ist hier kein Code, sondern ein Datensatz: ein Kern
+   (Wachstumsverfahren) plus Zahlenwerte. Das Schema beschreibt jeden
+   Regler einmal; die Bedienung wird daraus erzeugt und zeigt nur,
+   was der aktive Kern tatsächlich liest.
+   k = Schlüssel, l = Beschriftung, min/max/s = Bereich und Schritt,
+   kr = Kerne, die den Wert lesen (leer = alle), grp = Abschnitt,
+   live = wirkt ohne Neuaufbau (nur Hauptfaden), int = ganzzahlig.
+   ============================================================ */
+const KERNEL_INFO = {
+  branch:   { name:'Verzweigung',      desc:'Stochastisches L-System mit apikaler Dominanz, Tropismen und Raumkonkurrenz.' },
+  colonize: { name:'Raumkolonisation', desc:'Attraktoren in einer Hüllform ziehen die Wachstumsfront an (Runions 2007). Selbstvermeidend.' },
+  dla:      { name:'Anlagerung (DLA)', desc:'Diffusionsbegrenzte Anlagerung mit gitterfreien Wanderern. Dendriten und Massen.' },
+  lattice:  { name:'Silikatgitter',    desc:'Gitter auf einer Rotationsfläche, Reihe für Reihe, mit Helixrippen.' },
+  accrete:  { name:'Oberflächenwuchs', desc:'Eden-Anlagerung: nur die Oberfläche wächst, Licht formt den Buckel.' },
+  feather:  { name:'Fiederachse',      desc:'Rachis mit paarigen Blättern und Fiedern. Seefedern, Hydroiden.' },
+};
+const SCHEMA = [
+  /* ---- Allgemein ---- */
+  { k:'rate',        l:'Wachstumstempo (Streben/s)', min:200, max:60000, s:100, grp:'Takt', live:true, int:true, log:true },
+  { k:'capacity',    l:'Höchstzahl Streben',        min:2000, max:1000000, s:1000, grp:'Takt', int:true, log:true },
+  { k:'floorY',      l:'Substrathöhe',              min:-1.2, max:0, s:0.01, grp:'Takt' },
+  /* ---- branch ---- */
+  { k:'segLen',      l:'Segmentlänge',     min:0.012, max:0.12, s:0.001, kr:['branch','colonize','feather'], grp:'Wuchs' },
+  { k:'segJitter',   l:'Längenstreuung',   min:0, max:0.5, s:0.01, kr:['branch'], grp:'Wuchs' },
+  { k:'branchAngle', l:'Verzweigungswinkel (°)', min:5, max:85, s:1, kr:['branch'], grp:'Wuchs' },
+  { k:'branchProb',  l:'Verzweigungsrate', min:0, max:0.6, s:0.005, kr:['branch'], grp:'Wuchs' },
+  { k:'apical',      l:'Apikale Dominanz', min:0, max:1, s:0.01, kr:['branch'], grp:'Wuchs' },
+  { k:'divergence',  l:'Divergenzwinkel (°)', min:0, max:180, s:0.5, kr:['branch','feather'], grp:'Wuchs' },
+  { k:'maxDepth',    l:'Höchsttiefe',      min:20, max:600, s:1, kr:['branch'], grp:'Wuchs', int:true },
+  { k:'lifespan',    l:'Spitzenlebensdauer (Schritte)', min:10, max:400, s:1, kr:['branch'], grp:'Wuchs', int:true },
+  { k:'roots',       l:'Wurzeln',          min:1, max:24, s:1, kr:['branch','colonize'], grp:'Wuchs', int:true },
+  { k:'rootSpread',  l:'Wurzelabstand',    min:0, max:1.2, s:0.01, kr:['branch','colonize'], grp:'Wuchs' },
+  /* ---- Radius ---- */
+  { k:'radius0',     l:'Basisradius',      min:0.004, max:0.14, s:0.001, kr:['branch','colonize','feather'], grp:'Dicke' },
+  { k:'radiusChild', l:'Seitenastradius',  min:0.3, max:1, s:0.01, kr:['branch','colonize'], grp:'Dicke' },
+  { k:'taper',       l:'Verjüngung',       min:0.85, max:1, s:0.001, kr:['branch','colonize'], grp:'Dicke' },
+  { k:'taperCurve',  l:'Verjüngungskurve', min:0, max:3, s:0.05, kr:['branch'], grp:'Dicke' },
+  { k:'minRadius',   l:'Mindestradius',    min:0.001, max:0.03, s:0.0005, kr:['branch','colonize','dla'], grp:'Dicke' },
+  /* ---- Umwelt (Morphogenese) ---- */
+  { k:'photo',       l:'Phototropismus',   min:-0.5, max:1, s:0.01, kr:['branch','colonize','dla','accrete'], grp:'Umwelt' },
+  { k:'gravi',       l:'Gravitropismus',   min:-0.5, max:1, s:0.01, kr:['branch','colonize','dla'], grp:'Umwelt' },
+  { k:'flow',        l:'Strömungsausweichen', min:0, max:1, s:0.01, kr:['branch','colonize','dla'], grp:'Umwelt' },
+  { k:'flowAng',     l:'Strömungsrichtung (rad)', min:0, max:6.283, s:0.01, kr:['branch','colonize','dla'], grp:'Umwelt' },
+  { k:'turb',        l:'Turbulenz',        min:0, max:1, s:0.01, kr:['branch'], grp:'Umwelt' },
+  { k:'turbScale',   l:'Turbulenzmaß',     min:0.2, max:4, s:0.05, kr:['branch'], grp:'Umwelt' },
+  { k:'crowd',       l:'Raumkonkurrenz',   min:0, max:1, s:0.01, kr:['branch'], grp:'Umwelt' },
+  { k:'anastom',     l:'Anastomose',       min:0, max:1, s:0.01, kr:['branch','colonize'], grp:'Umwelt' },
+  { k:'planar',      l:'Fächerebene',      min:0, max:1, s:0.01, kr:['branch','dla'], grp:'Umwelt' },
+  { k:'planarBend',  l:'Fächerwölbung',    min:0, max:1, s:0.01, kr:['branch'], grp:'Umwelt' },
+  { k:'plate',       l:'Plattenwuchs',     min:0, max:1, s:0.01, kr:['branch'], grp:'Umwelt' },
+  { k:'polyps',      l:'Polypenbüschel',   min:0, max:0.6, s:0.01, kr:['branch'], grp:'Umwelt' },
+  { k:'polypLen',    l:'Polypenlänge',     min:0.004, max:0.05, s:0.001, kr:['branch'], grp:'Umwelt' },
+  { k:'hueMode',     l:'Farbspur (0 Spitze · 1 Linie)', min:0, max:1, s:1, kr:['branch','colonize'], grp:'Umwelt', int:true },
+  /* ---- colonize ---- */
+  { k:'attractors',  l:'Attraktoren',      min:500, max:400000, s:500, kr:['colonize'], grp:'Hülle', int:true, log:true },
+  { k:'envelope',    l:'Hüllform (0 Kuppel · 1 Säule · 2 Fächer · 3 Tafel · 4 Kugel)', min:0, max:4, s:1, kr:['colonize'], grp:'Hülle', int:true },
+  { k:'envR',        l:'Hüllradius',       min:0.1, max:2.5, s:0.01, kr:['colonize','accrete'], grp:'Hülle' },
+  { k:'envH',        l:'Hüllhöhe',         min:0.1, max:2.5, s:0.01, kr:['colonize','accrete'], grp:'Hülle' },
+  { k:'envThick',    l:'Fächerdicke',      min:0, max:0.3, s:0.005, kr:['colonize'], grp:'Hülle' },
+  { k:'envSag',      l:'Tafelneigung',     min:-0.5, max:0.8, s:0.01, kr:['colonize'], grp:'Hülle' },
+  { k:'influence',   l:'Einflussradius',   min:0.03, max:0.6, s:0.005, kr:['colonize'], grp:'Hülle' },
+  { k:'kill',        l:'Tötungsradius',    min:0.01, max:0.3, s:0.005, kr:['colonize'], grp:'Hülle' },
+  { k:'inertia',     l:'Richtungsträgheit', min:0, max:2, s:0.05, kr:['colonize'], grp:'Hülle' },
+  { k:'jitter',      l:'Richtungsstreuung', min:0, max:0.6, s:0.01, kr:['colonize','lattice'], grp:'Hülle' },
+  { k:'tipDepth',    l:'Spitzentiefe',     min:5, max:300, s:1, kr:['colonize','dla'], grp:'Hülle', int:true },
+  /* ---- dla ---- */
+  { k:'particle',    l:'Teilchenradius',   min:0.004, max:0.05, s:0.0005, kr:['dla'], grp:'Anlagerung' },
+  { k:'stick',       l:'Haftwahrscheinlichkeit', min:0.02, max:1, s:0.01, kr:['dla'], grp:'Anlagerung' },
+  { k:'thick',       l:'Strebendicke (× Teilchen)', min:0.3, max:2.5, s:0.05, kr:['dla'], grp:'Anlagerung' },
+  { k:'aniso',       l:'Kristallachsen',   min:0, max:1, s:0.01, kr:['dla'], grp:'Anlagerung' },
+  { k:'seeds',       l:'Keime',            min:1, max:40, s:1, kr:['dla','accrete'], grp:'Anlagerung', int:true },
+  { k:'seedSpread',  l:'Keimabstand',      min:0, max:1.5, s:0.01, kr:['dla','accrete'], grp:'Anlagerung' },
+  /* ---- lattice ---- */
+  { k:'rings',       l:'Gitterreihen',     min:6, max:160, s:1, kr:['lattice'], grp:'Gitter', int:true },
+  { k:'segs',        l:'Gittersegmente',   min:6, max:120, s:1, kr:['lattice'], grp:'Gitter', int:true },
+  { k:'latRadius',   l:'Gitterradius',     min:0.1, max:1.2, s:0.01, kr:['lattice'], grp:'Gitter' },
+  { k:'latHeight',   l:'Gitterhöhe',       min:0.3, max:2.6, s:0.01, kr:['lattice'], grp:'Gitter' },
+  { k:'profile',     l:'Vasenprofil',      min:-1, max:2, s:0.01, kr:['lattice'], grp:'Gitter' },
+  { k:'ribs',        l:'Helixrippen',      min:0, max:24, s:1, kr:['lattice'], grp:'Gitter', int:true },
+  { k:'ribTwist',    l:'Rippendrehung',    min:-2, max:2, s:0.01, kr:['lattice'], grp:'Gitter' },
+  { k:'diag',        l:'Diagonalen',       min:0, max:1, s:0.05, kr:['lattice'], grp:'Gitter' },
+  { k:'strutR',      l:'Strebenradius',    min:0.002, max:0.03, s:0.0005, kr:['lattice'], grp:'Gitter' },
+  /* ---- accrete ---- */
+  { k:'cell',        l:'Zellgröße',        min:0.01, max:0.08, s:0.001, kr:['accrete'], grp:'Oberfläche' },
+  { k:'nodule',      l:'Knötchenradius',   min:0.004, max:0.06, s:0.001, kr:['accrete'], grp:'Oberfläche' },
+  { k:'rough',       l:'Rauheit',          min:0, max:1.5, s:0.01, kr:['accrete'], grp:'Oberfläche' },
+  { k:'flatten',     l:'Abflachung',       min:0.1, max:3, s:0.05, kr:['accrete'], grp:'Oberfläche' },
+  { k:'lobes',       l:'Lappung',          min:0, max:2, s:0.01, kr:['accrete'], grp:'Oberfläche' },
+  { k:'lobeScale',   l:'Lappenmaß',        min:0.5, max:12, s:0.1, kr:['accrete'], grp:'Oberfläche' },
+  { k:'patience',    l:'Oberflächengeduld', min:1, max:40, s:1, kr:['accrete'], grp:'Oberfläche', int:true },
+  /* ---- feather ---- */
+  { k:'height',      l:'Achsenhöhe',       min:0.3, max:2.4, s:0.01, kr:['feather'], grp:'Fieder' },
+  { k:'bend',        l:'Achsenbiegung',    min:0, max:1, s:0.01, kr:['feather'], grp:'Fieder' },
+  { k:'stalk',       l:'Stielanteil',      min:0, max:0.8, s:0.01, kr:['feather'], grp:'Fieder' },
+  { k:'leafEvery',   l:'Blattabstand (Segmente)', min:1, max:12, s:1, kr:['feather'], grp:'Fieder', int:true },
+  { k:'leafPairs',   l:'Blattpaare je Knoten', min:1, max:6, s:1, kr:['feather'], grp:'Fieder', int:true },
+  { k:'leafLen',     l:'Blattlänge',       min:0.05, max:0.9, s:0.005, kr:['feather'], grp:'Fieder' },
+  { k:'leafPow',     l:'Blattprofil',      min:0.2, max:3, s:0.05, kr:['feather'], grp:'Fieder' },
+  { k:'leafAngle',   l:'Blattwinkel (rad)', min:-0.8, max:1.2, s:0.01, kr:['feather'], grp:'Fieder' },
+  { k:'leafCurl',    l:'Blattkrümmung',    min:-0.5, max:0.5, s:0.01, kr:['feather'], grp:'Fieder' },
+  { k:'leafR',       l:'Blattradius',      min:0.002, max:0.03, s:0.0005, kr:['feather'], grp:'Fieder' },
+  { k:'pinnuleStep', l:'Fiederabstand',    min:0.01, max:0.12, s:0.001, kr:['feather'], grp:'Fieder' },
+  { k:'pinnules',    l:'Fiederlänge',      min:0, max:1.2, s:0.01, kr:['feather'], grp:'Fieder' },
+  { k:'spiral',      l:'Spiralstellung',   min:0, max:1, s:1, kr:['feather'], grp:'Fieder', int:true },
+];
+const DEFAULT_GENOME = {
+  kernel:'branch', rate:6000, capacity:120000, floorY:-0.95,
+  segLen:0.052, segJitter:0.08, branchAngle:34, branchProb:0.17, apical:0.8, divergence:137.5, maxDepth:260, lifespan:70, roots:1, rootSpread:0.3,
+  radius0:0.058, radiusChild:0.66, taper:0.952, taperCurve:0, minRadius:0.004,
+  photo:0.34, gravi:0.06, flow:0.08, flowAng:0.6, turb:0.10, turbScale:1, crowd:0.55, anastom:0, planar:0, planarBend:0, plate:0, polyps:0, polypLen:0.016, hueMode:0,
+  attractors:30000, envelope:0, envR:1.0, envH:1.2, envThick:0.03, envSag:0.2, influence:0.16, kill:0.055, inertia:0.6, jitter:0.08, tipDepth:60,
+  particle:0.012, stick:1, thick:1, aniso:0, seeds:1, seedSpread:0.3,
+  rings:60, segs:28, latRadius:0.42, latHeight:1.6, profile:0.6, ribs:8, ribTwist:0.5, diag:0.5, strutR:0.007,
+  cell:0.028, nodule:0.02, rough:0.5, flatten:1, lobes:0.6, lobeScale:3, patience:8,
+  height:1.5, bend:0.15, stalk:0.25, leafEvery:3, leafPairs:1, leafLen:0.3, leafPow:0.6, leafAngle:0.35, leafCurl:0.05, leafR:0.007, pinnuleStep:0.03, pinnules:0.5, spiral:0,
+};
+/* Darstellung: gilt für alle Arten, wird aber je Art vorbelegt */
+const DEFAULT_LOOK = {
+  colBase:[0.72,0.66,0.50], colTip:[0.30,0.92,0.55], colFluo:[1.0,0.32,0.58],
+  fluo:0.26, sss:0.62, rough:0.45, metal:0.0, micro:0.35, hueSpread:0.0,
+  ageThicken:0.35, birthRamp:400,
+  exposure:0.9, bloom:0.35, ao:0.8, shadow:0.7, vignette:0.3, grain:0.05,
+  water:0.85, waterDepth:0.45, shafts:0.45, ground:1, caustic:0.25, motes:1,
+  swayAmp:0.8, flowMean:0.42, flowTurb:0.55, flowFreq:0.6, flowDamp:0.14,
+  lightAz:-0.9, lightEl:0.95,
+};
+const LOOK_SCHEMA = [
+  { k:'exposure', l:'Belichtung', min:0.3, max:2.5, s:0.01, grp:'Licht' },
+  { k:'lightAz',  l:'Lichtwinkel zur Kamera (rad)', min:-3.14, max:3.14, s:0.01, grp:'Licht' },
+  { k:'lightEl',  l:'Lichthöhe (rad)', min:0.2, max:1.5, s:0.01, grp:'Licht' },
+  { k:'shadow',   l:'Schlagschatten', min:0, max:1, s:0.01, grp:'Licht' },
+  { k:'ao',       l:'Umgebungsverdeckung', min:0, max:1.5, s:0.01, grp:'Licht' },
+  { k:'bloom',    l:'Leuchtsaum', min:0, max:1, s:0.01, grp:'Licht' },
+  { k:'fluo',     l:'Fluoreszenz', min:0, max:1, s:0.01, grp:'Material' },
+  { k:'sss',      l:'Durchleuchtung', min:0, max:1, s:0.01, grp:'Material' },
+  { k:'rough',    l:'Rauheit', min:0.05, max:1, s:0.01, grp:'Material' },
+  { k:'metal',    l:'Glanzmetall', min:0, max:1, s:0.01, grp:'Material' },
+  { k:'micro',    l:'Mikrorelief', min:0, max:1, s:0.01, grp:'Material' },
+  { k:'hueSpread',l:'Farbspreizung', min:0, max:1, s:0.01, grp:'Material' },
+  { k:'ageThicken', l:'Altersverdickung', min:0, max:1.5, s:0.01, grp:'Material' },
+  { k:'birthRamp', l:'Knospungsbreite', min:0, max:4000, s:10, grp:'Material', int:true },
+  { k:'water',    l:'Wasserraum', min:0, max:1, s:0.01, grp:'Wasser' },
+  { k:'waterDepth', l:'Wassertiefe', min:0, max:1, s:0.01, grp:'Wasser' },
+  { k:'shafts',   l:'Lichtschächte', min:0, max:1, s:0.01, grp:'Wasser' },
+  { k:'ground',   l:'Boden', min:0, max:1, s:1, grp:'Wasser', int:true },
+  { k:'caustic',  l:'Kaustik', min:0, max:1, s:0.01, grp:'Wasser' },
+  { k:'motes',    l:'Schwebstoffe', min:0, max:1, s:1, grp:'Wasser', int:true },
+  { k:'swayAmp',  l:'Strömungsschwingen', min:0, max:2, s:0.01, grp:'Strömung' },
+  { k:'flowMean', l:'Mittelströmung', min:0, max:1.5, s:0.01, grp:'Strömung' },
+  { k:'flowTurb', l:'Wirbelanteil', min:0, max:1.5, s:0.01, grp:'Strömung' },
+  { k:'flowFreq', l:'Eigenfrequenz (Hz)', min:0.1, max:2, s:0.01, grp:'Strömung' },
+  { k:'flowDamp', l:'Dämpfung', min:0.02, max:0.8, s:0.01, grp:'Strömung' },
+  { k:'vignette', l:'Vignette', min:0, max:1, s:0.01, grp:'Bild' },
+  { k:'grain',    l:'Korn', min:0, max:0.3, s:0.005, grp:'Bild' },
+];
+/* ---- Artenkatalog: Genom-Teilsätze; alles Fehlende kommt aus DEFAULT_GENOME ---- */
+const SPECIES = [
+  { grp:'Steinkorallen', id:'acropora', bino:'Acropora millepora', auth:'L-System · apikale Dominanz',
+    g:{kernel:'branch', segLen:0.034, branchAngle:36, branchProb:0.24, apical:0.72, divergence:137.5, taper:0.962, radius0:0.058, radiusChild:0.68, photo:0.22, gravi:0.06, flow:0.08, turb:0.14, crowd:0.55, lifespan:48, capacity:60000},
+    r:{colBase:[0.72,0.66,0.50], colTip:[0.30,0.92,0.55], colFluo:[1.0,0.32,0.58], fluo:0.26, sss:0.62, rough:0.45} },
+  { grp:'Steinkorallen', id:'acropora_table', bino:'Acropora hyacinthus', auth:'Raumkolonisation · Tafel',
+    g:{kernel:'colonize', envelope:3, envR:1.15, envH:0.9, envSag:0.22, attractors:140000, influence:0.06, kill:0.015, segLen:0.024, radius0:0.06, taper:0.975, tipDepth:50, inertia:0.9, photo:0.2, rate:9000, capacity:120000},
+    r:{colBase:[0.76,0.70,0.54], colTip:[0.86,0.52,0.82], colFluo:[0.98,0.45,0.75], fluo:0.22, sss:0.6, rough:0.5} },
+  { grp:'Steinkorallen', id:'pocillopora', bino:'Pocillopora damicornis', auth:'strömungsgeprägt · kompakt',
+    g:{kernel:'branch', segLen:0.028, branchAngle:47, branchProb:0.19, apical:0.55, divergence:120, taper:0.955, radius0:0.052, radiusChild:0.74, photo:0.22, gravi:0.05, flow:0.30, flowAng:0.8, turb:0.16, crowd:0.80, lifespan:55, capacity:70000},
+    r:{colBase:[0.62,0.58,0.55], colTip:[0.55,0.78,0.92], colFluo:[0.55,0.85,1.0], fluo:0.16, sss:0.55, rough:0.5} },
+  { grp:'Steinkorallen', id:'seriatopora', bino:'Seriatopora hystrix', auth:'nadelfein · extremes Schlankheitsmaß',
+    g:{kernel:'branch', segLen:0.03, branchAngle:26, branchProb:0.16, apical:0.78, divergence:137.5, taper:0.978, radius0:0.030, radiusChild:0.70, photo:0.30, gravi:0.04, flow:0.10, turb:0.09, crowd:0.6, lifespan:60, capacity:90000},
+    r:{colBase:[0.86,0.72,0.70], colTip:[0.98,0.55,0.70], colFluo:[1,0.5,0.6], fluo:0.3, sss:0.7, rough:0.4} },
+  { grp:'Steinkorallen', id:'porites', bino:'Porites lobata', auth:'Oberflächenwuchs · massiv',
+    g:{kernel:'accrete', cell:0.026, nodule:0.019, rough:0.45, flatten:1.1, lobes:0.7, lobeScale:3.2, photo:0.35, envR:1.4, envH:1.0, patience:8, capacity:160000, rate:12000},
+    r:{colBase:[0.78,0.70,0.42], colTip:[0.62,0.74,0.36], colFluo:[0.9,0.8,0.3], fluo:0.1, sss:0.45, rough:0.7, micro:0.6} },
+  { grp:'Steinkorallen', id:'montipora', bino:'Montipora capricornis', auth:'Oberflächenwuchs · Krustenplatte',
+    g:{kernel:'accrete', cell:0.024, nodule:0.016, rough:0.35, flatten:3, lobes:1.2, lobeScale:4, photo:0.55, envR:1.5, envH:0.6, patience:6, capacity:140000, rate:12000},
+    r:{colBase:[0.80,0.50,0.30], colTip:[0.95,0.60,0.25], colFluo:[1,0.55,0.2], fluo:0.2, sss:0.5, rough:0.65, micro:0.5} },
+  { grp:'Steinkorallen', id:'stylophora', bino:'Stylophora pistillata', auth:'Raumkolonisation · Kuppel',
+    g:{kernel:'colonize', envelope:0, envR:0.8, envH:0.95, attractors:130000, influence:0.065, kill:0.016, segLen:0.026, radius0:0.065, taper:0.975, tipDepth:50, inertia:0.7, rate:9000, capacity:90000},
+    r:{colBase:[0.86,0.70,0.72], colTip:[0.95,0.60,0.75], colFluo:[1,0.45,0.7], fluo:0.25, sss:0.6, rough:0.5} },
+  { grp:'Gorgonien & Schwarzkorallen', id:'gorgonia', bino:'Gorgonia ventalina', auth:'Fächerebene · anastomosierend',
+    g:{kernel:'branch', segLen:0.028, branchAngle:38, branchProb:0.32, apical:0.45, divergence:180, taper:0.975, radius0:0.020, radiusChild:0.82, photo:0.10, gravi:0.0, flow:0.05, flowAng:1.57, turb:0.05, crowd:0.3, planar:0.96, planarBend:0.25, anastom:0.55, maxDepth:400, lifespan:46, capacity:120000},
+    r:{colBase:[0.55,0.30,0.55], colTip:[0.80,0.45,0.80], colFluo:[0.9,0.5,1.0], fluo:0.15, sss:0.5, rough:0.6} },
+  { grp:'Gorgonien & Schwarzkorallen', id:'seafan_col', bino:'Annella mollis', auth:'Raumkolonisation · Fächer',
+    g:{kernel:'colonize', envelope:2, envR:1.2, envH:1.6, envThick:0.006, attractors:110000, influence:0.045, kill:0.012, segLen:0.017, radius0:0.011, minRadius:0.0016, taper:0.975, tipDepth:90, inertia:0.6, anastom:0.3, flowAng:1.57, capacity:60000, rate:6000},
+    r:{colBase:[0.95,0.55,0.25], colTip:[1.0,0.75,0.35], colFluo:[1,0.6,0.3], fluo:0.1, sss:0.5, rough:0.55} },
+  { grp:'Gorgonien & Schwarzkorallen', id:'antipathes', bino:'Antipathes dichotoma', auth:'Protein-Skelett · dichotom',
+    g:{kernel:'branch', segLen:0.055, branchAngle:30, branchProb:0.14, apical:0.5, divergence:90, taper:0.985, radius0:0.018, radiusChild:0.95, photo:0.05, gravi:-0.05, flow:0.2, turb:0.22, turbScale:1.6, crowd:0.4, maxDepth:500, lifespan:60, capacity:80000},
+    r:{colBase:[0.12,0.10,0.09], colTip:[0.28,0.22,0.18], colFluo:[0.4,0.3,0.2], fluo:0.0, sss:0.1, rough:0.35, metal:0.2} },
+  { grp:'Gorgonien & Schwarzkorallen', id:'corallium', bino:'Corallium rubrum', auth:'Edelkoralle · Calcit',
+    g:{kernel:'branch', segLen:0.048, branchAngle:42, branchProb:0.19, apical:0.6, divergence:137.5, taper:0.955, radius0:0.045, radiusChild:0.7, photo:0.05, gravi:-0.15, flow:0.1, turb:0.1, crowd:0.6, lifespan:45, capacity:50000},
+    r:{colBase:[0.86,0.15,0.18], colTip:[0.95,0.35,0.35], colFluo:[1,0.4,0.4], fluo:0.05, sss:0.3, rough:0.3, micro:0.5} },
+  { grp:'Weichkorallen', id:'dendronephthya', bino:'Dendronephthya sp.', auth:'Polypenbüschel · bäumchenförmig',
+    g:{kernel:'branch', segLen:0.06, branchAngle:50, branchProb:0.24, apical:0.4, divergence:137.5, taper:0.93, radius0:0.07, radiusChild:0.7, photo:0.15, gravi:0, flow:0.15, turb:0.2, crowd:0.5, polyps:0.45, polypLen:0.02, lifespan:45, capacity:70000},
+    r:{colBase:[0.95,0.85,0.90], colTip:[1.0,0.45,0.60], colFluo:[1,0.3,0.5], fluo:0.35, sss:0.9, rough:0.6} },
+  { grp:'Glasschwämme', id:'euplectella', bino:'Euplectella aspergillum', auth:'Quadratgitter · Helixrippen',
+    g:{kernel:'lattice', rings:70, segs:30, latRadius:0.36, latHeight:1.8, profile:0.7, ribs:8, ribTwist:0.6, diag:0.5, strutR:0.006, jitter:0.02, rate:9000, capacity:60000},
+    r:{colBase:[0.92,0.95,0.97], colTip:[0.75,0.92,1.0], colFluo:[0.6,0.9,1], fluo:0.2, sss:0.85, rough:0.25, metal:0.1} },
+  { grp:'Glasschwämme', id:'aphrocallistes', bino:'Aphrocallistes vastus', auth:'Wolkenschwamm · dicht',
+    g:{kernel:'lattice', rings:48, segs:44, latRadius:0.6, latHeight:1.1, profile:1.4, ribs:0, diag:1, strutR:0.0085, jitter:0.12, rate:9000, capacity:60000},
+    r:{colBase:[0.9,0.88,0.82], colTip:[0.95,0.9,0.8], colFluo:[1,0.9,0.7], fluo:0.1, sss:0.8, rough:0.4} },
+  { grp:'Hydro- & Hirnkorallen', id:'brain_dla', bino:'Platygyra daedalea', auth:'DLA · mäandrische Masse',
+    g:{kernel:'dla', particle:0.011, stick:0.25, thick:1.8, aniso:0, seeds:3, seedSpread:0.25, photo:0.08, gravi:0.12, tipDepth:140, rate:2500, capacity:50000},
+    r:{colBase:[0.55,0.62,0.40], colTip:[0.85,0.85,0.45], colFluo:[0.9,1,0.4], fluo:0.3, sss:0.5, rough:0.7, micro:0.8} },
+  { grp:'Hydro- & Hirnkorallen', id:'millepora', bino:'Millepora alcicornis', auth:'DLA · Feuerkoralle',
+    g:{kernel:'dla', particle:0.014, stick:0.6, thick:1.1, aniso:0, seeds:1, photo:0.12, gravi:0.05, flow:0.12, flowAng:0.5, tipDepth:90, rate:2500, capacity:40000},
+    r:{colBase:[0.85,0.68,0.30], colTip:[0.95,0.85,0.55], colFluo:[1,0.9,0.5], fluo:0.15, sss:0.5, rough:0.6} },
+  { grp:'Mineralisch', id:'mangandendrit', bino:'Mangandendrit', auth:'DLA · kristallographische Vorliebe',
+    g:{kernel:'dla', particle:0.009, stick:1, thick:0.9, aniso:0.55, planar:1, seeds:1, photo:0, gravi:0, floorY:-0.95, tipDepth:200, rate:9000, capacity:100000},
+    r:{colBase:[0.10,0.09,0.09], colTip:[0.25,0.22,0.20], colFluo:[0.3,0.3,0.3], fluo:0, sss:0.05, rough:0.3, metal:0.6, water:0.15, ground:0, motes:0} },
+  { grp:'Seefedern & Hydroiden', id:'pennatula', bino:'Pennatula phosphorea', auth:'Fiederachse · paarige Blätter',
+    g:{kernel:'feather', height:1.5, bend:0.18, stalk:0.28, leafEvery:1, leafPairs:1, leafLen:0.34, leafPow:0.6, leafAngle:0.4, leafCurl:0.04, leafR:0.0085, pinnuleStep:0.016, pinnules:0.8, radius0:0.026, segLen:0.022, divergence:0, spiral:0, rate:5000, capacity:40000},
+    r:{colBase:[0.98,0.60,0.45], colTip:[1,0.78,0.55], colFluo:[0.5,1,0.8], fluo:0.35, sss:0.85, rough:0.6, swayAmp:1.3} },
+  { grp:'Seefedern & Hydroiden', id:'umbellula', bino:'Umbellula sp.', auth:'Fiederachse · Tiefsee-Dolde',
+    g:{kernel:'feather', height:2.2, bend:0.3, stalk:0.82, leafEvery:1, leafPairs:4, leafLen:0.45, leafPow:0.2, leafAngle:0.9, leafCurl:-0.1, leafR:0.008, pinnuleStep:0.02, pinnules:0.9, radius0:0.02, segLen:0.028, spiral:1, divergence:47, rate:5000, capacity:40000},
+    r:{colBase:[0.85,0.85,0.95], colTip:[0.9,0.6,0.9], colFluo:[0.6,0.8,1], fluo:0.5, sss:0.9, rough:0.5, waterDepth:0.9, swayAmp:1.5} },
+  { grp:'Seefedern & Hydroiden', id:'aglaophenia', bino:'Aglaophenia pluma', auth:'Fiederachse · Hydroid',
+    g:{kernel:'feather', height:1.2, bend:0.4, stalk:0.1, leafEvery:1, leafPairs:1, leafLen:0.2, leafPow:0.9, leafAngle:0.5, leafCurl:0.12, leafR:0.0035, pinnuleStep:0.009, pinnules:0.4, radius0:0.012, segLen:0.016, spiral:0, rate:5000, capacity:40000},
+    r:{colBase:[0.75,0.70,0.45], colTip:[0.9,0.85,0.55], colFluo:[0.8,1,0.6], fluo:0.2, sss:0.7, rough:0.6, swayAmp:1.4} },
+  { grp:'Großformen · Leistungsprobe', id:'megareef', bino:'Riffplatte · 12 Wurzeln', auth:'Raumkolonisation · 12 Wurzeln',
+    g:{kernel:'colonize', envelope:0, envR:2.2, envH:1.3, attractors:350000, influence:0.085, kill:0.022, segLen:0.034, radius0:0.05, taper:0.975, tipDepth:50, inertia:0.8, roots:12, rootSpread:1.3, photo:0.25, rate:40000, capacity:500000},
+    r:{colBase:[0.74,0.66,0.52], colTip:[0.45,0.85,0.70], colFluo:[0.9,0.4,0.7], fluo:0.2, sss:0.55, rough:0.5, ageThicken:0.25} },
+  { grp:'Großformen · Leistungsprobe', id:'megaforest', bino:'Schwarzkorallenwald · 24 Wurzeln', auth:'L-System · 24 Wurzeln',
+    g:{kernel:'branch', segLen:0.038, branchAngle:32, branchProb:0.2, apical:0.6, divergence:137.5, taper:0.985, radius0:0.02, radiusChild:0.9, photo:0.1, gravi:-0.02, flow:0.2, turb:0.18, crowd:0.5, roots:24, rootSpread:1.3, maxDepth:600, lifespan:70, rate:60000, capacity:1000000},
+    r:{colBase:[0.2,0.16,0.14], colTip:[0.5,0.4,0.3], colFluo:[0.6,0.5,0.3], fluo:0.05, sss:0.2, rough:0.4, ageThicken:0.6, waterDepth:0.75} },
+];
+if(typeof module!=='undefined'){ module.exports={SCHEMA,LOOK_SCHEMA,DEFAULT_GENOME,DEFAULT_LOOK,SPECIES,KERNEL_INFO}; }
+/* ============================================================
+   RIFFWERK · RENDERER (WebGL2)
+   ------------------------------------------------------------
+   Ein instanzierter Zeichenaufruf für die ganze Kolonie. Der
+   Instanzpuffer wird nur dort beschrieben, wo neue Streben ankommen
+   (bufferSubData am Kopf), nie als Ganzes neu geladen. Die Netz-
+   auflösung je Strebe (Seiten, Kappen) richtet sich nach der Zahl der
+   Streben: wenige, große Streben bekommen runde Kappen und zwölf
+   Seiten, eine Million Streben sechs Seiten ohne Kappen.
+   Pässe: Schatten (eigenes Tiefenprogramm, gleiche Verformung) →
+   Szene (MSAA, RGBA16F) → Auflösen → SSAO halbe Auflösung + Blur →
+   Bloom-Kette → Komposition (Wasserraum, Tonemapping).
+   ============================================================ */
+const cv=document.getElementById('gl');
+const gl=cv.getContext('webgl2',{antialias:false,alpha:false,premultipliedAlpha:false,powerPreference:'high-performance',preserveDrawingBuffer:false});
+if(!gl){ document.getElementById('nogl').style.display='grid'; throw new Error('no webgl2'); }
+const extF=gl.getExtension('EXT_color_buffer_float');
+const extHF=gl.getExtension('EXT_color_buffer_half_float');
+const extTimer=gl.getExtension('EXT_disjoint_timer_query_webgl2');
+const MAX_SAMPLES=gl.getParameter(gl.MAX_SAMPLES);
+const MAX_TEX=gl.getParameter(gl.MAX_TEXTURE_SIZE);
+const HDR = !!(extF||extHF);
+const HDR_INT = extF ? gl.RGBA16F : (extHF ? gl.RGBA16F : gl.RGBA8);
+const HDR_TYPE = HDR ? gl.HALF_FLOAT : gl.UNSIGNED_BYTE;
+
+/* ---------- Mathe ---------- */
+const M4={
+  persp:(fov,asp,n,f)=>{const t=1/Math.tan(fov/2);return new Float32Array([t/asp,0,0,0, 0,t,0,0, 0,0,(f+n)/(n-f),-1, 0,0,2*f*n/(n-f),0]);},
+  ortho:(l,r,b,t,n,f)=>new Float32Array([2/(r-l),0,0,0, 0,2/(t-b),0,0, 0,0,-2/(f-n),0, -(r+l)/(r-l),-(t+b)/(t-b),-(f+n)/(f-n),1]),
+  look:(e,c,u)=>{const z=norm(sub(e,c)),x=norm(cross(u,z)),y=cross(z,x);return new Float32Array([x[0],y[0],z[0],0, x[1],y[1],z[1],0, x[2],y[2],z[2],0, -dot(x,e),-dot(y,e),-dot(z,e),1]);},
+  mul:(A,B)=>{const O=new Float32Array(16);for(let c=0;c<4;c++)for(let r=0;r<4;r++){let v=0;for(let k=0;k<4;k++)v+=A[k*4+r]*B[c*4+k];O[c*4+r]=v;}return O;},
+  inv:(m)=>{const o=new Float32Array(16);const a=m;
+    const b00=a[0]*a[5]-a[1]*a[4],b01=a[0]*a[6]-a[2]*a[4],b02=a[0]*a[7]-a[3]*a[4],b03=a[1]*a[6]-a[2]*a[5],b04=a[1]*a[7]-a[3]*a[5],b05=a[2]*a[7]-a[3]*a[6],b06=a[8]*a[13]-a[9]*a[12],b07=a[8]*a[14]-a[10]*a[12],b08=a[8]*a[15]-a[11]*a[12],b09=a[9]*a[14]-a[10]*a[13],b10=a[9]*a[15]-a[11]*a[13],b11=a[10]*a[15]-a[11]*a[14];
+    let det=b00*b11-b01*b10+b02*b09+b03*b08-b04*b07+b05*b06; if(!det)return o; det=1/det;
+    o[0]=(a[5]*b11-a[6]*b10+a[7]*b09)*det;o[1]=(a[2]*b10-a[1]*b11-a[3]*b09)*det;o[2]=(a[13]*b05-a[14]*b04+a[15]*b03)*det;o[3]=(a[10]*b04-a[9]*b05-a[11]*b03)*det;
+    o[4]=(a[6]*b08-a[4]*b11-a[7]*b07)*det;o[5]=(a[0]*b11-a[2]*b08+a[3]*b07)*det;o[6]=(a[14]*b02-a[12]*b05-a[15]*b01)*det;o[7]=(a[8]*b05-a[10]*b02+a[11]*b01)*det;
+    o[8]=(a[4]*b10-a[5]*b08+a[7]*b06)*det;o[9]=(a[1]*b08-a[0]*b10-a[3]*b06)*det;o[10]=(a[12]*b04-a[13]*b02+a[15]*b00)*det;o[11]=(a[9]*b02-a[8]*b04-a[11]*b00)*det;
+    o[12]=(a[5]*b07-a[4]*b09-a[6]*b06)*det;o[13]=(a[0]*b09-a[1]*b07+a[2]*b06)*det;o[14]=(a[13]*b01-a[12]*b03-a[14]*b00)*det;o[15]=(a[8]*b03-a[9]*b01+a[10]*b00)*det;return o;}
+};
+const sub=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]], add=(a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]], mul=(a,s)=>[a[0]*s,a[1]*s,a[2]*s];
+const dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2], cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+const len3=a=>Math.hypot(a[0],a[1],a[2]), norm=a=>{const l=len3(a)||1;return [a[0]/l,a[1]/l,a[2]/l];};
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+
+/* ---------- Shader-Werkzeug ---------- */
+const SHADER_LOG=[];
+function sh(type,src,name){ const s=gl.createShader(type); gl.shaderSource(s,src); gl.compileShader(s);
+  if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)){ const log=gl.getShaderInfoLog(s); SHADER_LOG.push(name+': '+log); console.error('[RIFFWERK Shader]',name,log); }
+  return s; }
+function prog(vs,fs,name){ const p=gl.createProgram(); gl.attachShader(p,sh(gl.VERTEX_SHADER,vs,name+'.vs')); gl.attachShader(p,sh(gl.FRAGMENT_SHADER,fs,name+'.fs')); gl.linkProgram(p);
+  if(!gl.getProgramParameter(p,gl.LINK_STATUS)){ SHADER_LOG.push(name+': link: '+gl.getProgramInfoLog(p)); console.error('[RIFFWERK Link]',name,gl.getProgramInfoLog(p)); }
+  const u={}; const n=gl.getProgramParameter(p,gl.ACTIVE_UNIFORMS);
+  for(let i=0;i<n;i++){ const info=gl.getActiveUniform(p,i); u[info.name.replace('[0]','')]=gl.getUniformLocation(p,info.name); }
+  return {p,u,name}; }
+
+/* ============================================================
+   GLSL — gemeinsame Verformung (Schattenpass und Hauptpass teilen
+   sich denselben Text, damit der Schatten nie vom Körper abweicht)
+   ============================================================ */
+const GLSL_DEFORM = `
+layout(location=0) in vec3 aN;   // Netz: Radialnormale (xz) und Kappenanteil (y)
+layout(location=1) in float aT;  // Netz: axiale Lage 0..1
+layout(location=2) in vec3 iPos;
+layout(location=3) in vec4 iDirLen;  // dx dy dz len (f16)
+layout(location=4) in vec4 iPar;     // r0 r1 tip hue (f16)
+layout(location=5) in float iAux;
+uniform mat4 uProj, uView;
+uniform float uHead, uRamp, uThick, uAgeNorm, uTime;
+uniform float uSwayAmp, uSwayBase, uSwayH, uSwayRefR;
+uniform vec4 uSwayQ, uSwayV; uniform vec3 uFlowDir;
+uniform float uTravel;
+/* Eigenform des eingespannt-freien Balkens, normiert auf psi(1)=±1 */
+float beamMode(float s, float bl, float sig){
+  float b=bl*clamp(s,0.0,1.0); float e=exp(min(b,8.6)), ei=1.0/e;
+  float ch=0.5*(e+ei), shh=0.5*(e-ei);
+  return 0.5*(ch-cos(b)-sig*(shh-sin(b)));
+}
+struct Deformed { vec3 W; vec3 N; float t; float tip; float hue; float r; float age; float grow; };
+Deformed deform(){
+  Deformed D;
+  float id=float(gl_InstanceID);
+  float age=uHead-id;                          // Instanzindex IST das Alter
+  float grow = uRamp>0.5 ? smoothstep(0.0,1.0,age/uRamp) : 1.0;
+  vec3 dir=normalize(iDirLen.xyz);
+  float len=iDirLen.w*grow;
+  float thick=1.0+uThick*0.7*clamp(age/max(uAgeNorm,1.0),0.0,1.0);
+  float r0=iPar.x*thick*mix(0.35,1.0,grow), r1=iPar.y*thick*mix(0.35,1.0,grow);
+  float t=aT;
+  float r=mix(r0,r1,t);
+  // Orthonormalbasis um dir (Duff u. a., verzweigungsfrei)
+  float sgn=dir.z>=0.0?1.0:-1.0; float ia=-1.0/(sgn+dir.z); float ib=dir.x*dir.y*ia;
+  vec3 bx=vec3(1.0+sgn*dir.x*dir.x*ia, sgn*ib, -sgn*dir.x);
+  // Duff liefert b1 × b2 = n; das Netz erwartet x × y = z, also (bx, dir, bz) rechtshändig → bz = n × bx = −b2
+  vec3 bz=-vec3(ib, sgn+dir.y*dir.y*ia, -dir.y);
+  vec3 radial=bx*aN.x+bz*aN.z;
+  vec3 W=iPos+dir*(len*t)+radial*r+dir*(aN.y*r);
+  // Normale: Radialnormale plus Verjüngungsneigung
+  float slope=(r0-r1)/max(len,1e-4);
+  vec3 N=normalize(radial+dir*(aN.y+slope*(1.0-abs(aN.y))));
+  // Strömungsschwingen: Modalzerlegung, Auslenkung wächst mit der Höhe,
+  // dünne Streben schwingen stärker als dicke
+  if(uSwayAmp>0.0005){
+    float s=clamp((W.y-uSwayBase)/max(uSwayH,0.05),0.0,1.0);
+    float p1=beamMode(s,1.875104,0.734096), p2=beamMode(s,4.694091,1.018466);
+    float tau=dot(W-vec3(0.0,uSwayBase,0.0),uFlowDir)*uTravel;   // Laufzeit der Biegewelle
+    vec4 q=uSwayQ-uSwayV*tau;
+    float flex=mix(1.0,0.35,clamp(r/max(uSwayRefR,1e-4),0.0,1.0));
+    vec2 d=(q.xy*p1+q.zw*p2)*uSwayAmp*flex*0.22;
+    W.xz+=d;
+    // Normale mitdrehen (Ableitung der Eigenform ~ 2s für die erste Mode)
+    N=normalize(N-vec3(d.x,0.0,d.y)*2.0*s);
+  }
+  D.W=W; D.N=N; D.t=t; D.tip=iPar.z; D.hue=iPar.w; D.r=r; D.age=age; D.grow=grow;
+  return D;
+}`;
+
+const VS_STRUT=`#version 300 es
+precision highp float;
+${GLSL_DEFORM}
+out vec3 vN; out vec3 vW; out float vTip; out float vHue; out float vR; out float vT; out float vAge;
+void main(){ Deformed D=deform(); vN=D.N; vW=D.W; vTip=D.tip; vHue=D.hue; vR=D.r; vT=D.t; vAge=D.age;
+  gl_Position=uProj*uView*vec4(D.W,1.0); }`;
+const VS_DEPTH=`#version 300 es
+precision highp float;
+${GLSL_DEFORM}
+void main(){ Deformed D=deform(); gl_Position=uProj*uView*vec4(D.W,1.0); }`;
+const FS_DEPTH=`#version 300 es
+precision highp float;
+out vec4 o; void main(){ o=vec4(1.0); }`;
+
+/* ---------- Gemeinsame Beleuchtungsbausteine ---------- */
+const GLSL_LIGHT=`
+uniform vec3 uCam, uSun, uSunCol, uSkyCol, uGroundCol, uWaterCol;
+uniform float uWater, uWaterDepth, uFloorY;
+uniform highp sampler2DShadow uShadowMap; uniform mat4 uShadowMat; uniform float uShadow, uShadowTexel;
+float hash12(vec2 p){ vec3 p3=fract(vec3(p.xyx)*.1031); p3+=dot(p3,p3.yzx+33.33); return fract((p3.x+p3.y)*p3.z); }
+float vn3(vec3 p){ vec3 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
+  float n=dot(i,vec3(1.0,57.0,113.0));
+  float a=fract(sin(n)*43758.5453), b=fract(sin(n+1.0)*43758.5453), c=fract(sin(n+57.0)*43758.5453), d=fract(sin(n+58.0)*43758.5453);
+  float e=fract(sin(n+113.0)*43758.5453), f2=fract(sin(n+114.0)*43758.5453), g=fract(sin(n+170.0)*43758.5453), h=fract(sin(n+171.0)*43758.5453);
+  return mix(mix(mix(a,b,f.x),mix(c,d,f.x),f.y),mix(mix(e,f2,f.x),mix(g,h,f.x),f.y),f.z); }
+float fbm3(vec3 p){ return vn3(p)*0.5+vn3(p*2.03)*0.25+vn3(p*4.11)*0.125; }
+float shadowAt(vec3 W, vec3 N){
+  if(uShadow<0.001) return 1.0;
+  vec4 s=uShadowMat*vec4(W+N*uShadowTexel*1.5,1.0); vec3 c=s.xyz/s.w*0.5+0.5;
+  if(c.x<0.0||c.x>1.0||c.y<0.0||c.y>1.0) return 1.0;
+  float sum=0.0;
+  for(int i=-1;i<=1;i++) for(int j=-1;j<=1;j++) sum+=texture(uShadowMap, vec3(c.xy+vec2(float(i),float(j))*uShadowTexel, c.z-0.0015));
+  return mix(1.0, sum/9.0, uShadow);
+}
+vec3 ggx(vec3 N, vec3 V, vec3 L, float rough, vec3 F0){
+  vec3 H=normalize(V+L); float NdH=max(dot(N,H),0.0), NdV=max(dot(N,V),1e-3), NdL=max(dot(N,L),0.0), VdH=max(dot(V,H),0.0);
+  float a=rough*rough, a2=a*a; float d=NdH*NdH*(a2-1.0)+1.0; float D=a2/(3.14159*d*d);
+  float k=a*0.5; float G=(NdV/(NdV*(1.0-k)+k))*(NdL/(NdL*(1.0-k)+k));
+  vec3 F=F0+(1.0-F0)*pow(1.0-VdH,5.0);
+  return D*G*F/(4.0*NdV*NdL+1e-4)*NdL;
+}
+vec3 waterFog(vec3 col, vec3 W){
+  if(uWater<0.001) return col;
+  float d=length(W-uCam);
+  vec3 absorb=vec3(0.32,0.12,0.05)*(0.25+uWaterDepth*1.4);     // Rot stirbt zuerst
+  vec3 tr=exp(-d*absorb*uWater*0.7);
+  float inscat=1.0-exp(-d*0.09*uWater*(0.4+uWaterDepth));
+  return col*tr + uWaterCol*inscat*0.55;
+}`;
+
+const FS_STRUT=`#version 300 es
+precision highp float;
+in vec3 vN; in vec3 vW; in float vTip; in float vHue; in float vR; in float vT; in float vAge;
+${GLSL_LIGHT}
+uniform vec3 uColBase, uColTip, uColFluo;
+uniform float uFluo, uSSS, uRough, uMetal, uMicro, uHueSpread, uTime, uPulse;
+out vec4 o;
+vec3 hueRot(vec3 c, float a){ // Drehung im YIQ-Raum
+  const vec3 k=vec3(0.57735); float cs=cos(a), sn=sin(a);
+  return c*cs + cross(k,c)*sn + k*dot(k,c)*(1.0-cs);
+}
+void main(){
+  vec3 N=normalize(vN);
+  vec3 V=normalize(uCam-vW);
+  // Mikrorelief: Rauschen über die Weltposition, nach Abstand ausgeblendet
+  if(uMicro>0.001){
+    float lod=1.0-smoothstep(1.5,6.0,length(uCam-vW));
+    vec3 g=vec3(fbm3(vW*180.0)-0.5, fbm3(vW*180.0+31.7)-0.5, fbm3(vW*180.0+77.1)-0.5);
+    N=normalize(N+g*uMicro*0.9*lod);
+  }
+  float tipw=smoothstep(0.0,1.0,vTip);
+  vec3 base=mix(uColBase,uColTip,tipw);
+  if(uHueSpread>0.001) base=hueRot(base,(vHue-0.5)*uHueSpread*2.2);
+  // Alte Streben werden stumpfer und dunkler (Bewuchs, Sediment)
+  float oldness=clamp(vAge/60000.0,0.0,1.0)*0.25;
+  base*=1.0-oldness*0.4;
+  vec3 L=normalize(uSun);
+  float ndl=dot(N,L);
+  float sh=shadowAt(vW,N);
+  float wrap=clamp((ndl+0.35)/1.35,0.0,1.0);             // weiche Umschlagbeleuchtung
+  vec3 diffuse=uSunCol*wrap*sh*0.9;
+  vec3 amb=mix(uGroundCol,uSkyCol,N.y*0.5+0.5)*1.1;
+  float fill=max(dot(N,normalize(vec3(-L.x,0.4,-L.z))),0.0)*0.22;   // kühles Gegenlicht
+  amb+=uSkyCol*fill;
+  // Kontakt zur Substratplatte abdunkeln
+  amb*=mix(0.55,1.0,smoothstep(0.0,0.35,vW.y-uFloorY));
+  float rough=clamp(uRough+oldness*0.6,0.05,1.0);
+  vec3 F0=mix(vec3(0.03),base,uMetal);
+  vec3 spec=ggx(N,V,L,rough,F0)*uSunCol*sh;
+  // Durchleuchtung: dünne Streben lassen Gegenlicht durch
+  float thin=1.0/(1.0+vR*45.0);
+  float back=pow(clamp(dot(V,-L),0.0,1.0),3.0)*uSSS*thin*0.7*mix(0.6,1.0,sh);
+  vec3 sss=(base*0.6+uColTip*0.4)*back*uSunCol;
+  vec3 col=base*(diffuse+amb)*(1.0-uMetal*0.6)+spec+sss;
+  // Fluoreszenz der Spitzen, leise pulsierend
+  float pulse=0.85+0.15*sin(uTime*1.3+vW.y*4.0+vHue*6.283);
+  col+=uColFluo*uFluo*tipw*tipw*pulse*0.55;
+  col=waterFog(col,vW);
+  o=vec4(col,1.0);
+}`;
+
+/* ---------- Boden ---------- */
+const VS_GROUND=`#version 300 es
+precision highp float;
+layout(location=0) in vec2 aP; uniform mat4 uProj,uView; uniform float uFloorY, uSize; out vec3 vW;
+void main(){ vW=vec3(aP.x*uSize,uFloorY,aP.y*uSize); gl_Position=uProj*uView*vec4(vW,1.0); }`;
+const FS_GROUND=`#version 300 es
+precision highp float;
+in vec3 vW; ${GLSL_LIGHT}
+uniform float uTime, uCaustic, uGroundGain; uniform vec3 uColBase;
+out vec4 o;
+float caustic(vec2 p,float t){ float c=0.0; for(int i=0;i<3;i++){ float fi=float(i); vec2 q=p*(1.0+fi*0.37)+vec2(t*0.11*(1.0+fi*0.3),t*0.07); c+=abs(sin(q.x*2.1+sin(q.y*1.7+t*0.5))*sin(q.y*1.9+sin(q.x*1.3-t*0.4))); } return pow(clamp(c/3.0,0.0,1.0),3.0); }
+void main(){
+  vec3 N=vec3(0.0,1.0,0.0);
+  float dcam=length(vW-uCam);
+  float sand=mix(fbm3(vec3(vW.xz*9.0,0.0)),0.5,smoothstep(2.5,10.0,dcam));
+  vec3 base=mix(vec3(0.30,0.29,0.24),vec3(0.42,0.40,0.33),sand)*uGroundGain;
+  base=mix(base,base*(0.7+0.6*uColBase),0.15);
+  float sh=shadowAt(vW,N);
+  vec3 L=normalize(uSun);
+  float ca=caustic(vW.xz*2.2,uTime)*uCaustic*sh;
+  vec3 col=base*(uSunCol*(0.6+0.4*sh)*max(L.y,0.0)+uSkyCol*0.6)+uSunCol*ca*0.9;
+  // Ringe um die Kolonie: Sedimentschatten
+  col=waterFog(col,vW);
+  o=vec4(col,1.0);
+}`;
+
+/* ---------- Schwebstoffe ---------- */
+const VS_MOTE=`#version 300 es
+precision highp float;
+layout(location=0) in vec4 aP; // xyz Start, w Phase
+uniform mat4 uProj,uView; uniform float uTime, uSize; uniform vec3 uFlow, uCenter; out float vA;
+void main(){ vec3 p=aP.xyz+uCenter; float t=uTime*0.15+aP.w*6.283;
+  p+=vec3(sin(t*0.7+aP.w*9.0)*0.12, sin(t*0.5+aP.w*5.0)*0.08, cos(t*0.6+aP.w*7.0)*0.12);
+  p+=uFlow*mod(uTime*0.05+aP.w*3.0,3.0);
+  p.x=mod(p.x-uCenter.x+2.5,5.0)-2.5+uCenter.x; p.z=mod(p.z-uCenter.z+2.5,5.0)-2.5+uCenter.z;
+  vec4 vp=uView*vec4(p,1.0); gl_Position=uProj*vp;
+  float d=-vp.z; gl_PointSize=clamp(uSize*(0.9+0.6*fract(aP.w*13.0))/max(d,0.3),1.0,7.0);
+  vA=clamp(1.0-d/8.0,0.0,1.0)*(0.35+0.65*fract(aP.w*7.0)); }`;
+const FS_MOTE=`#version 300 es
+precision highp float; in float vA; uniform vec3 uCol; out vec4 o;
+void main(){ float r=length(gl_PointCoord-0.5)*2.0; float a=smoothstep(1.0,0.2,r)*vA*0.55; o=vec4(uCol*a,a); }`;
+
+/* ---------- Vollbild-Pässe ---------- */
+const VS_QUAD=`#version 300 es
+precision highp float; out vec2 vUv; void main(){ vec2 p=vec2((gl_VertexID<<1)&2, gl_VertexID&2); vUv=p; gl_Position=vec4(p*2.0-1.0,0.0,1.0); }`;
+const FS_SSAO=`#version 300 es
+precision highp float; in vec2 vUv; uniform sampler2D uDepth; uniform mat4 uInvProj; uniform vec2 uTexel; uniform float uRadius, uTime; out vec4 o;
+vec3 viewPos(vec2 uv){ float z=texture(uDepth,uv).r; vec4 p=uInvProj*vec4(uv*2.0-1.0,z*2.0-1.0,1.0); return p.xyz/p.w; }
+float hash(vec2 p){ return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453); }
+void main(){
+  float z=texture(uDepth,vUv).r; if(z>=0.9999){ o=vec4(1.0); return; }
+  vec3 P=viewPos(vUv);
+  vec3 dx=viewPos(vUv+vec2(uTexel.x,0.0))-P, dy=viewPos(vUv+vec2(0.0,uTexel.y))-P;
+  vec3 dx2=P-viewPos(vUv-vec2(uTexel.x,0.0)), dy2=P-viewPos(vUv-vec2(0.0,uTexel.y));
+  if(dot(dx2,dx2)<dot(dx,dx)) dx=dx2; if(dot(dy2,dy2)<dot(dy,dy)) dy=dy2;
+  vec3 N=normalize(cross(dx,dy));
+  float rad=uRadius*clamp(-P.z,0.3,6.0)*0.25;
+  float rot=hash(vUv*vec2(1920.0,1080.0)+uTime)*6.283;
+  float occ=0.0; const int S=12;
+  for(int i=0;i<S;i++){
+    float fi=float(i)+0.5; float a=fi*2.399963+rot; float rr=sqrt(fi/float(S))*rad;
+    vec3 t=normalize(cross(N,abs(N.y)<0.9?vec3(0,1,0):vec3(1,0,0))); vec3 b=cross(N,t);
+    vec3 s=P+(t*cos(a)+b*sin(a))*rr*0.85+N*rr*(0.25+0.5*fract(fi*0.618));
+    // Projektion der Probe
+    vec2 suv; { float zc=s.z; // Clip aus View: x' = x*f/asp / -z usw. — über uInvProj unbekannt, daher numerisch:
+      // Hinweis: uInvProj[0][0] = asp/f, uInvProj[1][1] = 1/f
+      suv=vec2(s.x/(-zc)/uInvProj[0][0], s.y/(-zc)/uInvProj[1][1])*0.5+0.5; }
+    if(suv.x<0.0||suv.x>1.0||suv.y<0.0||suv.y>1.0) continue;
+    float sz=viewPos(suv).z;
+    float range=smoothstep(0.0,1.0,rad/max(abs(P.z-sz),1e-4));
+    occ+=(sz>=s.z+rad*0.03?1.0:0.0)*range;
+  }
+  o=vec4(vec3(1.0-occ/float(S)),1.0);
+}`;
+const FS_BLUR=`#version 300 es
+precision highp float; in vec2 vUv; uniform sampler2D uTex, uDepth; uniform vec2 uDir; out vec4 o;
+void main(){ float zc=texture(uDepth,vUv).r; float sum=0.0, wsum=0.0;
+  for(int i=-4;i<=4;i++){ vec2 uv=vUv+uDir*float(i); float z=texture(uDepth,uv).r; float w=exp(-float(i*i)/8.0)*exp(-abs(z-zc)*4000.0); sum+=texture(uTex,uv).r*w; wsum+=w; }
+  o=vec4(vec3(sum/max(wsum,1e-4)),1.0); }`;
+const FS_BLOOM_PRE=`#version 300 es
+precision highp float; in vec2 vUv; uniform sampler2D uTex; uniform float uThresh; out vec4 o;
+void main(){ vec3 c=texture(uTex,vUv).rgb; float l=dot(c,vec3(0.2126,0.7152,0.0722)); float w=smoothstep(uThresh,uThresh+0.6,l); o=vec4(c*w,1.0); }`;
+const FS_BLOOM_DOWN=`#version 300 es
+precision highp float; in vec2 vUv; uniform sampler2D uTex; uniform vec2 uTexel; out vec4 o;
+void main(){ vec3 c=texture(uTex,vUv).rgb*0.5; c+=texture(uTex,vUv+uTexel*vec2(-1.0,-1.0)).rgb*0.125; c+=texture(uTex,vUv+uTexel*vec2(1.0,-1.0)).rgb*0.125; c+=texture(uTex,vUv+uTexel*vec2(-1.0,1.0)).rgb*0.125; c+=texture(uTex,vUv+uTexel*vec2(1.0,1.0)).rgb*0.125; o=vec4(c,1.0); }`;
+const FS_BLOOM_UP=`#version 300 es
+precision highp float; in vec2 vUv; uniform sampler2D uTex, uPrev; uniform vec2 uTexel; out vec4 o;
+void main(){ vec3 c=vec3(0.0); c+=texture(uTex,vUv+uTexel*vec2(-1.0,0.0)).rgb; c+=texture(uTex,vUv+uTexel*vec2(1.0,0.0)).rgb; c+=texture(uTex,vUv+uTexel*vec2(0.0,-1.0)).rgb; c+=texture(uTex,vUv+uTexel*vec2(0.0,1.0)).rgb; c*=0.25;
+  o=vec4(c+texture(uPrev,vUv).rgb,1.0); }`;
+const FS_POST=`#version 300 es
+precision highp float; in vec2 vUv;
+uniform sampler2D uScene, uBloom, uAO, uDepth;
+uniform float uBloomStr, uExposure, uVignette, uAOStr, uGrain, uTime, uWater, uWaterDepth, uShafts, uSunVis, uHorizon;
+uniform vec2 uSunUV, uRes; uniform vec3 uWaterCol, uSunCol;
+out vec4 o;
+vec3 aces(vec3 x){ const float a=2.51,b=0.03,c=2.43,d=0.59,e=0.14; return clamp((x*(a*x+b))/(x*(c*x+d)+e),0.0,1.0); }
+float hash(vec2 p){ return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453); }
+void main(){
+  vec3 col=texture(uScene,vUv).rgb;
+  float z=texture(uDepth,vUv).r;
+  float ao=texture(uAO,vUv).r;
+  col*=mix(1.0,ao,uAOStr*(z<0.9999?1.0:0.0));
+  if(z>=0.9999 && uWater>0.001){
+    // Wasserraum: Tiefenverlauf plus Lichtschächte zur Sonne
+    vec3 deep=uWaterCol*0.55, light=uWaterCol*(1.25-uWaterDepth*0.5)+uSunCol*0.12*(1.0-uWaterDepth);
+    float above=clamp((vUv.y-uHorizon)/max(1.0-uHorizon,0.05),0.0,1.0);
+    vec3 w=mix(deep,light,pow(above,0.75));
+    w=mix(w,deep*1.15,smoothstep(0.08,0.0,abs(vUv.y-uHorizon)));   // leiser Saum am Horizont
+    if(uShafts>0.001 && uSunVis>0.5){
+      vec2 d=vUv-uSunUV; float ang=atan(d.y,d.x); float r=length(d);
+      float s=0.0; for(int i=0;i<3;i++){ float fi=float(i); s+=sin(ang*(9.0+fi*7.0)+uTime*(0.07+fi*0.03)+fi*2.1)*0.5+0.5; }
+      s=pow(s/3.0,2.5)*exp(-r*1.6)*smoothstep(1.4,0.0,r);
+      w+=uSunCol*s*uShafts*0.5;
+    }
+    col=mix(col,w,uWater);
+  }
+  col+=texture(uBloom,vUv).rgb*uBloomStr;
+  col*=uExposure;
+  col=aces(col);
+  vec2 q=vUv*2.0-1.0; col*=1.0-uVignette*0.45*dot(q,q)*dot(q,q)*0.6;
+  col+=(hash(vUv*uRes+fract(uTime*7.0))-0.5)*uGrain;
+  col=pow(max(col,0.0),vec3(1.0/2.2));
+  o=vec4(col,1.0);
+}`;
+
+/* ---------- Programme ---------- */
+const P_STRUT=prog(VS_STRUT,FS_STRUT,'strut'), P_DEPTH=prog(VS_DEPTH,FS_DEPTH,'depth');
+const P_GROUND=prog(VS_GROUND,FS_GROUND,'ground'), P_MOTE=prog(VS_MOTE,FS_MOTE,'mote');
+const P_SSAO=prog(VS_QUAD,FS_SSAO,'ssao'), P_BLUR=prog(VS_QUAD,FS_BLUR,'blur');
+const P_BPRE=prog(VS_QUAD,FS_BLOOM_PRE,'bloomPre'), P_BDOWN=prog(VS_QUAD,FS_BLOOM_DOWN,'bloomDown'), P_BUP=prog(VS_QUAD,FS_BLOOM_UP,'bloomUp');
+const P_POST=prog(VS_QUAD,FS_POST,'post');
+
+/* ============================================================
+   NETZE: Prisma mit wählbarer Seitenzahl und Kappenringen
+   ============================================================ */
+function makePrism(sides,capRings){
+  const N=[],T=[],I=[];
+  const ring=(t,el)=>{ const base=N.length/3; for(let i=0;i<sides;i++){ const a=i/sides*Math.PI*2; const c=Math.cos(el); N.push(Math.cos(a)*c, Math.sin(el), Math.sin(a)*c); T.push(t); } return base; };
+  const quads=(a,b)=>{ for(let i=0;i<sides;i++){ const j=(i+1)%sides; I.push(a+i,b+i,a+j, a+j,b+i,b+j); } };
+  const r0=ring(0,0), r1=ring(1,0); quads(r0,r1);
+  if(capRings>0){
+    let prev=r1; for(let k=1;k<=capRings;k++){ const el=k/(capRings+1)*Math.PI/2; const rr=ring(1,el); quads(prev,rr); prev=rr; }
+    const apex=N.length/3; N.push(0,1,0); T.push(1); for(let i=0;i<sides;i++) I.push(prev+i,apex,prev+(i+1)%sides);
+    prev=r0; for(let k=1;k<=capRings;k++){ const el=-k/(capRings+1)*Math.PI/2; const rr=ring(0,el); quads(rr,prev); prev=rr; }
+    const apex0=N.length/3; N.push(0,-1,0); T.push(0); for(let i=0;i<sides;i++) I.push(apex0,prev+i,prev+(i+1)%sides);
+  } else {
+    // flache Kappen (nur Spitze), damit Enden nicht offen stehen
+    const c1=N.length/3; N.push(0,1,0); T.push(1); for(let i=0;i<sides;i++) I.push(r1+i,c1,r1+(i+1)%sides);
+    const c0=N.length/3; N.push(0,-1,0); T.push(0); for(let i=0;i<sides;i++) I.push(c0,r0+i,r0+(i+1)%sides);
+  }
+  return {N:new Float32Array(N),T:new Float32Array(T),I:new Uint16Array(I),tris:I.length/3};
+}
+const bufInst=gl.createBuffer();
+let instCapacity=0;
+function ensureInstBuffer(n){ if(n<=instCapacity) return; instCapacity=n; gl.bindBuffer(gl.ARRAY_BUFFER,bufInst); gl.bufferData(gl.ARRAY_BUFFER,n*32,gl.DYNAMIC_DRAW); }
+function makeVAO(mesh){
+  const vao=gl.createVertexArray(); gl.bindVertexArray(vao);
+  const bN=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,bN); gl.bufferData(gl.ARRAY_BUFFER,mesh.N,gl.STATIC_DRAW); gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0,3,gl.FLOAT,false,0,0);
+  const bT=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,bT); gl.bufferData(gl.ARRAY_BUFFER,mesh.T,gl.STATIC_DRAW); gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1,1,gl.FLOAT,false,0,0);
+  gl.bindBuffer(gl.ARRAY_BUFFER,bufInst);
+  gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2,3,gl.FLOAT,false,32,0); gl.vertexAttribDivisor(2,1);
+  gl.enableVertexAttribArray(3); gl.vertexAttribPointer(3,4,gl.HALF_FLOAT,false,32,12); gl.vertexAttribDivisor(3,1);
+  gl.enableVertexAttribArray(4); gl.vertexAttribPointer(4,4,gl.HALF_FLOAT,false,32,20); gl.vertexAttribDivisor(4,1);
+  gl.enableVertexAttribArray(5); gl.vertexAttribPointer(5,1,gl.FLOAT,false,32,28); gl.vertexAttribDivisor(5,1);
+  const bI=gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,bI); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,mesh.I,gl.STATIC_DRAW);
+  gl.bindVertexArray(null);
+  return {vao,count:mesh.I.length,tris:mesh.tris};
+}
+ensureInstBuffer(1024);
+/* LOD-Stufen: Dreiecksbudget je Bild ~ 3 Mio. */
+const LODS=[ {max:12000, mesh:makePrism(14,3)}, {max:60000, mesh:makePrism(10,1)}, {max:250000, mesh:makePrism(8,0)}, {max:1e9, mesh:makePrism(6,0)} ].map(l=>({max:l.max, ...makeVAO(l.mesh)}));
+function lodFor(n){ for(const l of LODS) if(n<=l.max) return l; return LODS[LODS.length-1]; }
+
+/* Boden-Quad */
+const vaoGround=gl.createVertexArray(); gl.bindVertexArray(vaoGround);
+{ const b=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,b); gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1, 1,-1, -1,1, 1,1]),gl.STATIC_DRAW); gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0); }
+gl.bindVertexArray(null);
+/* Schwebstoffe */
+const MOTE_N=1800; const vaoMote=gl.createVertexArray(); gl.bindVertexArray(vaoMote);
+{ const d=new Float32Array(MOTE_N*4); let s=12345; const r=()=>{ s=(Math.imul(s,1664525)+1013904223)>>>0; return s/4294967296; };
+  for(let i=0;i<MOTE_N;i++){ d[i*4]=(r()-0.5)*5; d[i*4+1]=-1+r()*3.2; d[i*4+2]=(r()-0.5)*5; d[i*4+3]=r(); }
+  const b=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,b); gl.bufferData(gl.ARRAY_BUFFER,d,gl.STATIC_DRAW); gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0,4,gl.FLOAT,false,0,0); }
+gl.bindVertexArray(null);
+const vaoQuad=gl.createVertexArray();
+
+/* ============================================================
+   RENDERZIELE
+   ============================================================ */
+function mkTex(w,h,int,fmt,type,filter){ const t=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D,t); gl.texStorage2D(gl.TEXTURE_2D,1,int,w,h);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,filter); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,filter);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE); return t; }
+function mkFBO(tex,depthTex){ const f=gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER,f); gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,tex,0); if(depthTex) gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.DEPTH_ATTACHMENT,gl.TEXTURE_2D,depthTex,0);
+  const st=gl.checkFramebufferStatus(gl.FRAMEBUFFER); if(st!==gl.FRAMEBUFFER_COMPLETE) console.warn('FBO unvollständig',st); gl.bindFramebuffer(gl.FRAMEBUFFER,null); return f; }
+const RT={w:0,h:0,samples:0, msaaFbo:null, msaaCol:null, msaaDep:null, scene:null, depth:null, sceneFbo:null, ao:null, aoFbo:null, ao2:null, ao2Fbo:null, aow:0, aoh:0, bloom:[], hdrInt:HDR_INT};
+function del(x,f){ if(x) f.call(gl,x); }
+function ensureTargets(w,h,samples){
+  if(RT.w===w&&RT.h===h&&RT.samples===samples) return;
+  del(RT.msaaFbo,gl.deleteFramebuffer); del(RT.msaaCol,gl.deleteRenderbuffer); del(RT.msaaDep,gl.deleteRenderbuffer);
+  del(RT.scene,gl.deleteTexture); del(RT.depth,gl.deleteTexture); del(RT.sceneFbo,gl.deleteFramebuffer);
+  del(RT.ao,gl.deleteTexture); del(RT.aoFbo,gl.deleteFramebuffer); del(RT.ao2,gl.deleteTexture); del(RT.ao2Fbo,gl.deleteFramebuffer);
+  for(const b of RT.bloom){ gl.deleteTexture(b.t); gl.deleteFramebuffer(b.f); gl.deleteTexture(b.t2); gl.deleteFramebuffer(b.f2); }
+  RT.w=w; RT.h=h; RT.samples=samples;
+  RT.scene=mkTex(w,h,RT.hdrInt,gl.RGBA,HDR_TYPE,gl.LINEAR);
+  RT.depth=mkTex(w,h,gl.DEPTH_COMPONENT24,gl.DEPTH_COMPONENT,gl.UNSIGNED_INT,gl.NEAREST);
+  RT.sceneFbo=mkFBO(RT.scene,RT.depth);
+  if(samples>0){
+    RT.msaaCol=gl.createRenderbuffer(); gl.bindRenderbuffer(gl.RENDERBUFFER,RT.msaaCol); gl.renderbufferStorageMultisample(gl.RENDERBUFFER,samples,RT.hdrInt,w,h);
+    RT.msaaDep=gl.createRenderbuffer(); gl.bindRenderbuffer(gl.RENDERBUFFER,RT.msaaDep); gl.renderbufferStorageMultisample(gl.RENDERBUFFER,samples,gl.DEPTH_COMPONENT24,w,h);
+    RT.msaaFbo=gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER,RT.msaaFbo);
+    gl.framebufferRenderbuffer(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.RENDERBUFFER,RT.msaaCol); gl.framebufferRenderbuffer(gl.FRAMEBUFFER,gl.DEPTH_ATTACHMENT,gl.RENDERBUFFER,RT.msaaDep);
+    if(gl.checkFramebufferStatus(gl.FRAMEBUFFER)!==gl.FRAMEBUFFER_COMPLETE){ console.warn('MSAA-FBO nicht möglich, ohne weiter'); gl.bindFramebuffer(gl.FRAMEBUFFER,null); RT.samples=0; }
+    gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+  }
+  RT.aow=Math.max(1,w>>1); RT.aoh=Math.max(1,h>>1);
+  RT.ao=mkTex(RT.aow,RT.aoh,gl.R8,gl.RED,gl.UNSIGNED_BYTE,gl.LINEAR); RT.aoFbo=mkFBO(RT.ao,null);
+  RT.ao2=mkTex(RT.aow,RT.aoh,gl.R8,gl.RED,gl.UNSIGNED_BYTE,gl.LINEAR); RT.ao2Fbo=mkFBO(RT.ao2,null);
+  RT.bloom=[]; let bw=Math.max(1,w>>1), bh=Math.max(1,h>>1);
+  for(let i=0;i<5;i++){ const t=mkTex(bw,bh,RT.hdrInt,gl.RGBA,HDR_TYPE,gl.LINEAR), t2=mkTex(bw,bh,RT.hdrInt,gl.RGBA,HDR_TYPE,gl.LINEAR); RT.bloom.push({t,t2,f:mkFBO(t,null),f2:mkFBO(t2,null),w:bw,h:bh}); bw=Math.max(1,bw>>1); bh=Math.max(1,bh>>1); }
+}
+/* Schattenkarte */
+const SHADOW_RES=2048;
+const shadowTex=mkTex(SHADOW_RES,SHADOW_RES,gl.DEPTH_COMPONENT24,gl.DEPTH_COMPONENT,gl.UNSIGNED_INT,gl.LINEAR);
+gl.bindTexture(gl.TEXTURE_2D,shadowTex); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_COMPARE_MODE,gl.COMPARE_REF_TO_TEXTURE); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_COMPARE_FUNC,gl.LEQUAL);
+const shadowFbo=gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER,shadowFbo); gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.DEPTH_ATTACHMENT,gl.TEXTURE_2D,shadowTex,0); gl.drawBuffers([gl.NONE]); gl.readBuffer(gl.NONE); gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+
+/* ============================================================
+   ZUSTAND DER ZEICHENSEITE
+   ============================================================ */
+const R = {
+  head:0,                // Zahl der hochgeladenen Streben
+  bb:[-1,-1,-1,1,1,1], center:[0,-0.3,0], extent:1.2,
+  look:null, genome:null,
+  renderScale:1, samples:4, aoOn:true, dpr:1,
+  theta:0.9, phi:1.25, dist:3.6, target:[0,-0.25,0], spin:true,
+  time:0, frameMs:16, gpuMs:0,
+  sway:{q:[0,0,0,0],v:[0,0,0,0],gust:1,t:0,flow:[0,0,0],dir:[1,0,0]},
+  uploadedBytes:0, drawTris:0,
+};
+function uploadBatch(buf,nBefore,n){
+  ensureInstBuffer(Math.max(instCapacity, nBefore+n));
+  gl.bindBuffer(gl.ARRAY_BUFFER,bufInst);
+  gl.bufferSubData(gl.ARRAY_BUFFER,nBefore*32,new Uint8Array(buf));
+  R.head=nBefore+n; R.uploadedBytes+=buf.byteLength;
+}
+function allocInstances(cap){ // bei Neuaufbau: Puffer auf Kapazität anlegen
+  if(cap!==instCapacity){ instCapacity=0; ensureInstBuffer(cap); }
+  R.head=0;
+}
+function setBounds(bb){ R.bb=bb; R.center=[(bb[0]+bb[3])/2,(bb[1]+bb[4])/2,(bb[2]+bb[5])/2]; R.extent=Math.max(0.3,Math.hypot(bb[3]-bb[0],bb[4]-bb[1],bb[5]-bb[2])/2); }
+
+/* ---------- Strömung: Böen und Modalkoordinaten (Hauptfaden, billig) ---------- */
+let gaussSpare=null;
+function gauss(){ if(gaussSpare!==null){ const v=gaussSpare; gaussSpare=null; return v; } let u,v,s; do{ u=Math.random()*2-1; v=Math.random()*2-1; s=u*u+v*v; }while(s>=1||s===0); const m=Math.sqrt(-2*Math.log(s)/s); gaussSpare=v*m; return u*m; }
+function swayStep(dtMs,L){
+  const S=R.sway; const dt=Math.min(dtMs*0.001,0.05); if(dt<=0) return; S.t+=dt;
+  S.gust+=0.55*(1-S.gust)*dt+L.flowTurb*0.9*Math.sqrt(dt)*gauss(); S.gust=clamp(S.gust,0.05,3.2);
+  const ang=(R.genome?R.genome.flowAng:0.6);
+  const mean=L.flowMean*S.gust;
+  const cx=Math.sin(S.t*0.37)*0.5+Math.sin(S.t*0.91+1.3)*0.3, cz=Math.cos(S.t*0.29+0.7)*0.5+Math.sin(S.t*0.77)*0.3;
+  let fx=Math.cos(ang)*mean+cx*L.flowTurb*0.55, fz=Math.sin(ang)*mean+cz*L.flowTurb*0.55;
+  const fl=Math.hypot(fx,fz)||1; S.flow=[fx,0,fz]; S.dir=[fx/fl,0,fz/fl];
+  const pw=u=>Math.sign(u)*Math.pow(Math.abs(u),1.3)*0.85*0.2;
+  const gx=pw(fx), gz=pw(fz);
+  const w1=6.2831853*L.flowFreq, w2=w1*6.267, z1=L.flowDamp, z2=L.flowDamp*1.25;
+  const f=[gx*0.783,gz*0.783,gx*-0.434,gz*-0.434], W=[w1,w1,w2,w2], Z=[z1,z1,z2,z2];
+  for(let i=0;i<4;i++){ // gedämpfter Oszillator, semi-implizit
+    const acc=f[i]-2*Z[i]*W[i]*S.v[i]-W[i]*W[i]*S.q[i];
+    S.v[i]+=acc*dt; S.q[i]+=S.v[i]*dt;
+  }
+}
+
+/* ============================================================
+   BILDAUFBAU
+   ============================================================ */
+const CAM={eye:[0,0,3],proj:null,view:null,sunUV:[0.5,1.4],sunVis:0,horizon:0.5};
+function sunDir(L){ const az=R.theta+L.lightAz; return [Math.cos(az)*Math.cos(L.lightEl), Math.sin(L.lightEl), Math.sin(az)*Math.cos(L.lightEl)]; }
+function setCommonUniforms(P,L,proj,view,eye,sun){
+  const u=P.u;
+  gl.uniformMatrix4fv(u.uProj,false,proj); gl.uniformMatrix4fv(u.uView,false,view);
+  if(u.uCam) gl.uniform3fv(u.uCam,eye);
+  if(u.uSun) gl.uniform3fv(u.uSun,sun);
+  if(u.uSunCol) gl.uniform3f(u.uSunCol,1.0*(1-L.waterDepth*0.35),0.96*(1-L.waterDepth*0.2),0.90);
+  if(u.uSkyCol) gl.uniform3f(u.uSkyCol,0.30*(1-L.waterDepth*0.4),0.52*(1-L.waterDepth*0.3),0.62);
+  if(u.uGroundCol) gl.uniform3f(u.uGroundCol,0.09,0.11,0.11);
+  if(u.uWaterCol) gl.uniform3f(u.uWaterCol,0.05+0.03*(1-L.waterDepth),0.22*(1-L.waterDepth*0.5),0.30*(1-L.waterDepth*0.3));
+  if(u.uWater) gl.uniform1f(u.uWater,L.water);
+  if(u.uWaterDepth) gl.uniform1f(u.uWaterDepth,L.waterDepth);
+  if(u.uFloorY) gl.uniform1f(u.uFloorY,R.genome?R.genome.floorY:-0.95);
+  if(u.uShadowMap){ gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D,shadowTex); gl.uniform1i(u.uShadowMap,7); }
+  if(u.uShadowMat) gl.uniformMatrix4fv(u.uShadowMat,false,SHADOW.mat);
+  if(u.uShadow) gl.uniform1f(u.uShadow,L.shadow);
+  if(u.uShadowTexel) gl.uniform1f(u.uShadowTexel,1/SHADOW_RES);
+  if(u.uTime) gl.uniform1f(u.uTime,R.time);
+}
+function setDeformUniforms(P,L){
+  const u=P.u, S=R.sway, g=R.genome||{floorY:-0.95};
+  gl.uniform1f(u.uHead,R.head); gl.uniform1f(u.uRamp,L.birthRamp); gl.uniform1f(u.uThick,L.ageThicken); gl.uniform1f(u.uAgeNorm,Math.max(2000,R.head*0.8)); gl.uniform1f(u.uTime,R.time);
+  gl.uniform1f(u.uSwayAmp,L.swayAmp); gl.uniform1f(u.uSwayBase,g.floorY); gl.uniform1f(u.uSwayH,Math.max(0.3,R.bb[4]-g.floorY)); gl.uniform1f(u.uSwayRefR,R.genome?Math.max(0.01,R.genome.radius0||0.03):0.03);
+  gl.uniform4fv(u.uSwayQ,S.q); gl.uniform4fv(u.uSwayV,S.v); gl.uniform3fv(u.uFlowDir,S.dir); gl.uniform1f(u.uTravel,0.16);
+}
+const SHADOW={mat:new Float32Array(16),proj:null,view:null};
+function renderShadow(L,sun){
+  const c=R.center, e=R.extent*1.15+0.3;
+  const eye=add(c,mul(sun,e*3)); const view=M4.look(eye,c,[0,1,0]); const proj=M4.ortho(-e,e,-e,e,e*1.5,e*4.6);
+  SHADOW.mat=M4.mul(proj,view);
+  gl.bindFramebuffer(gl.FRAMEBUFFER,shadowFbo); gl.viewport(0,0,SHADOW_RES,SHADOW_RES); gl.clear(gl.DEPTH_BUFFER_BIT);
+  gl.enable(gl.DEPTH_TEST); gl.enable(gl.CULL_FACE); gl.cullFace(gl.FRONT); gl.colorMask(false,false,false,false);
+  if(R.head>0){ gl.useProgram(P_DEPTH.p); gl.uniformMatrix4fv(P_DEPTH.u.uProj,false,proj); gl.uniformMatrix4fv(P_DEPTH.u.uView,false,view); setDeformUniforms(P_DEPTH,L);
+    const lod=lodFor(R.head); gl.bindVertexArray(lod.vao); gl.drawElementsInstanced(gl.TRIANGLES,lod.count,gl.UNSIGNED_SHORT,0,R.head); gl.bindVertexArray(null); }
+  gl.colorMask(true,true,true,true); gl.cullFace(gl.BACK); gl.disable(gl.CULL_FACE);
+}
+function renderScene(L,proj,view,eye,sun){
+  const g=R.genome||{floorY:-0.95};
+  gl.bindFramebuffer(gl.FRAMEBUFFER,RT.samples>0?RT.msaaFbo:RT.sceneFbo); gl.viewport(0,0,RT.w,RT.h);
+  gl.clearColor(0,0,0,1); gl.clearDepth(1); gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+  gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL); gl.disable(gl.BLEND);
+  R.drawTris=0;
+  if(R.head>0){
+    gl.useProgram(P_STRUT.p); setCommonUniforms(P_STRUT,L,proj,view,eye,sun); setDeformUniforms(P_STRUT,L);
+    const u=P_STRUT.u;
+    gl.uniform3fv(u.uColBase,L.colBase); gl.uniform3fv(u.uColTip,L.colTip); gl.uniform3fv(u.uColFluo,L.colFluo);
+    gl.uniform1f(u.uFluo,L.fluo); gl.uniform1f(u.uSSS,L.sss); gl.uniform1f(u.uRough,L.rough); gl.uniform1f(u.uMetal,L.metal); gl.uniform1f(u.uMicro,L.micro); gl.uniform1f(u.uHueSpread,L.hueSpread);
+    gl.enable(gl.CULL_FACE); gl.cullFace(gl.BACK);
+    const lod=lodFor(R.head); gl.bindVertexArray(lod.vao); gl.drawElementsInstanced(gl.TRIANGLES,lod.count,gl.UNSIGNED_SHORT,0,R.head); gl.bindVertexArray(null);
+    R.drawTris=lod.tris*R.head;
+    gl.disable(gl.CULL_FACE);
+  }
+  if(L.ground>0.5){
+    gl.useProgram(P_GROUND.p); setCommonUniforms(P_GROUND,L,proj,view,eye,sun);
+    gl.uniform1f(P_GROUND.u.uFloorY,g.floorY-0.002); gl.uniform1f(P_GROUND.u.uSize,80); gl.uniform1f(P_GROUND.u.uCaustic,L.caustic); gl.uniform1f(P_GROUND.u.uGroundGain,0.9); gl.uniform3fv(P_GROUND.u.uColBase,L.colBase);
+    gl.bindVertexArray(vaoGround); gl.drawArrays(gl.TRIANGLE_STRIP,0,4); gl.bindVertexArray(null);
+  }
+  if(L.motes>0.5 && L.water>0.05){
+    gl.useProgram(P_MOTE.p); gl.uniformMatrix4fv(P_MOTE.u.uProj,false,proj); gl.uniformMatrix4fv(P_MOTE.u.uView,false,view);
+    gl.uniform1f(P_MOTE.u.uTime,R.time); gl.uniform1f(P_MOTE.u.uSize,2.6*R.dpr*R.renderScale); gl.uniform3fv(P_MOTE.u.uFlow,R.sway.flow); gl.uniform3f(P_MOTE.u.uCenter,R.center[0],g.floorY+1.2,R.center[2]);
+    gl.uniform3f(P_MOTE.u.uCol,0.75,0.9,0.95);
+    gl.enable(gl.BLEND); gl.blendFunc(gl.ONE,gl.ONE); gl.depthMask(false);
+    gl.bindVertexArray(vaoMote); gl.drawArrays(gl.POINTS,0,MOTE_N); gl.bindVertexArray(null);
+    gl.depthMask(true); gl.disable(gl.BLEND);
+  }
+  gl.disable(gl.DEPTH_TEST);
+  // Auflösen
+  if(RT.samples>0){
+    gl.bindFramebuffer(gl.READ_FRAMEBUFFER,RT.msaaFbo); gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER,RT.sceneFbo);
+    gl.blitFramebuffer(0,0,RT.w,RT.h,0,0,RT.w,RT.h,gl.COLOR_BUFFER_BIT,gl.LINEAR);
+    gl.blitFramebuffer(0,0,RT.w,RT.h,0,0,RT.w,RT.h,gl.DEPTH_BUFFER_BIT,gl.NEAREST);
+  }
+}
+function quad(){ gl.bindVertexArray(vaoQuad); gl.drawArrays(gl.TRIANGLES,0,3); }
+function bindTex(unit,tex,loc){ gl.activeTexture(gl.TEXTURE0+unit); gl.bindTexture(gl.TEXTURE_2D,tex); gl.uniform1i(loc,unit); }
+function renderPost(L,proj){
+  // SSAO (halbe Auflösung) + bilateraler Blur
+  if(R.aoOn && L.ao>0.001){
+    gl.bindFramebuffer(gl.FRAMEBUFFER,RT.aoFbo); gl.viewport(0,0,RT.aow,RT.aoh);
+    gl.useProgram(P_SSAO.p); bindTex(0,RT.depth,P_SSAO.u.uDepth); gl.uniformMatrix4fv(P_SSAO.u.uInvProj,false,M4.inv(proj)); gl.uniform2f(P_SSAO.u.uTexel,1/RT.aow,1/RT.aoh); gl.uniform1f(P_SSAO.u.uRadius,0.55); gl.uniform1f(P_SSAO.u.uTime,R.time); quad();
+    gl.bindFramebuffer(gl.FRAMEBUFFER,RT.ao2Fbo); gl.useProgram(P_BLUR.p); bindTex(0,RT.ao,P_BLUR.u.uTex); bindTex(1,RT.depth,P_BLUR.u.uDepth); gl.uniform2f(P_BLUR.u.uDir,1/RT.aow,0); quad();
+    gl.bindFramebuffer(gl.FRAMEBUFFER,RT.aoFbo); bindTex(0,RT.ao2,P_BLUR.u.uTex); gl.uniform2f(P_BLUR.u.uDir,0,1/RT.aoh); quad();
+  } else { gl.bindFramebuffer(gl.FRAMEBUFFER,RT.aoFbo); gl.viewport(0,0,RT.aow,RT.aoh); gl.clearColor(1,1,1,1); gl.clear(gl.COLOR_BUFFER_BIT); }
+  // Bloom
+  const B=RT.bloom;
+  gl.bindFramebuffer(gl.FRAMEBUFFER,B[0].f); gl.viewport(0,0,B[0].w,B[0].h); gl.useProgram(P_BPRE.p); bindTex(0,RT.scene,P_BPRE.u.uTex); gl.uniform1f(P_BPRE.u.uThresh,0.75); quad();
+  gl.useProgram(P_BDOWN.p); for(let i=1;i<B.length;i++){ gl.bindFramebuffer(gl.FRAMEBUFFER,B[i].f); gl.viewport(0,0,B[i].w,B[i].h); bindTex(0,B[i-1].t,P_BDOWN.u.uTex); gl.uniform2f(P_BDOWN.u.uTexel,1/B[i-1].w,1/B[i-1].h); quad(); }
+  // Aufwärts: Stufe i+1 (bereits aufsummiert) hochgefiltert plus Stufe i, Ergebnis in t2 der Stufe i
+  gl.useProgram(P_BUP.p);
+  for(let i=B.length-2;i>=0;i--){ const src=(i===B.length-2)?B[i+1].t:B[i+1].t2;
+    gl.bindFramebuffer(gl.FRAMEBUFFER,B[i].f2); gl.viewport(0,0,B[i].w,B[i].h); bindTex(0,src,P_BUP.u.uTex); bindTex(1,B[i].t,P_BUP.u.uPrev); gl.uniform2f(P_BUP.u.uTexel,1/B[i+1].w,1/B[i+1].h); quad(); }
+  // Komposition auf den Bildschirm
+  gl.bindFramebuffer(gl.FRAMEBUFFER,null); gl.viewport(0,0,cv.width,cv.height);
+  gl.useProgram(P_POST.p); const u=P_POST.u;
+  bindTex(0,RT.scene,u.uScene); bindTex(1,B[0].t2,u.uBloom); bindTex(2,RT.ao,u.uAO); bindTex(3,RT.depth,u.uDepth);
+  gl.uniform1f(u.uBloomStr,L.bloom*0.35); gl.uniform1f(u.uExposure,L.exposure); gl.uniform1f(u.uVignette,L.vignette); gl.uniform1f(u.uAOStr,R.aoOn?L.ao:0); gl.uniform1f(u.uGrain,L.grain); gl.uniform1f(u.uTime,R.time);
+  gl.uniform1f(u.uWater,L.water); gl.uniform1f(u.uWaterDepth,L.waterDepth); gl.uniform1f(u.uShafts,L.shafts); gl.uniform1f(u.uSunVis,CAM.sunVis); gl.uniform1f(u.uHorizon,CAM.horizon); gl.uniform2fv(u.uSunUV,CAM.sunUV); gl.uniform2f(u.uRes,cv.width,cv.height);
+  gl.uniform3f(u.uWaterCol,0.05+0.03*(1-L.waterDepth),0.22*(1-L.waterDepth*0.5),0.30*(1-L.waterDepth*0.3)); gl.uniform3f(u.uSunCol,1.0,0.96,0.9);
+  quad(); gl.bindVertexArray(null);
+}
+function resize(force){
+  R.dpr=Math.min(window.devicePixelRatio||1,2);
+  const w=Math.max(1,Math.round(cv.clientWidth*R.dpr*R.renderScale)), h=Math.max(1,Math.round(cv.clientHeight*R.dpr*R.renderScale));
+  if(force||cv.width!==w||cv.height!==h){ cv.width=w; cv.height=h; }
+}
+function render(L){
+  resize(false);
+  ensureTargets(cv.width,cv.height,Math.min(R.samples,MAX_SAMPLES));
+  const asp=cv.width/Math.max(1,cv.height);
+  const proj=M4.persp(0.85,asp,0.03,80);
+  const t=R.target;
+  const eye=[t[0]+Math.sin(R.phi)*Math.cos(R.theta)*R.dist, t[1]+Math.cos(R.phi)*R.dist, t[2]+Math.sin(R.phi)*Math.sin(R.theta)*R.dist];
+  const view=M4.look(eye,t,[0,1,0]);
+  CAM.eye=eye; CAM.proj=proj; CAM.view=view;
+  const sun=sunDir(L);
+  { // Sonnenbildpunkt für die Lichtschächte
+    const S=add(eye,mul(sun,900)); const vx=view[0]*S[0]+view[4]*S[1]+view[8]*S[2]+view[12], vy=view[1]*S[0]+view[5]*S[1]+view[9]*S[2]+view[13], vz=view[2]*S[0]+view[6]*S[1]+view[10]*S[2]+view[14];
+    const cx=proj[0]*vx, cy=proj[5]*vy, cw=-vz; if(cw>1e-4){ CAM.sunUV=[cx/cw*0.5+0.5,cy/cw*0.5+0.5]; CAM.sunVis=1; } else { CAM.sunUV=[0.5,1.4]; CAM.sunVis=0; }
+    // Horizont: Weltrichtung der Blickachse ohne Höhenanteil, als Richtung projiziert
+    const f=norm(sub(t,eye)); const hd=norm([f[0],0,f[2]]); const hy=view[1]*hd[0]+view[9]*hd[2], hz=view[2]*hd[0]+view[10]*hd[2]; const hw=-hz; CAM.horizon=hw>1e-4?(proj[5]*hy/hw*0.5+0.5):(f[1]<0?1.2:-0.2); }
+  let q=null; if(extTimer){ q=gl.createQuery(); gl.beginQuery(extTimer.TIME_ELAPSED_EXT,q); }
+  if(L.shadow>0.001) renderShadow(L,sun);
+  renderScene(L,proj,view,eye,sun);
+  renderPost(L,proj);
+  if(q){ gl.endQuery(extTimer.TIME_ELAPSED_EXT); pendingQueries.push(q); pollQueries(); }
+}
+const pendingQueries=[];
+function pollQueries(){ while(pendingQueries.length){ const q=pendingQueries[0]; const avail=gl.getQueryParameter(q,gl.QUERY_RESULT_AVAILABLE); const dis=gl.getParameter(extTimer.GPU_DISJOINT_EXT); if(avail&&!dis){ const ns=gl.getQueryParameter(q,gl.QUERY_RESULT); R.gpuMs+=(ns/1e6-R.gpuMs)*0.1; } if(avail||dis){ gl.deleteQuery(q); pendingQueries.shift(); } else break; if(pendingQueries.length>8){ gl.deleteQuery(pendingQueries.shift()); } } }
+
+/* ---------- Qualitätsregelung: Bildzeit halten ---------- */
+const PERF={avg:14,cool:0,mode:'auto',level:0,min:0.55};
+const QLEVELS=[ {scale:1,samples:4,ao:true}, {scale:0.85,samples:4,ao:true}, {scale:0.75,samples:2,ao:true}, {scale:0.65,samples:2,ao:false}, {scale:0.55,samples:0,ao:false} ];
+function perfTick(dtMs){
+  PERF.avg+=(Math.min(dtMs,400)-PERF.avg)*0.06; PERF.cool-=dtMs;
+  if(PERF.mode!=='auto'){ return; }
+  if(PERF.cool>0) return;
+  const budget=16.9; let lv=PERF.level;
+  if(PERF.avg>budget*1.25 && lv<QLEVELS.length-1) lv++;
+  else if(PERF.avg<budget*0.72 && lv>0) lv--;
+  if(lv!==PERF.level){ applyQuality(lv); PERF.cool=1500; }
+}
+function applyQuality(lv){ PERF.level=lv; const q=QLEVELS[lv]; R.renderScale=q.scale; R.samples=q.samples; R.aoOn=q.ao; resize(true); }
+/* ============================================================
+   RIFFWERK · ANWENDUNG (Bedienung, Worker-Anbindung, Hauptschleife)
+   ============================================================ */
+const $=id=>document.getElementById(id);
+const simSrc=$('simsrc').textContent;
+const worker=new Worker(URL.createObjectURL(new Blob([simSrc],{type:'text/javascript'})));
+let G=Object.assign({},DEFAULT_GENOME), L=Object.assign({},DEFAULT_LOOK);
+let seed=1, curSpec=null, gen=0, paused=false, railHidden=true;
+const SIM={total:0,done:false,simMs:0,progress:0,rate:0,lastTotal:0,lastT:0,batches:0,initMs:0,autoFit:true,userCam:0};
+const UI={changed:new Set(), rebuildTimer:null};
+
+/* ---------- Worker ---------- */
+worker.onmessage=(e)=>{
+  const m=e.data; if(m.gen!==gen) return;      // Nachzügler eines alten Laufs
+  if(m.t==='reset'){ SIM.initMs=m.initMs; return; }
+  if(m.t==='batch'){
+    uploadBatch(m.buf, m.total-m.n, m.n);
+    SIM.total=m.total; SIM.simMs+=m.simMs; SIM.progress=m.progress; SIM.done=m.done; SIM.batches++;
+    setBounds(m.bb);
+    worker.postMessage({t:'ack'});
+    if(m.done) onDone();
+  } else if(m.t==='done'){ SIM.done=true; onDone(); }
+};
+worker.onerror=(e)=>{ toast('Simulationsfehler: '+e.message); console.error(e); };
+function onDone(){ $('btnPlay').textContent='Pause'; }
+function regrow(){
+  gen++; SIM.total=0; SIM.done=false; SIM.simMs=0; SIM.progress=0; SIM.batches=0; SIM.rate=0; SIM.lastTotal=0; SIM.autoFit=true;
+  allocInstances(G.capacity); R.genome=G; R.look=L; setBounds([-0.5,G.floorY,-0.5,0.5,G.floorY+1,0.5]);
+  paused=false; $('btnPlay').textContent='Pause';
+  worker.postMessage({t:'start', genome:G, seed:seed|0, capacity:G.capacity|0, gen});
+  UI.changed.clear(); document.querySelectorAll('.par.changed').forEach(e=>e.classList.remove('changed'));
+  updateHash();
+}
+function scheduleRegrow(){ clearTimeout(UI.rebuildTimer); UI.rebuildTimer=setTimeout(regrow,380); }
+
+/* ---------- Artenkatalog ---------- */
+const GROUP_KEY='riffwerk_groups_v1';
+let groupState={}; try{ groupState=JSON.parse(localStorage.getItem(GROUP_KEY))||{}; }catch(e){}
+function saveGroups(){ try{ localStorage.setItem(GROUP_KEY,JSON.stringify(groupState)); }catch(e){} }
+SPECIES.forEach((s,i)=>{ s.nr=i+1; s.nrStr=String(i+1).padStart(3,'0'); });
+function buildSpecies(){
+  const root=$('species'); root.innerHTML='';
+  const groups=[...new Set(SPECIES.map(s=>s.grp))];
+  for(const gname of groups){
+    const list=SPECIES.filter(s=>s.grp===gname);
+    const head=document.createElement('button'); head.type='button'; head.className='ghead'+(groupState[gname]?' closed':'');
+    head.innerHTML=`<span class="chev">▾</span><span class="nm">${gname}</span><span class="ct">${list.length}</span>`;
+    const body=document.createElement('div'); body.className='gbody'+(groupState[gname]?' closed':'');
+    head.onclick=()=>{ const c=!head.classList.contains('closed'); head.classList.toggle('closed',c); body.classList.toggle('closed',c); groupState[gname]=c; saveGroups(); };
+    for(const s of list){
+      const b=document.createElement('button'); b.type='button'; b.className='spec'; b.dataset.id=s.id;
+      b.innerHTML=`<span class="nr">${s.nrStr}</span><span class="bino">${s.bino}</span><span class="auth">${s.auth}</span>`;
+      b.onclick=()=>applySpecies(s,true);
+      body.appendChild(b);
+    }
+    root.appendChild(head); root.appendChild(body);
+  }
+}
+function markSpecies(){ document.querySelectorAll('.spec').forEach(b=>b.setAttribute('aria-current',curSpec&&b.dataset.id===curSpec.id?'true':'false'));
+  $('pNr').textContent=curSpec?curSpec.nrStr:''; $('pBino').textContent=curSpec?curSpec.bino:'Eigenes Genom'; $('pAuth').textContent=curSpec?curSpec.auth:KERNEL_INFO[G.kernel].name; }
+function applySpecies(s,grow){
+  curSpec=s; G=Object.assign({},DEFAULT_GENOME,s.g); L=Object.assign({},DEFAULT_LOOK,s.r||{});
+  buildParams(); buildLook(); markSpecies();
+  if(grow) regrow();
+}
+
+/* ---------- Regler ---------- */
+function fmt(v,d){ if(d.int) return String(Math.round(v)); const digits=d.s>=1?0:d.s>=0.1?1:d.s>=0.01?2:d.s>=0.001?3:4; return Number(v).toFixed(digits); }
+function slider(d,obj,onInput){
+  const row=document.createElement('div'); row.className='par'+(d.live?'':' rebuild'); row.dataset.k=d.k;
+  const lab=document.createElement('label'); lab.textContent=d.l; lab.title=d.k;
+  const val=document.createElement('div'); val.className='val'; val.textContent=fmt(obj[d.k],d);
+  const inp=document.createElement('input'); inp.type='range';
+  if(d.log){ inp.min=Math.log(d.min); inp.max=Math.log(d.max); inp.step=0.001; inp.value=Math.log(Math.max(d.min,obj[d.k])); }
+  else { inp.min=d.min; inp.max=d.max; inp.step=d.s; inp.value=obj[d.k]; }
+  inp.addEventListener('input',()=>{ let v=+inp.value; if(d.log) v=Math.exp(v); if(d.int) v=Math.round(v); if(d.log&&d.s>=1) v=Math.round(v/d.s)*d.s; obj[d.k]=v; val.textContent=fmt(v,d); row.classList.add('changed'); onInput(d,v); });
+  lab.addEventListener('dblclick',()=>{ const def=(obj===G?DEFAULT_GENOME:DEFAULT_LOOK)[d.k]; obj[d.k]=def; inp.value=d.log?Math.log(def):def; val.textContent=fmt(def,d); onInput(d,def); });
+  row.appendChild(lab); row.appendChild(val); row.appendChild(inp); return row;
+}
+const PGROUP_KEY='riffwerk_pgroups_v1'; let pgroupState={}; try{ pgroupState=JSON.parse(localStorage.getItem(PGROUP_KEY))||{}; }catch(e){}
+function groupedSliders(root,schema,obj,onInput){
+  root.innerHTML=''; const groups=[...new Set(schema.map(d=>d.grp))];
+  for(const gname of groups){
+    const items=schema.filter(d=>d.grp===gname); if(!items.length) continue;
+    const head=document.createElement('button'); head.type='button'; head.className='ghead'+(pgroupState[gname]?' closed':'');
+    head.innerHTML=`<span class="chev">▾</span><span class="nm">${gname}</span><span class="ct">${items.length}</span>`;
+    const body=document.createElement('div'); body.className='gbody'+(pgroupState[gname]?' closed':'');
+    head.onclick=()=>{ const c=!head.classList.contains('closed'); head.classList.toggle('closed',c); body.classList.toggle('closed',c); pgroupState[gname]=c; try{localStorage.setItem(PGROUP_KEY,JSON.stringify(pgroupState));}catch(e){} };
+    for(const d of items) body.appendChild(slider(d,obj,onInput));
+    root.appendChild(head); root.appendChild(body);
+  }
+}
+function buildParams(){
+  const k=G.kernel; const info=KERNEL_INFO[k];
+  $('kinfo').innerHTML=`<b>${info.name}</b> — ${info.desc}<br><span style="color:var(--amber)">·</span> markierte Regler bauen die Kolonie neu auf.`;
+  const schema=SCHEMA.filter(d=>!d.kr||d.kr.includes(k));
+  groupedSliders($('params'),schema,G,(d,v)=>{ if(d.k==='rate'){ worker.postMessage({t:'rate',rate:v}); updateHash(); } else scheduleRegrow(); });
+  $('seed').value=seed;
+}
+function hex(c){ return '#'+c.map(v=>Math.round(clamp(v,0,1)*255).toString(16).padStart(2,'0')).join(''); }
+function unhex(h){ return [parseInt(h.slice(1,3),16)/255,parseInt(h.slice(3,5),16)/255,parseInt(h.slice(5,7),16)/255]; }
+function buildLook(){
+  for(const k of ['colBase','colTip','colFluo']){ const el=$(k); el.value=hex(L[k]); el.oninput=()=>{ L[k]=unhex(el.value); updateHashSoon(); }; }
+  groupedSliders($('lookparams'),LOOK_SCHEMA.map(d=>Object.assign({live:true},d)),L,()=>updateHashSoon());
+}
+function buildQuality(){
+  const root=$('quality'); root.innerHTML='';
+  const row=document.createElement('div'); row.className='par';
+  row.innerHTML=`<label>Regelung</label><div class="val"></div>`;
+  const sel=document.createElement('select'); sel.style.cssText='grid-column:1/3;background:var(--ink2);color:var(--bone);border:1px solid var(--rule);font:11px var(--mono);padding:5px';
+  for(const [v,t] of [['auto','Automatisch · Bildzeit halten'],['0','Voll · 100 % · 4× MSAA · SSAO'],['1','Hoch · 85 %'],['2','Mittel · 75 % · 2× MSAA'],['3','Sparsam · 65 % · ohne SSAO'],['4','Minimal · 55 % · ohne MSAA']]){ const o=document.createElement('option'); o.value=v; o.textContent=t; sel.appendChild(o); }
+  sel.value=PERF.mode==='auto'?'auto':String(PERF.level);
+  sel.onchange=()=>{ if(sel.value==='auto'){ PERF.mode='auto'; PERF.cool=0; } else { PERF.mode='fixed'; applyQuality(+sel.value); } };
+  row.appendChild(sel); root.appendChild(row);
+  const d=document.createElement('div'); d.className='kinfo'; d.id='qinfo'; root.appendChild(d);
+}
+
+/* ---------- Werte, Teilen, Mutation ---------- */
+function stateJSON(){ return {g:G, r:L, seed:seed|0, spec:curSpec?curSpec.id:null}; }
+function stateCompact(){ // nur Abweichungen vom Standard, damit der Link kurz bleibt
+  const g={}, r={}; for(const k in G) if(G[k]!==DEFAULT_GENOME[k]) g[k]=G[k];
+  for(const k in L){ const a=L[k], b=DEFAULT_LOOK[k]; if(Array.isArray(a)? a.some((v,i)=>Math.abs(v-b[i])>1e-4) : a!==b) r[k]=a; }
+  return {g,r,seed:seed|0,spec:curSpec?curSpec.id:null};
+}
+function applyState(st,grow=true){
+  if(!st||typeof st!=='object') throw new Error('kein Objekt');
+  if(st.spec){ const s=SPECIES.find(x=>x.id===st.spec); if(s){ curSpec=s; G=Object.assign({},DEFAULT_GENOME,s.g); L=Object.assign({},DEFAULT_LOOK,s.r||{}); } }
+  else curSpec=null;
+  if(st.g){ for(const k in st.g){ if(k==='kernel'){ if(KERNELS_OK.has(st.g.kernel)) G.kernel=st.g.kernel; } else if(typeof st.g[k]==='number'&&Number.isFinite(st.g[k])){ const d=SCHEMA.find(x=>x.k===k); G[k]=d?clamp(st.g[k],d.min,d.max):st.g[k]; } } }
+  if(st.r){ for(const k in st.r){ const v=st.r[k]; if(Array.isArray(v)&&v.length===3&&v.every(Number.isFinite)) L[k]=v.map(x=>clamp(x,0,1)); else if(typeof v==='number'&&Number.isFinite(v)){ const d=LOOK_SCHEMA.find(x=>x.k===k); L[k]=d?clamp(v,d.min,d.max):v; } } }
+  if(Number.isFinite(st.seed)) seed=st.seed|0;
+  if(curSpec){ // Art nur dann als "aktuell" markieren, wenn das Genom noch ihrem entspricht
+    const base=Object.assign({},DEFAULT_GENOME,curSpec.g); if(Object.keys(G).some(k=>G[k]!==base[k])) {/* abweichend, Name bleibt zur Orientierung */}
+  }
+  buildParams(); buildLook(); markSpecies(); if(grow) regrow();
+}
+const KERNELS_OK=new Set(Object.keys(KERNEL_INFO));
+function b64e(s){ return btoa(unescape(encodeURIComponent(s))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
+function b64d(s){ s=s.replace(/-/g,'+').replace(/_/g,'/'); while(s.length%4) s+='='; return decodeURIComponent(escape(atob(s))); }
+let hashTimer=null, hashLock=false;
+function updateHash(){ if(hashLock) return; try{ const h='#g='+b64e(JSON.stringify(stateCompact())); if(location.hash!==h) history.replaceState(null,'',h); }catch(e){} }
+function updateHashSoon(){ clearTimeout(hashTimer); hashTimer=setTimeout(updateHash,400); }
+function loadHash(){ const m=location.hash.match(/#g=([A-Za-z0-9\-_]+)/); if(!m) return false; try{ hashLock=true; applyState(JSON.parse(b64d(m[1])),false); hashLock=false; return true; }catch(e){ hashLock=false; console.warn('Link unlesbar',e); return false; } }
+function mutate(){
+  const schema=SCHEMA.filter(d=>(!d.kr||d.kr.includes(G.kernel))&&!['rate','capacity','floorY','hueMode','envelope','spiral','attractors'].includes(d.k));
+  let n=0; for(const d of schema){ if(Math.random()<0.3){ const span=(d.max-d.min)*0.12; let v=G[d.k]+(Math.random()*2-1)*span; v=clamp(v,d.min,d.max); if(d.int) v=Math.round(v); G[d.k]=v; n++; } }
+  seed=(Math.random()*999999)|0; curSpec=null; buildParams(); markSpecies(); regrow(); toast(n+' Regler mutiert · Zucht-Nr. '+seed);
+}
+
+/* ---------- Bild sichern ---------- */
+function screenshot(){
+  const saved=R.renderScale; const maxDim=Math.min(MAX_TEX,gl.getParameter(gl.MAX_RENDERBUFFER_SIZE),8192);
+  const want=Math.min(2.0, maxDim/Math.max(cv.clientWidth,cv.clientHeight)/R.dpr);
+  R.renderScale=Math.max(saved,want); resize(true); render(L);
+  const w=cv.width,h=cv.height;
+  cv.toBlob((blob)=>{ if(!blob){ toast('Bild konnte nicht erzeugt werden'); return; } const a=document.createElement('a'); a.download='riffwerk-'+(curSpec?curSpec.id:'genom')+'-'+seed+'-'+w+'x'+h+'.png'; a.href=URL.createObjectURL(blob); a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),4000); toast('Bild gesichert · '+w+'×'+h); },'image/png');
+  R.renderScale=saved; resize(true);
+}
+
+/* ---------- Kleinkram ---------- */
+let toastT=null; function toast(s){ const t=$('toast'); t.textContent=s; t.classList.add('on'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('on'),2200); }
+function flash(id,txt){ const b=$(id); const old=b.textContent; b.textContent=txt; b.classList.add('flash'); setTimeout(()=>{ b.textContent=old; b.classList.remove('flash'); },1200); }
+function setRail(hidden){ railHidden=hidden; $('rail').classList.toggle('hidden',hidden); document.body.classList.toggle('railhidden',hidden); }
+function setTab(name){ document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.tab===name?'true':'false')); document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on',p.dataset.pane===name)); }
+document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
+$('toggle').onclick=()=>setRail(!railHidden);
+$('btnPlay').onclick=()=>{ paused=!paused; worker.postMessage({t:paused?'pause':'resume'}); $('btnPlay').textContent=paused?'Weiter':'Pause'; };
+$('btnReset').onclick=()=>regrow();
+$('btnSpin').onclick=()=>{ R.spin=!R.spin; $('btnSpin').classList.toggle('on',R.spin); };
+$('btnShot').onclick=()=>screenshot();
+$('btnInstant').onclick=()=>{ worker.postMessage({t:'rate',rate:1e9}); flash('btnInstant','Läuft'); };
+$('btnHelp').onclick=()=>$('help').classList.add('on');
+$('help').onclick=()=>$('help').classList.remove('on');
+$('btnCopy').onclick=async()=>{ const out=JSON.stringify(stateJSON(),(k,v)=>typeof v==='number'?Math.round(v*1e5)/1e5:v,1); $('pasteBox').value=out; try{ await navigator.clipboard.writeText(out); flash('btnCopy','Kopiert'); }catch(e){ flash('btnCopy','Im Feld'); } };
+$('btnApply').onclick=()=>{ try{ applyState(JSON.parse($('pasteBox').value)); flash('btnApply','Wächst'); }catch(e){ toast('JSON unlesbar: '+e.message); } };
+$('btnShare').onclick=async()=>{ updateHash(); try{ await navigator.clipboard.writeText(location.href); flash('btnShare','Link kopiert'); }catch(e){ flash('btnShare','In Adresszeile'); } };
+$('btnMutate').onclick=()=>mutate();
+$('seed').onchange=()=>{ seed=clamp($('seed').value|0,0,999999); regrow(); };
+$('seedNext').onclick=()=>{ seed=(seed+1)%1000000; $('seed').value=seed; regrow(); };
+$('seedRnd').onclick=()=>{ seed=(Math.random()*999999)|0; $('seed').value=seed; regrow(); };
+function stepSpecies(dir){ const i=curSpec?SPECIES.indexOf(curSpec):-1; const n=(i+dir+SPECIES.length)%SPECIES.length; applySpecies(SPECIES[n],true); }
+window.addEventListener('keydown',(e)=>{
+  if(e.target&&['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) return;
+  switch(e.key){
+    case ' ': e.preventDefault(); $('btnPlay').click(); break;
+    case 'r': case 'R': regrow(); break;
+    case 'n': case 'N': $('seedNext').click(); break;
+    case 's': case 'S': $('btnSpin').click(); break;
+    case 'm': case 'M': setRail(!railHidden); break;
+    case 'b': case 'B': screenshot(); break;
+    case 'h': case 'H': case '?': $('help').classList.toggle('on'); break;
+    case 'f': case 'F': if(document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen(); break;
+    case 'ArrowLeft': stepSpecies(-1); break;
+    case 'ArrowRight': stepSpecies(1); break;
+    case 'Escape': $('help').classList.remove('on'); break;
+  }
+});
+
+/* ---------- Kamera: Ziehen, Rad, Zwei Finger ---------- */
+const PTR={active:new Map(),lastD:0,vt:0,vp:0,lastX:0,lastY:0,down:false};
+cv.addEventListener('pointerdown',(e)=>{ cv.setPointerCapture(e.pointerId); PTR.active.set(e.pointerId,{x:e.clientX,y:e.clientY}); PTR.down=true; SIM.userCam=performance.now(); if(PTR.active.size===2){ const [a,b]=[...PTR.active.values()]; PTR.lastD=Math.hypot(a.x-b.x,a.y-b.y); } });
+cv.addEventListener('pointermove',(e)=>{
+  const p=PTR.active.get(e.pointerId); if(!p) return;
+  if(PTR.active.size===1){ const dx=e.clientX-p.x, dy=e.clientY-p.y; R.theta+=dx*0.006; R.phi=clamp(R.phi-dy*0.006,0.08,Math.PI-0.12); PTR.vt=dx*0.006; PTR.vp=-dy*0.006; }
+  p.x=e.clientX; p.y=e.clientY;
+  if(PTR.active.size===2){ const [a,b]=[...PTR.active.values()]; const d=Math.hypot(a.x-b.x,a.y-b.y); if(PTR.lastD>0){ R.dist=clamp(R.dist*(PTR.lastD/d),0.4,30); } PTR.lastD=d; }
+  SIM.userCam=performance.now();
+});
+const endPtr=(e)=>{ PTR.active.delete(e.pointerId); if(PTR.active.size===0) PTR.down=false; PTR.lastD=0; };
+cv.addEventListener('pointerup',endPtr); cv.addEventListener('pointercancel',endPtr);
+cv.addEventListener('wheel',(e)=>{ e.preventDefault(); R.dist=clamp(R.dist*Math.exp(e.deltaY*0.0012),0.4,30); SIM.userCam=performance.now(); },{passive:false});
+cv.addEventListener('dblclick',()=>{ SIM.autoFit=true; SIM.userCam=0; R.theta=0.9; R.phi=1.25; });
+
+/* ---------- HUD & Diagnose ---------- */
+const hCount=$('hCount'),hRate=$('hRate'),hFrame=$('hFrame'),hSim=$('hSim'),hQual=$('hQual'),barFill=$('barFill');
+let hudT=0;
+function fmtN(n){ return n>=1e6?(n/1e6).toFixed(2)+' M':n>=1e4?(n/1e3).toFixed(1)+' k':String(n|0); }
+function updateHUD(now){
+  if(now-hudT<250) return; const dt=(now-hudT)/1000; hudT=now;
+  const inst=(SIM.total-SIM.lastTotal)/Math.max(dt,0.001); SIM.lastTotal=SIM.total; SIM.rate+=(inst-SIM.rate)*0.4;
+  hCount.textContent=fmtN(SIM.total)+(G.capacity?' / '+fmtN(G.capacity):'');
+  hRate.textContent=SIM.done?'fertig':paused?'Pause':fmtN(Math.round(SIM.rate))+'/s';
+  hFrame.textContent=PERF.avg.toFixed(1)+' ms'+(extTimer&&R.gpuMs>0?' · GPU '+R.gpuMs.toFixed(1):''); hFrame.classList.toggle('warn',PERF.avg>22);
+  hSim.textContent=SIM.simMs.toFixed(0)+' ms';
+  hQual.textContent=Math.round(R.renderScale*100)+' % · '+(RT.samples>0?RT.samples+'× AA':'kein AA')+(R.aoOn?' · SSAO':'');
+  barFill.style.width=(SIM.progress*100).toFixed(1)+'%';
+  const qi=$('qinfo'); if(qi&&!railHidden){ const lod=lodFor(Math.max(1,R.head)); qi.innerHTML=`Netz je Strebe: <b>${lod.tris} Dreiecke</b> · gezeichnet: <b>${fmtN(R.drawTris)} Dreiecke</b><br>Ziel ${RT.w}×${RT.h} · Schatten ${SHADOW_RES}² · Hochgeladen ${(R.uploadedBytes/1048576).toFixed(1)} MB (nur Zuwachs)`; }
+  const dg=$('diag'); if(dg&&!railHidden){ const dbg=gl.getExtension('WEBGL_debug_renderer_info'); const ren=dbg?gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL):'(verborgen)';
+    dg.innerHTML=`<b>Grafik</b> ${ren}<br>HDR-Ziel ${HDR?'RGBA16F':'RGBA8'} · MSAA bis ${MAX_SAMPLES}× · GPU-Zeitmessung ${extTimer?'ja':'nein'}<br><b>Simulation</b> Kern ${G.kernel} · Aufbau ${SIM.initMs.toFixed(0)} ms · ${SIM.batches} Pakete · ${(SIM.total/Math.max(1,SIM.simMs)*1000|0).toLocaleString('de')} Streben/s Rechenzeit<br>${SHADER_LOG.length?'<span style="color:var(--rose)">Shader: '+SHADER_LOG.join('<br>')+'</span>':'Shader fehlerfrei'}`; }
+}
+
+/* ---------- Hauptschleife ---------- */
+let lastT=performance.now();
+function frame(now){
+  const raw=now-lastT; lastT=now; const dt=Math.min(raw,100);
+  R.time=now*0.001;
+  perfTick(raw);
+  swayStep(raw,L);
+  if(R.spin && !PTR.down) R.theta+=dt*0.00012;
+  // Trägheit nach dem Ziehen
+  if(!PTR.down){ R.theta+=PTR.vt; R.phi=clamp(R.phi+PTR.vp,0.08,Math.PI-0.12); PTR.vt*=0.9; PTR.vp*=0.9; }
+  // Blickziel folgt der Kolonie, Abstand passt sich an, solange niemand eingegriffen hat
+  const c=R.center; const k=1-Math.pow(0.001,dt/1000);
+  for(let i=0;i<3;i++) R.target[i]+=(c[i]-R.target[i])*k*0.6;
+  if(SIM.autoFit && now-SIM.userCam>1500){ const want=clamp(R.extent*2.3+0.4,1.2,30); R.dist+=(want-R.dist)*k*0.5; }
+  render(L);
+  updateHUD(now);
+  requestAnimationFrame(frame);
+}
+
+/* ---------- Start ---------- */
+buildSpecies(); buildQuality();
+if(!loadHash()) applySpecies(SPECIES[0],false);
+else { buildParams(); buildLook(); markSpecies(); }
+regrow();
+if(window.innerWidth>900) setRail(false);
+window.addEventListener('resize',()=>resize(true));
+window.addEventListener('hashchange',()=>{ if(!hashLock && loadHash()) regrow(); });
+document.addEventListener('visibilitychange',()=>{ lastT=performance.now(); });
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
