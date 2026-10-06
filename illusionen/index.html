@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="Illusionslabor – optische Täuschungen interaktiv und animiert erleben, mit Reglern, Auflösung und Erklärung.">
+<meta name="description" content="Illusionslabor – optische Täuschungen, Wahrnehmungseffekte und Sehforschung interaktiv und animiert erleben.">
 <meta name="theme-color" content="#101014">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Illusionslabor</title>
@@ -13,11 +13,15 @@
 <header id="top">
   <button id="menuBtn" class="icon" aria-label="Liste öffnen">☰</button>
   <h1>Illusions<span>labor</span></h1>
+  <span id="fps" class="muted" hidden>-- fps</span>
   <div class="spacer"></div>
-  <button id="prevBtn" class="icon" aria-label="Vorherige">‹</button>
+  <button id="favBtn" class="icon" title="Favorit (F)">☆</button>
+  <button id="prevBtn" class="icon" aria-label="Vorherige (←)">‹</button>
   <span id="counter">1 / 1</span>
-  <button id="nextBtn" class="icon" aria-label="Nächste">›</button>
-  <button id="fsBtn" class="icon" aria-label="Vollbild">⛶</button>
+  <button id="nextBtn" class="icon" aria-label="Nächste (→)">›</button>
+  <button id="helpBtn" class="icon" title="Tastenkürzel (?)">?</button>
+  <button id="kioskBtn" class="icon" title="Oberfläche ausblenden (H)">⤢</button>
+  <button id="fsBtn" class="icon" title="Vollbild">⛶</button>
 </header>
 
 <aside id="side">
@@ -31,8 +35,10 @@
   <div id="hud">
     <button id="playBtn" class="chip" title="Animation starten/stoppen (Leertaste)">⏸ Animation</button>
     <button id="revealBtn" class="chip" title="Wahrheit einblenden (R)">👁 Auflösen</button>
-    <button id="resetBtn" class="chip" title="Regler zurücksetzen">↺ Reset</button>
+    <button id="resetBtn" class="chip" title="Regler zurücksetzen (0)">↺ Reset</button>
   </div>
+  <div id="toolhint" hidden></div>
+  <button id="kioskExit" class="chip" hidden title="Oberfläche einblenden (H)">☰ Menü</button>
 </main>
 
 <section id="panel">
@@ -45,6 +51,75 @@
   </div>
   <p id="hint" class="hint"></p>
   <div id="controls"></div>
+
+  <details id="tools" open>
+    <summary>⚙ Werkzeuge & Darstellung</summary>
+    <div class="tgroup">
+      <h4>Animation</h4>
+      <div class="ctrl"><label>Tempo <span id="speedVal">1.0×</span></label><input type="range" id="speed" min="0.1" max="4" step="0.1" value="1"></div>
+      <div class="ctrl"><label>Regler-Sweep (automatisch durchfahren)</label><select id="sweep"><option value="">aus</option></select></div>
+      <div class="ctrl"><label>Sweep-Dauer <span id="sweepPeriodVal">6 s</span></label><input type="range" id="sweepPeriod" min="1" max="30" step="0.5" value="6"></div>
+      <div class="ctrl toggle"><label><span>Auflösen blinken lassen</span><input type="checkbox" id="blink"></label></div>
+      <div class="ctrl"><label>Diashow</label><select id="slideshow"><option value="0">aus</option><option value="5">alle 5 s</option><option value="10">alle 10 s</option><option value="20">alle 20 s</option><option value="45">alle 45 s</option></select></div>
+    </div>
+    <div class="tgroup">
+      <h4>Ansicht</h4>
+      <div class="ctrl"><label>Zoom <span id="zoomVal">1.0×</span></label><input type="range" id="zoom" min="0.25" max="6" step="0.05" value="1"></div>
+      <div class="ctrl"><label>Drehung <span id="rotVal">0°</span></label><input type="range" id="rot" min="0" max="360" step="1" value="0"></div>
+      <div class="row">
+        <button id="flipH" class="secondary">↔ Spiegeln</button>
+        <button id="flipV" class="secondary">↕ Spiegeln</button>
+      </div>
+      <p class="muted small">Ziehen mit gedrückter Maustaste verschiebt die Ansicht, wenn Zoom ≠ 1 (bei inaktivem Werkzeug). Mausrad zoomt.</p>
+      <button id="viewReset" class="secondary">Ansicht zurücksetzen (V)</button>
+    </div>
+    <div class="tgroup">
+      <h4>Bildfilter</h4>
+      <div class="row">
+        <label class="chk"><input type="checkbox" id="invert"> Invertieren (I)</label>
+        <label class="chk"><input type="checkbox" id="grayscale"> Graustufen (G)</label>
+      </div>
+      <div class="ctrl"><label>Kontrast <span id="contrastVal">100 %</span></label><input type="range" id="contrast" min="10" max="300" value="100"></div>
+      <div class="ctrl"><label>Helligkeit <span id="brightnessVal">100 %</span></label><input type="range" id="brightness" min="20" max="250" value="100"></div>
+      <div class="ctrl"><label>Unschärfe <span id="blurVal">0 px</span></label><input type="range" id="blur" min="0" max="20" step="0.5" value="0"></div>
+      <div class="ctrl"><label>Sättigung <span id="saturateVal">100 %</span></label><input type="range" id="saturate" min="0" max="300" value="100"></div>
+      <button id="filterReset" class="secondary">Filter zurücksetzen</button>
+    </div>
+    <div class="tgroup">
+      <h4>Overlays & Messwerkzeuge</h4>
+      <div class="ctrl"><label>Raster</label><select id="grid"><option value="0">aus</option><option value="20">20 px</option><option value="50">50 px</option><option value="100">100 px</option></select></div>
+      <div class="row">
+        <label class="chk"><input type="checkbox" id="fixation"> Fixationskreuz</label>
+        <label class="chk"><input type="checkbox" id="crosslines"> Mittellinien</label>
+      </div>
+      <div class="row">
+        <label class="chk"><input type="checkbox" id="stopwatch"> Stoppuhr</label>
+        <label class="chk"><input type="checkbox" id="showFps"> FPS anzeigen</label>
+      </div>
+      <div class="row">
+        <button id="toolRuler" class="secondary">📏 Lineal (L)</button>
+        <button id="toolPipette" class="secondary">🎯 Pipette (P)</button>
+      </div>
+      <div id="pipetteOut" class="muted small"></div>
+    </div>
+    <div class="tgroup">
+      <h4>Presets & Export</h4>
+      <div class="row">
+        <button id="randomBtn" class="secondary">🎲 Zufallswerte (Z)</button>
+        <button id="shareBtn" class="secondary">🔗 Link kopieren</button>
+      </div>
+      <div class="row">
+        <button id="pngBtn" class="secondary">🖼 PNG speichern (S)</button>
+        <button id="themeBtn" class="secondary">☀ Hell/Dunkel (T)</button>
+      </div>
+      <div class="ctrl"><label>Gespeicherte Presets</label><select id="presetSel"><option value="">– keine –</option></select></div>
+      <div class="row">
+        <button id="presetSave" class="secondary">💾 Speichern</button>
+        <button id="presetDel" class="secondary">🗑 Löschen</button>
+      </div>
+    </div>
+  </details>
+
   <div id="info">
     <h3>Was passiert hier?</h3>
     <p id="desc"></p>
@@ -52,6 +127,32 @@
     <p id="why"></p>
   </div>
 </section>
+
+<div id="help" hidden>
+  <div class="helpbox">
+    <h3>Tastenkürzel</h3>
+    <table>
+      <tr><td>← →</td><td>Vorherige / nächste Illusion</td></tr>
+      <tr><td>Leertaste</td><td>Animation starten / stoppen</td></tr>
+      <tr><td>R</td><td>Auflösen ein / aus</td></tr>
+      <tr><td>0</td><td>Regler zurücksetzen</td></tr>
+      <tr><td>Z</td><td>Zufallswerte</td></tr>
+      <tr><td>F</td><td>Favorit markieren</td></tr>
+      <tr><td>I / G</td><td>Invertieren / Graustufen</td></tr>
+      <tr><td>+ / −</td><td>Zoom</td></tr>
+      <tr><td>V</td><td>Ansicht zurücksetzen</td></tr>
+      <tr><td>L / P</td><td>Lineal / Pipette</td></tr>
+      <tr><td>S</td><td>PNG speichern</td></tr>
+      <tr><td>H</td><td>Oberfläche ausblenden (Kiosk)</td></tr>
+      <tr><td>T</td><td>Hell / Dunkel</td></tr>
+      <tr><td>X</td><td>Fixationskreuz</td></tr>
+      <tr><td>Esc</td><td>Werkzeug / Kiosk / Hilfe beenden</td></tr>
+      <tr><td>?</td><td>Diese Hilfe</td></tr>
+    </table>
+    <p class="muted small">Links mit Parametern: Die URL enthält immer die aktuelle Illusion und die Reglerwerte – einfach kopieren und teilen.</p>
+    <button id="helpClose">Schließen</button>
+  </div>
+</div>
 
 <script src="core.js"></script>
 <script src="illusions-geometrie.js"></script>
@@ -67,6 +168,9 @@
 <script src="illusions-bewegung-3.js"></script>
 <script src="illusions-effekte.js"></script>
 <script src="illusions-forschung.js"></script>
+<script src="illusions-mehr-1.js"></script>
+<script src="illusions-mehr-2.js"></script>
+<script src="illusions-mehr-3.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
