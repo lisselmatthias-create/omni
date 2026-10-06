@@ -4,7 +4,8 @@ window.CATS = {
   geometrie: "Größe & Form",
   helligkeit: "Helligkeit & Farbe",
   bewegung: "Bewegung",
-  wahrnehmung: "Mehrdeutig & Konturen"
+  wahrnehmung: "Mehrdeutig & Konturen",
+  effekte: "Sehen & Gehirn"
 };
 window.addIllusion = function (def) { ILLUSIONS.push(def); };
 

@@ -1,6 +1,6 @@
 # Illusionslabor
 
-Interaktive, animierte Sammlung optischer Täuschungen – ohne Abhängigkeiten, reines HTML/CSS/Canvas.
+Interaktive, animierte Sammlung von 88 optischen Täuschungen und Wahrnehmungseffekten – ohne Abhängigkeiten, reines HTML/CSS/Canvas.
 
 **Öffnen:** `illusionen/index.html` (lokal per Doppelklick oder über GitHub Pages unter `/illusionen/`).
 
@@ -19,10 +19,11 @@ Interaktive, animierte Sammlung optischer Täuschungen – ohne Abhängigkeiten,
 | `index.html`, `style.css` | Oberfläche (Desktop dreispaltig, Mobil gestapelt) |
 | `core.js` | Registry (`addIllusion`) und Zeichenhelfer (`H`) |
 | `app.js` | Liste, Routing, Regler, Render-Loop |
-| `illusions-geometrie.js` | Größe & Form (Müller-Lyer, Ponzo, Zöllner, Café Wall …) |
-| `illusions-helligkeit.js` | Helligkeit & Farbe (Adelson, Hermann-Gitter, Nachbild, Benham …) |
-| `illusions-bewegung.js` | Bewegung (Rotierende Schlangen, Stepping Feet, Lilac Chaser …) |
-| `illusions-wahrnehmung.js` | Mehrdeutig & Konturen (Kanizsa, Necker, Penrose, Rubin …) |
+| `illusions-geometrie.js`, `-2.js` | Größe & Form (Müller-Lyer, Ponzo, Zöllner, Café Wall, Tilt, Schiefer Turm …) |
+| `illusions-helligkeit.js`, `-2.js` | Helligkeit & Farbe (Adelson, Hermann-Gitter, Benham, Koffka, Konfetti, Farbgitter …) |
+| `illusions-bewegung.js`, `-2.js` | Bewegung (Rotierende Schlangen, Stepping Feet, Ternus, Ames-Fenster, Punktlicht-Läufer …) |
+| `illusions-wahrnehmung.js`, `-2.js` | Mehrdeutig & Konturen (Kanizsa, Necker, Penrose, Blivet, Glass-Muster …) |
+| `illusions-effekte.js` | Sehen & Gehirn (Veränderungsblindheit, Crowding, Flimmerfusion, Autostereogramm, RDK) |
 
 ## Neue Illusion hinzufügen
 
