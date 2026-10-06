@@ -1,0 +1,1570 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- Kein Netzwerk: die CSP verbietet jede Verbindung nach außen. Alles läuft lokal. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; media-src blob: mediastream:; worker-src blob:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="description" content="Prisma – vereintes Studio für optische Täuschungen, Wellenphysik, Muster- und Lebenssimulationen. Offline, ohne Abhängigkeiten.">
+<meta name="theme-color" content="#0d0f12">
+<title>Prisma · Wahrnehmungs- und Simulationsstudio</title>
+<style>
+/* ==========================================================================
+   STYLE
+   ========================================================================== */
+:root{
+  --bg:#0d0f12; --panel:#14171c; --panel2:#1b1f26; --panel3:#232833; --line:#2a303a;
+  --txt:#e6e8eb; --dim:#9aa3ae; --acc:#22d3ee; --acc2:#f59e0b; --bad:#f87171; --ok:#4ade80;
+  --tap:32px; --thumb:16px; --panelW:min(390px, 36vw); --r:8px; --sheetH:44dvh;
+}
+@media (pointer:coarse){ :root{ --tap:44px; --thumb:26px; } }
+*{ box-sizing:border-box; }
+html,body{ margin:0; height:100%; background:var(--bg); color:var(--txt);
+  font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; overflow:hidden;
+  -webkit-text-size-adjust:100%; overscroll-behavior:none; }
+button,input,select,textarea{ font:inherit; color:inherit; }
+:focus-visible{ outline:2px solid var(--acc); outline-offset:2px; }
+.sr{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+
+#app{ display:grid; grid-template-columns:minmax(0,1fr) var(--panelW); height:100vh; height:100dvh;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+#app.fs{ grid-template-columns:minmax(0,1fr) 0; }
+#app.fs #panel{ display:none; }
+
+/* ---- Bühne ---- */
+#stage{ position:relative; overflow:hidden; min-width:0; min-height:0; background:#000; touch-action:none; user-select:none; -webkit-user-select:none; }
+#cv{ position:absolute; inset:0; width:100%; height:100%; display:block; cursor:pointer; }
+.hud{ position:absolute; display:flex; gap:6px; align-items:center; pointer-events:none; z-index:2; }
+.hud > *{ pointer-events:auto; }
+.hud.top{ top:10px; left:10px; right:10px; justify-content:space-between; align-items:flex-start; }
+.hud.bot{ bottom:10px; left:10px; right:10px; justify-content:center; }
+.hgroup{ display:flex; gap:4px; flex-wrap:wrap; background:rgba(13,15,18,.72); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  border:1px solid rgba(255,255,255,.08); border-radius:10px; padding:4px; }
+.hbtn{ min-width:var(--tap); height:var(--tap); padding:0 9px; border:0; border-radius:7px; background:transparent; color:var(--txt);
+  cursor:pointer; font-size:13px; display:inline-flex; align-items:center; justify-content:center; gap:5px; white-space:nowrap; }
+.hbtn:hover{ background:rgba(255,255,255,.08); }
+.hbtn[aria-pressed="true"]{ background:var(--acc); color:#001318; font-weight:600; }
+.hbtn[disabled]{ opacity:.38; cursor:not-allowed; }
+.title-card{ max-width:min(60%, 520px); padding:6px 10px; }
+.title-card b{ display:block; font-size:15px; }
+.title-card small{ color:var(--dim); }
+#fps{ font:12px/1 ui-monospace,Menlo,Consolas,monospace; color:var(--dim); padding:8px 10px; }
+#cap{ max-width:min(92%, 760px); padding:7px 12px; font-size:13px; color:var(--txt); text-align:center; }
+#cap.rev{ border-color:rgba(34,211,238,.5); }
+#cap .m{ color:var(--acc); font-weight:600; }
+#toast{ position:absolute; left:50%; bottom:64px; transform:translateX(-50%); z-index:5; display:flex; flex-direction:column; gap:6px; align-items:center; pointer-events:none; }
+.toast{ background:#0b0d10ee; border:1px solid var(--line); border-radius:9px; padding:8px 12px; font-size:13px; max-width:86vw; pointer-events:auto; display:flex; gap:10px; align-items:center; }
+.toast.err{ border-color:var(--bad); }
+.toast button{ background:var(--panel3); border:1px solid var(--line); border-radius:6px; padding:3px 8px; cursor:pointer; }
+#ctx{ position:absolute; z-index:6; display:none; flex-direction:column; min-width:180px; background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:4px; box-shadow:0 10px 30px #0008; }
+#ctx button{ text-align:left; background:none; border:0; padding:0 10px; min-height:var(--tap); border-radius:6px; cursor:pointer; }
+#ctx button:hover{ background:var(--panel3); }
+
+/* ---- Panel ---- */
+#panel{ display:flex; flex-direction:column; min-height:0; min-width:0; overflow:hidden; background:var(--panel); border-left:1px solid var(--line); }
+#sheetHandle{ display:none; }
+.tabs{ display:flex; gap:2px; overflow-x:auto; padding:6px 6px 0; border-bottom:1px solid var(--line); scrollbar-width:none; flex:none; }
+.tabs::-webkit-scrollbar{ display:none; }
+.tabs button{ flex:none; border:0; background:none; color:var(--dim); padding:0 10px; min-height:var(--tap); border-radius:7px 7px 0 0; cursor:pointer; font-size:13px; position:relative; }
+.tabs button[aria-selected="true"]{ color:var(--txt); background:var(--panel2); }
+.tabs button[aria-selected="true"]::after{ content:""; position:absolute; left:8px; right:8px; bottom:0; height:2px; background:var(--acc); border-radius:2px; }
+.tabs button .soon{ font-size:10px; color:var(--acc2); margin-left:3px; }
+.tabbody{ flex:1; overflow:auto; padding:12px 14px 18px; min-height:0; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
+.pfoot{ flex:none; border-top:1px solid var(--line); padding:6px 12px; font-size:11px; color:var(--dim); display:flex; gap:8px; align-items:center; }
+.pfoot .dot{ width:8px; height:8px; border-radius:50%; background:var(--ok); flex:none; }
+
+h2{ font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--dim); margin:16px 0 8px; font-weight:600; }
+h2:first-child{ margin-top:2px; }
+h3{ margin:0 0 4px; font-size:16px; }
+p{ margin:0 0 8px; }
+.muted{ color:var(--dim); }
+.small{ font-size:12px; }
+.btn{ min-height:var(--tap); padding:0 12px; border-radius:7px; border:1px solid var(--line); background:var(--panel2); cursor:pointer; }
+.btn:hover{ background:var(--panel3); }
+.btn.pri{ background:var(--acc); color:#001318; border-color:var(--acc); font-weight:600; }
+.btn[disabled]{ opacity:.4; cursor:not-allowed; }
+.row{ display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+.grow{ flex:1; min-width:0; }
+input[type=search], input[type=text], select, textarea{ background:var(--bg); border:1px solid var(--line); border-radius:7px; min-height:var(--tap); padding:0 10px; width:100%; }
+textarea{ padding:8px 10px; min-height:80px; font:12px/1.4 ui-monospace,Menlo,monospace; }
+
+.chips{ display:flex; gap:5px; flex-wrap:wrap; margin:8px 0; }
+.chip{ border:1px solid var(--line); background:var(--panel2); border-radius:999px; padding:0 10px; min-height:calc(var(--tap) - 6px); cursor:pointer; font-size:12px; }
+.chip[aria-pressed="true"]{ border-color:var(--acc); color:var(--acc); }
+.chip .n{ color:var(--dim); margin-left:4px; }
+.cards{ display:flex; flex-direction:column; gap:6px; }
+.card{ display:grid; grid-template-columns:1fr auto; gap:2px 8px; padding:9px 10px; border:1px solid var(--line); border-radius:var(--r); background:var(--panel2); cursor:pointer; text-align:left; }
+.card:hover{ border-color:#3b4452; }
+.card[aria-current="true"]{ border-color:var(--acc); box-shadow:inset 3px 0 0 var(--acc); }
+.card b{ font-size:14px; }
+.card .c{ grid-column:1/-1; font-size:12px; color:var(--dim); }
+.card .cat{ font-size:11px; color:var(--acc2); }
+.star{ border:0; background:none; cursor:pointer; font-size:17px; color:var(--dim); min-width:var(--tap); min-height:28px; line-height:1; }
+.star[aria-pressed="true"]{ color:var(--acc2); }
+
+.ctl{ padding:7px 0 9px; border-bottom:1px dashed #252a33; }
+.ctl label{ display:flex; justify-content:space-between; gap:8px; font-size:13px; cursor:default; }
+.ctl label .v{ color:var(--acc); font-variant-numeric:tabular-nums; font:12px ui-monospace,Menlo,monospace; }
+.ctl .did{ font-size:11.5px; color:var(--dim); margin-top:3px; }
+.ctl.mod label .k::after{ content:" ∿"; color:var(--acc2); font-size:11px; }
+input[type=range]{ width:100%; margin:6px 0 0; accent-color:var(--acc); height:var(--thumb); }
+input[type=checkbox]{ width:18px; height:18px; accent-color:var(--acc); }
+
+.box{ border:1px solid var(--line); border-radius:var(--r); padding:10px 12px; margin:8px 0; background:var(--panel2); }
+.box.hl{ border-color:var(--acc); box-shadow:0 0 0 1px rgba(34,211,238,.25) inset; }
+.box h4{ margin:0 0 6px; font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.box.hl h4{ color:var(--acc); }
+details.box > summary{ cursor:pointer; font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.mech{ display:inline-block; border:1px solid var(--line); border-radius:999px; padding:1px 9px; font-size:12px; margin:0 4px 4px 0; }
+.mech.on{ border-color:var(--acc); color:var(--acc); }
+.src{ font-size:12px; color:var(--dim); padding-left:16px; margin:4px 0; }
+.src li{ margin-bottom:4px; }
+table.meas{ width:100%; border-collapse:collapse; font-size:12.5px; }
+table.meas td{ padding:4px 0; border-bottom:1px solid #222730; vertical-align:top; }
+table.meas td.v{ text-align:right; font:12px ui-monospace,Menlo,monospace; color:var(--acc); white-space:nowrap; padding-left:8px; }
+table.meas tr.note td{ color:var(--dim); font-size:11.5px; border-bottom:0; padding-top:0; }
+.kv{ display:grid; grid-template-columns:auto 1fr; gap:3px 10px; font-size:12px; }
+.kv .ok{ color:var(--ok); } .kv .no{ color:var(--bad); } .kv .wa{ color:var(--acc2); }
+.log{ font:11.5px/1.4 ui-monospace,Menlo,monospace; color:var(--bad); white-space:pre-wrap; }
+.seg{ display:flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; flex-wrap:wrap; }
+.seg button{ flex:1; border:0; background:var(--panel2); min-height:var(--tap); cursor:pointer; font-size:12.5px; padding:0 6px; }
+.seg button[aria-pressed="true"]{ background:var(--acc); color:#001318; font-weight:600; }
+.seg button[disabled]{ opacity:.35; cursor:not-allowed; }
+
+dialog{ background:var(--panel); color:var(--txt); border:1px solid var(--line); border-radius:12px; max-width:min(560px,92vw); padding:18px 20px; }
+dialog::backdrop{ background:#000a; }
+dialog table{ width:100%; font-size:13px; border-collapse:collapse; }
+dialog td{ padding:4px 6px; border-bottom:1px solid #222730; }
+kbd{ font:12px ui-monospace,Menlo,monospace; background:var(--panel3); border:1px solid var(--line); border-bottom-width:2px; border-radius:5px; padding:1px 6px; }
+
+/* ---- Mobil: Bottom-Sheet ---- */
+@media (max-width:820px){
+  #app{ grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(0,1fr) var(--sheetH); }
+  #app[data-sheet="min"]{ --sheetH:96px; }
+  #app[data-sheet="half"]{ --sheetH:44dvh; }
+  #app[data-sheet="full"]{ --sheetH:82dvh; }
+  #app.fs{ grid-template-rows:minmax(0,1fr) 0; }
+  #panel{ border-left:0; border-top:1px solid var(--line); border-radius:14px 14px 0 0; }
+  #sheetHandle{ display:flex; justify-content:center; align-items:center; height:22px; border:0; background:none; cursor:pointer; flex:none; }
+  #sheetHandle::before{ content:""; width:44px; height:5px; border-radius:3px; background:#3a414d; }
+  .title-card{ max-width:calc(100% - 110px); }
+  .hud .lbl, #cap .rest{ display:none; }
+}
+@media (prefers-reduced-motion:reduce){ *{ transition:none !important; animation:none !important; } }
+</style>
+</head>
+<body>
+<div id="app" data-sheet="half">
+  <main id="stage" aria-label="Bühne">
+    <canvas id="cv" role="img" aria-label="Aktives Modul"></canvas>
+    <div class="hud top">
+      <div class="hgroup title-card" id="titleCard" aria-live="polite"><b id="tName">Prisma</b><small id="tCat"></small></div>
+      <div class="hgroup" style="align-items:center"><span id="fps" aria-label="Bildrate">– fps</span></div>
+    </div>
+    <div class="hud bot" style="flex-direction:column; gap:8px; align-items:center">
+      <div class="hgroup" id="cap" aria-live="polite"></div>
+      <div class="hgroup" role="toolbar" aria-label="Steuerung">
+        <button class="hbtn" id="bPrev" aria-label="Vorheriges Modul (Pfeil links)" title="Zurück (←)">◀</button>
+        <button class="hbtn" id="bPlay" aria-label="Wiedergabe pausieren" aria-pressed="false" title="Play/Pause (K)">❚❚</button>
+        <button class="hbtn" id="bReveal" aria-pressed="false" title="Auflösen (Space – tippen schaltet, halten zeigt kurz)">◎ <span class="lbl">Reveal</span></button>
+        <button class="hbtn" id="bMod" aria-pressed="false" disabled title="Modulation an/aus (M) – ab Etappe 2">∿ <span class="lbl">Mod</span></button>
+        <button class="hbtn" id="bAdd" disabled title="Quelle hinzufügen (N) – ab Etappe 3">＋ <span class="lbl">Quelle</span></button>
+        <button class="hbtn" id="bFull" title="Vollbild (F, Doppeltipp)" aria-label="Vollbild">⛶</button>
+        <button class="hbtn" id="bNext" aria-label="Nächstes Modul (Pfeil rechts)" title="Weiter (→)">▶</button>
+      </div>
+    </div>
+    <div id="toast" role="status" aria-live="polite"></div>
+    <div id="ctx" role="menu" aria-label="Kontextmenü"></div>
+  </main>
+  <aside id="panel" aria-label="Werkzeuge">
+    <button id="sheetHandle" aria-label="Panelhöhe ändern"></button>
+    <div class="tabs" role="tablist" id="tabs"></div>
+    <div class="tabbody" id="tabbody" role="tabpanel"></div>
+    <div class="pfoot"><span class="dot" aria-hidden="true"></span><span>Offline · keine Netzwerkanfragen · keine Daten verlassen das Gerät</span><span class="grow"></span><button class="btn" id="bHelp" style="min-height:24px;padding:0 8px" aria-label="Hilfe">?</button></div>
+  </aside>
+</div>
+<dialog id="help" aria-label="Hilfe"></dialog>
+
+<script>
+'use strict';
+/* ==========================================================================
+   CORE · Kategorien, Mechanismen, Registry, Fehlerberichte, Hilfsfunktionen
+   ========================================================================== */
+const VERSION = '0.1.0-etappe1';
+
+/** Kategorien. Die ersten sieben stammen aus dem Illusionslabor, der Rest aus dem Wellenstudio. */
+const CATS = [
+  { id:'size',    name:'Größe & Form' },
+  { id:'light',   name:'Helligkeit & Farbe' },
+  { id:'motion',  name:'Bewegung' },
+  { id:'ambig',   name:'Mehrdeutig & Konturen' },
+  { id:'pattern', name:'Muster & Interferenz' },
+  { id:'color',   name:'Farbe & Licht' },
+  { id:'brain',   name:'Sehen & Gehirn' },
+  { id:'waves',   name:'Wellenphysik' },
+  { id:'eq',      name:'Gleichungen' },
+  { id:'life',    name:'Leben' },
+  { id:'space',   name:'Raum' },
+  { id:'cult',    name:'Kulturen' },
+  { id:'exp',     name:'Experimente' },
+];
+const catName = id => (CATS.find(c => c.id === id) || { name:id }).name;
+
+/** Glossar der Mechanismen. Module verweisen über `mechanism: [ids]` darauf. */
+const MECH = {
+  lateral:   ['Laterale Hemmung', 'Benachbarte Rezeptoren hemmen sich gegenseitig; Kontraste werden verstärkt, gleichförmige Flächen abgeschwächt.'],
+  constancy: ['Größenkonstanz', 'Das Gehirn rechnet vermutete Entfernung in Größe um – vermeintlich Fernes wird hochskaliert.'],
+  contrast:  ['Größenkontrast', 'Größe wird relativ zur Umgebung geschätzt, nicht absolut.'],
+  centroid:  ['Schwerpunkt / Tiefpass', 'Grob auflösende Filter verorten Endpunkte im Schwerpunkt von Linie und Kontext.'],
+  orient:    ['Orientierungsselektivität', 'Neurone im visuellen Kortex antworten bevorzugt auf Kanten bestimmter Ausrichtung.'],
+  aperture:  ['Aperturproblem', 'Durch ein kleines Fenster ist nur die Bewegung senkrecht zur Kante messbar.'],
+  fillin:    ['Filling-in', 'Fehlende Information wird aus der Umgebung ergänzt (z. B. am blinden Fleck).'],
+  metamer:   ['Metamerie', 'Physikalisch verschiedene Spektren erzeugen dieselbe Farbempfindung.'],
+  action:    ['Wahrnehmung vs. Handlung', 'Erkennen (ventraler Pfad) und Greifen (dorsaler Pfad) nutzen teils getrennte Verarbeitung.'],
+  culture:   ['Kultur & Erfahrung', 'Die visuelle Umwelt, in der man aufwächst, verändert die Stärke mancher Täuschungen.'],
+};
+
+/** Zentrale Fehlerstelle: nie alert(), immer Panel + Toast. */
+const Report = {
+  list: [], ready:false,
+  error(src, err) {
+    const msg = (err && err.message) ? err.message : String(err);
+    const line = `[${new Date().toLocaleTimeString()}] ${src}: ${msg}`;
+    if (this.list[this.list.length - 1] === line) return;
+    this.list.push(line); if (this.list.length > 40) this.list.shift();
+    console.error(src, err);
+    if (this.ready) { Toast.show(`${src}: ${msg}`, { err:true }); UI.refreshLog(); }   // vor dem Boot nur sammeln
+  },
+};
+
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+const decimals = step => { const s = String(step); const i = s.indexOf('.'); return i < 0 ? 0 : s.length - i - 1; };
+const fmt = (v, d = 0) => Number.isFinite(v) ? v.toFixed(d).replace('.', ',') : '–';
+const gray = v => { const c = Math.round(clamp(v, 0, 1) * 255); return `rgb(${c},${c},${c})`; };
+function el(tag, props, ...kids) {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(props || {})) {
+    if (k.startsWith('aria-') && v != null) { n.setAttribute(k, String(v)); continue; }
+    if (v == null || v === false) continue;
+    if (k === 'class') n.className = v;
+    else if (k === 'text') n.textContent = v;
+    else if (k === 'style') n.style.cssText = v;
+    else if (k.startsWith('on') && typeof v === 'function') n.addEventListener(k.slice(2), v);
+    else n.setAttribute(k, v === true ? '' : v);
+  }
+  for (const c of kids.flat()) { if (c == null || c === false) continue; n.append(c instanceof Node ? c : document.createTextNode(String(c))); }
+  return n;
+}
+const store = {               // localStorage kann in privaten Fenstern werfen
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } },
+};
+
+/**
+ * Registry. Jede Illusion, Wellenszene, PDE, jedes Lebenssystem und jede Skulptur
+ * ist genau ein Modul. Pflicht: id, cat, name, desc, why, render.
+ */
+const Prisma = {
+  modules: new Map(),
+  order: [],
+  register(def) {
+    const miss = ['id', 'cat', 'name', 'desc', 'why', 'render'].filter(k => def[k] == null);
+    if (miss.length) throw new Error(`Modul „${def.id || '?'}“: Pflichtfeld(er) fehlen: ${miss.join(', ')}`);
+    if (!/^[a-z0-9][a-z0-9-]*$/.test(def.id)) throw new Error(`Modul-ID „${def.id}“: nur a–z, 0–9 und „-“ erlaubt`);
+    if (this.modules.has(def.id)) throw new Error(`Modul-ID „${def.id}“ ist bereits registriert`);
+    if (!CATS.some(c => c.id === def.cat)) throw new Error(`Modul „${def.id}“: unbekannte Kategorie „${def.cat}“`);
+    if (typeof def.render !== 'function') throw new Error(`Modul „${def.id}“: render muss eine Funktion sein`);
+    const m = Object.assign({
+      short:'', hint:'', params:[], presets:[], compare:[], mechanism:[], sources:[],
+      layers:true, spatial:false, animated:false, interactive:false,
+    }, def);
+    for (const id of m.mechanism) if (!MECH[id]) throw new Error(`Modul „${m.id}“: unbekannter Mechanismus „${id}“`);
+    m.paramKeys = m.params.map(ps => Specs.define(m, ps));
+    this.modules.set(m.id, m); this.order.push(m.id);
+    return m;
+  },
+  get(id) { return this.modules.get(id); },
+  list() { return this.order.map(id => this.modules.get(id)); },
+  isAnimated(m, p) { return typeof m.animated === 'function' ? !!m.animated(p) : !!m.animated; },
+};
+/** Sicheres Registrieren: ein fehlerhaftes Modul legt die App nicht lahm. */
+function safeRegister(def) { try { return Prisma.register(def); } catch (e) { Report.error('Registry', e); return null; } }
+
+/* ==========================================================================
+   SPECS · Parameter-Spine: einzige Quelle für Regler, Bounds, Presets,
+   Modulationsziele und Serialisierung
+   ========================================================================== */
+const Specs = {
+  all: {},     // globaler Schlüssel → Spezifikation
+  /** Lokaler Schlüssel `len` in Modul `mueller-lyer` → global `mueller-lyer.len`; `shared:true` → global `len`. */
+  define(m, ps) {
+    if (!ps.key) throw new Error(`Modul „${m.id}“: Parameter ohne key`);
+    const key = ps.shared ? ps.key : `${m.id}.${ps.key}`;
+    const type = ps.type || 'range';
+    const ex = this.all[key];
+    if (ex) {                                           // geteilter Parameter: nur verknüpfen
+      if (!ps.shared) throw new Error(`Parameter „${key}“ doppelt definiert`);
+      if (!ex.linked.includes(m.id)) ex.linked.push(m.id);
+      return key;
+    }
+    const sp = {
+      key, local:ps.key, owner:m.id, type,
+      label: ps.label || ps.key, unit: ps.unit || '', group: ps.group || 'Allgemein',
+      didactic: ps.didactic || '', linked: [m.id, ...(ps.linked || [])],
+      mod: ps.mod !== false && type === 'range',                    // Modulationsziel?
+      sweep: ps.sweep !== false && type === 'range',                // Mini-Psychophysik (Etappe 2)
+    };
+    if (type === 'range') {
+      Object.assign(sp, { min:+ps.min, max:+ps.max, step:+(ps.step || (ps.max - ps.min) / 100), def:+ps.def });
+      if (!(sp.max > sp.min) || !Number.isFinite(sp.def)) throw new Error(`Parameter „${key}“: ungültige Grenzen`);
+    } else if (type === 'select') {
+      sp.options = (ps.options || []).map(o => typeof o === 'string' ? { v:o, label:o } : o);
+      sp.def = ps.def != null ? ps.def : sp.options[0] && sp.options[0].v;
+    } else if (type === 'bool') { sp.def = !!ps.def; }
+    else throw new Error(`Parameter „${key}“: unbekannter Typ „${type}“`);
+    this.all[key] = sp;
+    return key;
+  },
+};
+/** Bounds-Prüfung: klemmt, rastet auf step, ersetzt Unsinn durch den Standardwert. */
+function parameterBounds(sp, v) {
+  if (sp.type === 'bool') return v === true || v === 1 || v === '1' || v === 'true';
+  if (sp.type === 'select') return sp.options.some(o => o.v === v) ? v : sp.def;
+  let x = typeof v === 'string' ? parseFloat(v.replace(',', '.')) : +v;
+  if (!Number.isFinite(x)) return sp.def;
+  x = clamp(x, sp.min, sp.max);
+  x = sp.min + Math.round((x - sp.min) / sp.step) * sp.step;
+  return +clamp(x, sp.min, sp.max).toFixed(decimals(sp.step));
+}
+
+/* ==========================================================================
+   MODULATION · 8 LFOs + 3 Kreativ-Oszillatoren, Matrix, XY-Pad  → Etappe 2
+   AUDIO       · Mikrofon, Datei, Hüllkurven, Beat, Sonifikation → Etappe 2
+   Die Datenstruktur ist im State bereits reserviert (state.mods, state.audio).
+   ========================================================================== */
+
+/* ==========================================================================
+   STATE · ein serialisierbarer Zustand, Sanitizing, Undo, URL-Hash
+   ========================================================================== */
+const BLENDS = ['normal', 'multiply', 'add', 'difference', 'min', 'max', 'screen', 'xor'];
+const VIEWS = [
+  ['overlay', 'Auflösung'], ['split', 'Split'], ['stim', 'nur Reiz'], ['sim', 'nur Simulation'],
+];
+const MAX_LAYERS = 6;
+
+function defaultState() {
+  return {
+    v:1,
+    layers:[{ mod:Prisma.order[0], blend:'normal', opacity:1, visible:true }],
+    sel:0,
+    params:{},
+    reveal:{ on:false, view:'overlay', filter:null, split:0.5 },
+    mods:{}, audio:{}, camera:{},                // Etappen 2 und 4
+    quality:{ scale:1, light:false },
+  };
+}
+
+/** Prüft und repariert einen fremden Zustand (Hash, JSON-Import, Undo). */
+function sanitizeState(raw) {
+  const warn = [];
+  const s = defaultState();
+  if (!raw || typeof raw !== 'object') return { state:s, warnings:['Kein gültiger Zustand – Standardwerte geladen.'] };
+  if (Array.isArray(raw.layers)) {
+    const L = [];
+    for (const l of raw.layers.slice(0, MAX_LAYERS)) {
+      if (!l || !Prisma.get(l.mod)) { warn.push(`Unbekanntes Modul „${l && l.mod}“ übersprungen.`); continue; }
+      L.push({
+        mod:l.mod,
+        blend:BLENDS.includes(l.blend) ? l.blend : 'normal',
+        opacity:Number.isFinite(+l.opacity) ? clamp(+l.opacity, 0, 1) : 1,
+        visible:l.visible !== false,
+      });
+    }
+    if (raw.layers.length > MAX_LAYERS) warn.push(`Höchstens ${MAX_LAYERS} Ebenen – Rest verworfen.`);
+    const excl = L.find(l => Prisma.get(l.mod).layers === false);
+    if (excl && L.length > 1) { warn.push(`„${Prisma.get(excl.mod).name}“ ist exklusiv – andere Ebenen entfernt.`); L.splice(0, L.length, excl); }
+    if (L.length) s.layers = L;
+  }
+  s.sel = clamp(parseInt(raw.sel, 10) || 0, 0, s.layers.length - 1);
+  if (raw.params && typeof raw.params === 'object') {
+    for (const [k, v] of Object.entries(raw.params)) {
+      const sp = Specs.all[k];
+      if (!sp) { warn.push(`Unbekannter Parameter „${k}“ verworfen.`); continue; }
+      s.params[k] = parameterBounds(sp, v);
+    }
+  }
+  const r = raw.reveal || {};
+  s.reveal.on = !!r.on;
+  s.reveal.view = VIEWS.some(v => v[0] === r.view) ? r.view : 'overlay';
+  s.reveal.filter = typeof r.filter === 'string' ? r.filter : null;
+  s.reveal.split = Number.isFinite(+r.split) ? clamp(+r.split, 0.1, 0.9) : 0.5;
+  for (const k of ['mods', 'audio', 'camera']) if (raw[k] && typeof raw[k] === 'object') s[k] = raw[k];
+  if (raw.quality) {
+    s.quality.light = !!raw.quality.light;
+    s.quality.scale = Number.isFinite(+raw.quality.scale) ? clamp(+raw.quality.scale, 0.5, 1) : 1;
+  }
+  return { state:s, warnings:warn };
+}
+
+const State = {
+  s:null,
+  get layer() { return this.s.layers[this.s.sel]; },
+  get mod() { return Prisma.get(this.layer.mod); },
+  getParam(key) { const v = this.s.params[key]; return v === undefined ? Specs.all[key].def : v; },
+  setParam(key, v) {
+    const sp = Specs.all[key]; if (!sp) return;
+    const nv = parameterBounds(sp, v);
+    if (this.s.params[key] === nv) return;
+    this.s.params[key] = nv; changed({ history:true });
+  },
+  /** Lokale Parameteransicht eines Moduls: { len: 50, fin: 20, … } */
+  paramsOf(m) { const o = {}; for (const k of m.paramKeys) o[Specs.all[k].local] = this.getParam(k); return o; },
+  resetModule(m) { for (const k of m.paramKeys) delete this.s.params[k]; changed({ history:true, ui:true }); },
+  applyPreset(m, pr) {
+    for (const k of m.paramKeys) delete this.s.params[k];
+    for (const [lk, v] of Object.entries(pr.p || {})) { const k = m.paramKeys.find(x => Specs.all[x].local === lk); if (k) this.s.params[k] = parameterBounds(Specs.all[k], v); }
+    changed({ history:true, ui:true });
+  },
+  randomize(m) {
+    for (const k of m.paramKeys) {
+      const sp = Specs.all[k];
+      if (sp.type === 'range') this.s.params[k] = parameterBounds(sp, lerp(sp.min, sp.max, Math.random()));
+      else if (sp.type === 'bool') this.s.params[k] = Math.random() < 0.5;
+      else this.s.params[k] = sp.options[Math.floor(Math.random() * sp.options.length)].v;
+    }
+    changed({ history:true, ui:true });
+  },
+  setModule(id, { push = true } = {}) {
+    const m = Prisma.get(id); if (!m) return;
+    if (m.layers === false) this.s.layers = [{ mod:id, blend:'normal', opacity:1, visible:true }];
+    else this.layer.mod = id;
+    this.s.sel = Math.min(this.s.sel, this.s.layers.length - 1);
+    this.s.reveal.filter = m.compare[0] ? m.compare[0].id : null;    // Filter gehören zum Modul
+    changed({ history:true, ui:true, hashPush:push });
+  },
+  setReveal(on) {
+    if (this.s.reveal.on === on) return;
+    this.s.reveal.on = on; changed({ reveal:true });
+  },
+  snapshot() { return JSON.stringify(this.s); },
+};
+
+/** Undo: Signatur-Diff (identische Zustände werden nicht gestapelt) und Größenkappung. */
+const Hist = {
+  stack:[], idx:-1, bytes:0, MAX:80, MAXB:1.5e6, timer:0,
+  commitSoon() { clearTimeout(this.timer); this.timer = setTimeout(() => this.commit(), 350); },
+  commit() {
+    clearTimeout(this.timer);
+    const snap = State.snapshot();
+    if (this.stack[this.idx] === snap) return;
+    for (const dropped of this.stack.splice(this.idx + 1)) this.bytes -= dropped.length;
+    this.stack.push(snap); this.bytes += snap.length; this.idx = this.stack.length - 1;
+    while (this.stack.length > this.MAX || (this.bytes > this.MAXB && this.stack.length > 1)) { this.bytes -= this.stack.shift().length; this.idx--; }
+  },
+  go(d) {
+    this.commit();
+    const j = this.idx + d;
+    if (j < 0 || j >= this.stack.length) { Toast.show(d < 0 ? 'Nichts mehr rückgängig zu machen.' : 'Nichts zum Wiederherstellen.'); return; }
+    this.idx = j;
+    State.s = sanitizeState(JSON.parse(this.stack[j])).state;
+    changed({ ui:true, reveal:true });
+    Toast.show(d < 0 ? 'Rückgängig' : 'Wiederhergestellt');
+  },
+};
+
+/**
+ * URL-Hash: kurz und lesbar, beschreibt die sichtbare Ebene + Parameter + Reveal.
+ *   #m=hermann-gitter&r=1&v=split&f=dog&p=street:30,curve:0.5
+ */
+const Hash = {
+  timer:0, applying:false,
+  encode() {
+    const s = State.s, m = State.mod, parts = ['m=' + m.id];
+    if (s.reveal.on) parts.push('r=1');
+    if (s.reveal.view !== 'overlay') parts.push('v=' + s.reveal.view);
+    if (s.reveal.filter && s.reveal.filter !== (m.compare[0] && m.compare[0].id)) parts.push('f=' + encodeURIComponent(s.reveal.filter));
+    const ps = [];
+    for (const k of m.paramKeys) {
+      const sp = Specs.all[k], v = s.params[k];
+      if (v === undefined || v === sp.def) continue;
+      ps.push(sp.local + ':' + encodeURIComponent(sp.type === 'bool' ? (v ? 1 : 0) : v));
+    }
+    if (ps.length) parts.push('p=' + ps.join(','));
+    return '#' + parts.join('&');
+  },
+  write(push) {
+    clearTimeout(this.timer);
+    const go = () => { const h = this.encode(); if (location.hash !== h) history[push ? 'pushState' : 'replaceState'](null, '', h); };
+    if (push) go(); else this.timer = setTimeout(go, 250);
+  },
+  /** Liefert einen Teilzustand oder null, wenn der Hash kein Modul nennt. */
+  read() {
+    const h = location.hash.replace(/^#\/?/, ''); if (!h) return null;
+    const q = {}; for (const part of h.split('&')) { const i = part.indexOf('='); if (i > 0) q[part.slice(0, i)] = part.slice(i + 1); }
+    const m = Prisma.get(q.m);
+    if (!m) { if (q.m) Toast.show(`Unbekanntes Modul „${decodeURIComponent(q.m)}“ im Link.`, { err:true }); return null; }
+    const params = {};
+    if (q.p) for (const kv of q.p.split(',')) {
+      const i = kv.indexOf(':'); if (i < 0) continue;
+      const lk = kv.slice(0, i), raw = decodeURIComponent(kv.slice(i + 1));
+      const key = m.paramKeys.find(k => Specs.all[k].local === lk);
+      if (!key) continue;
+      const sp = Specs.all[key];
+      params[key] = sp.type === 'range' ? +raw : sp.type === 'bool' ? raw === '1' : raw;
+    }
+    return { mod:m, params, reveal:{ on:q.r === '1', view:q.v || 'overlay', filter:q.f ? decodeURIComponent(q.f) : (m.compare[0] ? m.compare[0].id : null), split:State.s ? State.s.reveal.split : 0.5 } };
+  },
+  apply() {
+    const r = this.read(); if (!r) return false;
+    const base = State.s || defaultState();
+    for (const k of r.mod.paramKeys) delete base.params[k];
+    const raw = { ...base, layers:[{ mod:r.mod.id, blend:'normal', opacity:1, visible:true }], sel:0, params:{ ...base.params, ...r.params }, reveal:r.reveal };
+    State.s = sanitizeState(raw).state;
+    return true;
+  },
+};
+
+/** Zentrale Änderungsmeldung – hält Bühne, Panel, Hash und Undo synchron. */
+function changed({ history = false, ui = false, reveal = false, hashPush = false } = {}) {
+  Engine.dirty = true;
+  if (history) Hist.commitSoon();
+  Hash.write(hashPush);
+  if (ui) UI.refresh();
+  else if (reveal) UI.refreshReveal();
+  else UI.refreshValues();
+}
+
+/* ==========================================================================
+   RENDER-2D · Zeichenhilfen (H), Ebenen-Cache, Komposition, Reveal, Filter
+   ========================================================================== */
+/** Zeichenhilfen für Reveal-Overlays. Alle Maße in CSS-Pixeln. */
+const H = {
+  CYAN:'#22d3ee', AMBER:'#f59e0b',
+  dash(ctx) { ctx.setLineDash([6, 5]); },
+  line(ctx, x1, y1, x2, y2, { color = H.CYAN, width = 1.5, dashed = true } = {}) {
+    ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width; if (dashed) H.dash(ctx);
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); ctx.restore();
+  },
+  circle(ctx, x, y, r, { color = H.CYAN, width = 1.5, dashed = true } = {}) {
+    ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width; if (dashed) H.dash(ctx);
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+  },
+  /** Textplakette mit dunklem Grund – lesbar über jedem Reiz. */
+  badge(ctx, x, y, text, { color = H.CYAN, align = 'center', size = 12 } = {}) {
+    ctx.save();
+    ctx.font = `600 ${size}px ui-monospace,Menlo,Consolas,monospace`;
+    const w = ctx.measureText(text).width + 12, h = size + 9;
+    const x0 = align === 'center' ? x - w / 2 : align === 'right' ? x - w : x;
+    ctx.fillStyle = 'rgba(8,10,13,.86)'; ctx.strokeStyle = color; ctx.lineWidth = 1; ctx.setLineDash([]);
+    ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(x0, y - h / 2, w, h, 5); else ctx.rect(x0, y - h / 2, w, h);
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = color; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+    ctx.fillText(text, x0 + 6, y + 0.5);
+    ctx.restore();
+  },
+  /** Gestrichelte Messstrecke mit Endmarken und Plakette. */
+  measure(ctx, x1, y1, x2, y2, label, { color = H.CYAN, off = -14 } = {}) {
+    const a = Math.atan2(y2 - y1, x2 - x1), nx = -Math.sin(a), ny = Math.cos(a), t = 6;
+    H.line(ctx, x1, y1, x2, y2, { color });
+    H.line(ctx, x1 - nx * t, y1 - ny * t, x1 + nx * t, y1 + ny * t, { color, dashed:false });
+    H.line(ctx, x2 - nx * t, y2 - ny * t, x2 + nx * t, y2 + ny * t, { color, dashed:false });
+    if (label) H.badge(ctx, (x1 + x2) / 2 + nx * off, (y1 + y2) / 2 + ny * off, label, { color });
+  },
+  /** Kleines Liniendiagramm (z. B. Helligkeitsprofil). series: [{ data:[0..1], color }] */
+  plot(ctx, x, y, w, h, series, { title = '', ticks = [] } = {}) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(8,10,13,.93)'; ctx.strokeStyle = '#3a414d'; ctx.lineWidth = 1;
+    ctx.fillRect(x, y, w, h); ctx.strokeRect(x + .5, y + .5, w - 1, h - 1);
+    const px = x + 8, pw = w - 16, py = y + 22, ph = h - 30;
+    ctx.strokeStyle = 'rgba(245,158,11,.55)'; ctx.setLineDash([2, 3]);
+    for (const tk of ticks) { const tx = px + tk * pw; ctx.beginPath(); ctx.moveTo(tx, py); ctx.lineTo(tx, py + ph); ctx.stroke(); }
+    ctx.setLineDash([]);
+    for (const s of series) {
+      if (!s.data || !s.data.length) continue;
+      ctx.strokeStyle = s.color; ctx.lineWidth = 1.6; ctx.beginPath();
+      s.data.forEach((v, i) => { const X = px + i / (s.data.length - 1) * pw, Y = py + 4 + (1 - clamp(v, 0, 1)) * (ph - 8); i ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); });
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#c9d1d9'; ctx.font = '11px system-ui,sans-serif'; ctx.textBaseline = 'top';
+    ctx.fillText(title, x + 8, y + 6);
+    ctx.restore();
+  },
+};
+
+/** Bildfilter für die Vergleichsansicht („Wahrnehmungssimulation“). */
+const Filters = {
+  boxes(sigma, n = 3) {     // Box-Breiten, deren dreifache Faltung einer Gaußglocke nahekommt
+    const wIdeal = Math.sqrt(12 * sigma * sigma / n + 1);
+    let wl = Math.floor(wIdeal); if (wl % 2 === 0) wl--; wl = Math.max(1, wl);
+    const wu = wl + 2, m = Math.round((12 * sigma * sigma - n * wl * wl - 4 * n * wl - 3 * n) / (-4 * wl - 4));
+    return Array.from({ length:n }, (_, i) => i < m ? wl : wu);
+  },
+  blur1(src, dst, w, h, r, horiz) {
+    const inv = 1 / (2 * r + 1);
+    const n = horiz ? w : h, lines = horiz ? h : w, st = horiz ? 1 : w, ls = horiz ? w : 1;
+    for (let l = 0; l < lines; l++) {
+      const o = l * ls; let acc = 0;
+      for (let k = -r; k <= r; k++) acc += src[o + clamp(k, 0, n - 1) * st];
+      for (let i = 0; i < n; i++) {
+        dst[o + i * st] = acc * inv;
+        acc += src[o + Math.min(i + r + 1, n - 1) * st] - src[o + Math.max(i - r, 0) * st];
+      }
+    }
+  },
+  gauss(src, w, h, sigma) {
+    const a = Float32Array.from(src); if (sigma < 0.35) return a;
+    const b = new Float32Array(a.length);
+    for (const bs of this.boxes(sigma)) { const r = (bs - 1) >> 1; if (!r) continue; this.blur1(a, b, w, h, r, true); this.blur1(b, a, w, h, r, false); }
+    return a;
+  },
+  /** Differenz zweier Gaußfilter: Modell eines Zentrum-Umfeld-Rezeptivfelds. */
+  dog(img, w, h, o) {
+    const d = img.data, n = w * h, lum = new Float32Array(n);
+    for (let i = 0; i < n; i++) lum[i] = (0.2126 * d[4 * i] + 0.7152 * d[4 * i + 1] + 0.0722 * d[4 * i + 2]) / 255;
+    const c = this.gauss(lum, w, h, o.sigmaC), s = this.gauss(lum, w, h, o.sigmaS), wS = o.w != null ? o.w : 0.9;
+    const B = new Float32Array(n); let mean = 0;
+    for (let i = 0; i < n; i++) { B[i] = c[i] - wS * s[i]; mean += B[i]; }
+    mean /= n; let v = 0; for (let i = 0; i < n; i++) v += (B[i] - mean) ** 2;
+    const sd = Math.sqrt(v / n) || 1, out = new Float32Array(n);
+    for (let i = 0; i < n; i++) { const g = clamp(0.5 + (B[i] - mean) / (6 * sd), 0, 1); out[i] = g; const c8 = g * 255; d[4 * i] = d[4 * i + 1] = d[4 * i + 2] = c8; d[4 * i + 3] = 255; }
+    return out;
+  },
+  blur(img, w, h, o) {
+    const d = img.data, n = w * h, ch = [0, 1, 2].map(k => { const a = new Float32Array(n); for (let i = 0; i < n; i++) a[i] = d[4 * i + k]; return this.gauss(a, w, h, o.sigma); });
+    const out = new Float32Array(n);
+    for (let i = 0; i < n; i++) { d[4 * i] = ch[0][i]; d[4 * i + 1] = ch[1][i]; d[4 * i + 2] = ch[2][i]; d[4 * i + 3] = 255; out[i] = (0.2126 * ch[0][i] + 0.7152 * ch[1][i] + 0.0722 * ch[2][i]) / 255; }
+    return out;
+  },
+};
+
+const Engine = {
+  cv:null, ctx:null, stim:null, sctx:null,
+  W:0, H:0, dpr:1, T:0, last:0, paused:false, dirty:true, timeScale:1,
+  rts:[], compSig:'', stimVer:0, stimData:null, stimDataVer:-1, sim:null, simAt:0,
+  fps:{ n:0, t0:0, v:0, slow:0 },
+
+  init() {
+    this.cv = document.getElementById('cv');
+    this.ctx = this.cv.getContext('2d', { alpha:false });
+    if (!this.ctx) throw new Error('Canvas 2D wird nicht unterstützt.');
+    this.stim = document.createElement('canvas');
+    this.sctx = this.stim.getContext('2d', { alpha:false, willReadFrequently:true });   // Reveal-Profile lesen Pixel
+    new ResizeObserver(() => this.resize()).observe(this.cv);
+    this.resize();
+    const rm = matchMedia('(prefers-reduced-motion: reduce)');
+    const upd = () => { this.timeScale = rm.matches ? 0.3 : 1; };
+    upd(); rm.addEventListener && rm.addEventListener('change', upd);
+    requestAnimationFrame(t => this.frame(t));
+  },
+  resize() {
+    const r = this.cv.getBoundingClientRect(), q = State.s.quality;
+    const dpr = (q.light ? 1 : Math.min(devicePixelRatio || 1, 2)) * q.scale;
+    this.W = Math.max(1, r.width); this.H = Math.max(1, r.height); this.dpr = dpr;
+    const dw = Math.max(1, Math.round(this.W * dpr)), dh = Math.max(1, Math.round(this.H * dpr));
+    if (this.cv.width !== dw || this.cv.height !== dh) { this.cv.width = this.stim.width = dw; this.cv.height = this.stim.height = dh; }
+    this.dirty = true;
+  },
+  size() { return { w:this.W, h:this.H, dpr:this.dpr }; },
+
+  /** Laufzeitobjekt einer Ebene: eigener Offscreen-Cache + modulinterner Zustand `st`. */
+  runtime(i, L) {
+    const m = Prisma.get(L.mod);
+    let rt = this.rts[i];
+    if (!rt || rt.mod !== m.id) {
+      const cv = document.createElement('canvas');
+      rt = this.rts[i] = { mod:m.id, st:{}, cv, ctx:cv.getContext('2d'), sig:'', err:null };
+      if (m.init) try { m.init(State.paramsOf(m), rt.st); } catch (e) { rt.err = e.message; Report.error(m.name + ' · init', e); }
+    }
+    return rt;
+  },
+  /** Rendert eine Ebene nur neu, wenn sich ihre Signatur ändert (Offscreen-Caching statischer Bilder). */
+  renderLayer(i, L) {
+    const m = Prisma.get(L.mod), rt = this.runtime(i, L), p = State.paramsOf(m);
+    // `rev` nur in der Overlay-Ansicht: die Simulation soll immer den unveränderten Reiz sehen
+    const anim = Prisma.isAnimated(m, p), rev = State.s.reveal.on && this.view() === 'overlay';
+    const sig = JSON.stringify(p) + `|${this.cv.width}x${this.cv.height}|${rev}` + (anim ? '|' + this.T.toFixed(4) : '');
+    if (rt.cv.width !== this.cv.width || rt.cv.height !== this.cv.height) { rt.cv.width = this.cv.width; rt.cv.height = this.cv.height; rt.sig = ''; }
+    if (sig === rt.sig) return rt;
+    const c = rt.ctx;
+    c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
+    c.clearRect(0, 0, rt.cv.width, rt.cv.height);
+    c.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    try { c.save(); m.render(c, this.size(), p, this.T, rev, { st:rt.st, H, layer:L }); rt.err = null; }
+    catch (e) { rt.err = e.message; Report.error(m.name + ' · render', e); }
+    finally { c.restore(); }
+    rt.sig = sig;
+    return rt;
+  },
+  /** Ebenen-Komposition. 'xor' ist im 2D-Pfad als 'exclusion' angenähert (echtes XOR im WebGL-Pfad, Etappe 3). */
+  BLEND_OP:{ normal:'source-over', multiply:'multiply', add:'lighter', difference:'difference', min:'darken', max:'lighten', screen:'screen', xor:'exclusion' },
+  composite() {
+    const L = State.s.layers, parts = [];
+    const rts = L.map((l, i) => { const rt = this.renderLayer(i, l); parts.push(rt.sig + l.blend + l.opacity + l.visible); return rt; });
+    this.rts.length = L.length;
+    const sig = parts.join('#');
+    if (sig === this.compSig) return;
+    const c = this.sctx;
+    c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
+    c.fillStyle = '#000'; c.fillRect(0, 0, this.stim.width, this.stim.height);
+    L.forEach((l, i) => {
+      if (!l.visible) return;
+      c.globalCompositeOperation = i === 0 ? 'source-over' : this.BLEND_OP[l.blend];
+      c.globalAlpha = l.opacity; c.drawImage(rts[i].cv, 0, 0);
+    });
+    c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
+    this.compSig = sig; this.stimVer++;
+  },
+
+  /** Leuchtdichte des Reizes (0..1) an CSS-Koordinate – liest den Komposit, nie das Overlay. */
+  sampleStim(x, y) {
+    if (this.stimDataVer !== this.stimVer) { this.stimData = this.sctx.getImageData(0, 0, this.stim.width, this.stim.height); this.stimDataVer = this.stimVer; }
+    const W = this.stimData.width, Hh = this.stimData.height;
+    const X = clamp(Math.floor(x * this.dpr), 0, W - 1), Y = clamp(Math.floor(y * this.dpr), 0, Hh - 1), i = 4 * (Y * W + X), d = this.stimData.data;
+    return (0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]) / 255;
+  },
+  activeFilter() {
+    const m = State.mod, id = State.s.reveal.filter;
+    return m.compare.find(c => c.id === id) || m.compare[0] || null;
+  },
+  /** Wahrnehmungssimulation des Komposits, gecacht; bei Animation höchstens alle 120 ms neu. */
+  getSim() {
+    const f = this.activeFilter(); if (!f) return null;
+    const m = State.mod, p = State.paramsOf(m), rt = this.rts[State.s.sel];
+    let o;
+    try { o = typeof f.opts === 'function' ? f.opts(p, this.size(), rt ? rt.st : {}) : (f.opts || {}); }
+    catch (e) { Report.error(m.name + ' · Vergleich', e); return null; }
+    const key = `${this.stimVer}|${f.id}|${JSON.stringify(o)}`;
+    if (this.sim && this.sim.key === key) return this.sim;
+    const now = performance.now();
+    if (this.sim && this.sim.fid === f.id && Prisma.isAnimated(m, p) && now - this.simAt < 120) return this.sim;
+    const smallest = Math.max(0.6, Math.min(o.sigmaC || 99, o.sigma || 99));
+    let res = clamp(1.4 / (smallest * this.dpr), 0.1, 1);
+    res = Math.min(res, 760 / Math.max(this.stim.width, this.stim.height));
+    const sw = Math.max(8, Math.round(this.stim.width * res)), sh = Math.max(8, Math.round(this.stim.height * res));
+    const cv = (this.sim && this.sim.cv) || document.createElement('canvas');
+    cv.width = sw; cv.height = sh;
+    const c = cv.getContext('2d', { willReadFrequently:true });
+    c.imageSmoothingEnabled = true; c.drawImage(this.stim, 0, 0, sw, sh);
+    const img = c.getImageData(0, 0, sw, sh), k = sw / this.W;            // Simulationspixel je CSS-Pixel
+    const so = { ...o }; for (const s of ['sigma', 'sigmaC', 'sigmaS']) if (so[s] != null) so[s] *= k;
+    let vals;
+    try { vals = Filters[f.filter](img, sw, sh, so); }
+    catch (e) { Report.error('Filter ' + f.filter, e); return null; }
+    c.putImageData(img, 0, 0);
+    this.sim = { key, fid:f.id, cv, vals, w:sw, h:sh, k, name:f.name };
+    this.simAt = now;
+    return this.sim;
+  },
+  sampleSim(x, y) {
+    const s = this.getSim(); if (!s) return null;
+    return s.vals[clamp(Math.floor(y * s.k), 0, s.h - 1) * s.w + clamp(Math.floor(x * s.k), 0, s.w - 1)];
+  },
+  view() {
+    const v = State.s.reveal.view;
+    return (v === 'split' || v === 'sim') && !this.activeFilter() ? 'overlay' : v;
+  },
+  anyAnimated() { return State.s.layers.some(l => { const m = Prisma.get(l.mod); return l.visible && Prisma.isAnimated(m, State.paramsOf(m)); }); },
+
+  draw() {
+    this.composite();
+    const c = this.ctx, dw = this.cv.width, dh = this.cv.height, R = State.s.reveal;
+    c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
+    c.drawImage(this.stim, 0, 0);
+    if (R.on) {
+      const view = this.view();
+      if (view === 'sim' || view === 'split') {
+        const s = this.getSim();
+        if (s) {
+          c.imageSmoothingEnabled = true;
+          if (view === 'sim') c.drawImage(s.cv, 0, 0, dw, dh);
+          else { const sx = Math.round(R.split * dw); c.drawImage(s.cv, sx / dw * s.w, 0, s.w - sx / dw * s.w, s.h, sx, 0, dw - sx, dh); }
+        }
+      }
+      if (view === 'overlay' || view === 'split') this.drawReveal(view === 'split' ? R.split * this.W : null);
+      if (view === 'split' || view === 'sim') this.drawSplitChrome(view);
+    }
+    this.drawErrors();
+  },
+  drawReveal(clipW) {
+    const c = this.ctx;
+    State.s.layers.forEach((L, i) => {
+      if (!L.visible) return;
+      const m = Prisma.get(L.mod), rt = this.rts[i];
+      if (!m.reveal || !rt || rt.err) return;
+      c.save(); c.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+      if (clipW != null) { c.beginPath(); c.rect(0, 0, clipW, this.H); c.clip(); }
+      try {
+        m.reveal({ ctx:c, size:this.size(), st:rt.st, H, view:this.view(), stim:(x, y) => this.sampleStim(x, y), sim:(x, y) => this.sampleSim(x, y), filterName:(this.activeFilter() || {}).name }, State.paramsOf(m), this.T);
+      } catch (e) { Report.error(m.name + ' · reveal', e); }
+      c.restore();
+    });
+  },
+  drawSplitChrome(view) {
+    const c = this.ctx, f = this.activeFilter(); if (!f) return;
+    c.save(); c.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    if (view === 'split') {
+      const x = State.s.reveal.split * this.W;
+      c.fillStyle = H.CYAN; c.fillRect(x - 1, 0, 2, this.H);
+      c.beginPath(); c.arc(x, this.H / 2, 12, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#001318'; c.font = '700 13px system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('⇔', x, this.H / 2 + 1);
+      H.badge(c, Math.max(8, x - 10), 92, 'Reiz', { align:'right', color:'#e6e8eb' });
+      H.badge(c, Math.min(this.W - 8, x + 10), 92, f.name, { align:'left' });
+    } else H.badge(c, this.W / 2, 92, 'Simulation: ' + f.name);
+    c.restore();
+  },
+  drawErrors() {
+    const errs = this.rts.filter(rt => rt && rt.err); if (!errs.length) return;
+    const c = this.ctx; c.save(); c.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    errs.forEach((rt, i) => H.badge(c, 12, 84 + i * 24, `⚠ ${Prisma.get(rt.mod).name}: ${rt.err}`, { align:'left', color:'#f87171' }));
+    c.restore();
+  },
+
+  frame(now) {
+    requestAnimationFrame(t => this.frame(t));
+    const dt = Math.min(0.1, (now - (this.last || now)) / 1000); this.last = now;
+    const anim = this.anyAnimated();
+    if (anim && !this.paused) { this.T += dt * this.timeScale; this.dirty = true; }
+    const f = this.fps;
+    if (this.dirty) {
+      this.dirty = false;
+      try { this.draw(); } catch (e) { Report.error('Render', e); }
+      f.n++;
+    }
+    if (now - f.t0 > 500) {
+      f.v = f.n * 1000 / (now - f.t0); f.n = 0; f.t0 = now;
+      UI.fps(anim && !this.paused ? `${Math.round(f.v)} fps` : 'statisch', `${this.cv.width}×${this.cv.height}`);
+      // Adaptive Auflösung: bei anhaltend < 28 fps schrittweise herunter
+      if (anim && !this.paused && f.v < 28) { if (++f.slow >= 4 && State.s.quality.scale > 0.5) { State.s.quality.scale = +(State.s.quality.scale - 0.1).toFixed(2); f.slow = 0; this.resize(); Toast.show(`Auflösung auf ${Math.round(State.s.quality.scale * 100)} % gesenkt (adaptiv).`); } }
+      else f.slow = 0;
+    }
+  },
+};
+
+/* ==========================================================================
+   MODULE · Illusionen (Etappe 1: drei Referenzportierungen)
+   ========================================================================== */
+
+/* ---------- Müller-Lyer ---------- */
+safeRegister({
+  id:'mueller-lyer', cat:'size', name:'Müller-Lyer-Täuschung',
+  short:'Zwei gleich lange Linien – die mit den Schwänzen wirkt länger.',
+  hint:'Stelle mit „Abgleich“ die untere Linie so ein, dass beide gleich lang wirken – dann Space zum Auflösen.',
+  desc:'Zwei waagerechte Linien sind exakt gleich lang. Die obere trägt nach innen weisende Pfeilspitzen, die untere nach außen weisende Schwänze. Fast alle Betrachter sehen die untere deutlich länger – auch wenn sie wissen, dass beide gleich sind.',
+  why:'Es gibt keine einzelne, allgemein akzeptierte Erklärung; mehrere Mechanismen tragen nachweislich bei.\n\n1 · Fehlangewandte Größenkonstanz (Gregory 1963): Pfeilspitzen ähneln der nahen Außenkante eines Gebäudes, Schwänze der fernen Innenecke eines Raums. Das Sehsystem skaliert vermeintlich Fernes hoch – der Schaft mit Schwänzen wirkt länger.\n\n2 · Schwerpunkt- bzw. Tiefpass-Erklärung (Morgan, Hole & Glennerster 1990): Werden Positionen mit grob auflösenden Filtern geschätzt, liegt der „Endpunkt“ im Schwerpunkt von Schaft und Flossen. Schwänze ziehen ihn nach außen, Spitzen nach innen. Im Reveal zeigt der Vergleich „Tiefpass“ genau das. Die Brentano-Variante ohne getrennte Linien funktioniert ebenso – ein Hinweis, dass Tiefeninterpretation nicht die ganze Geschichte ist.\n\n3 · Erfahrung und Umwelt: Segall, Campbell & Herskovits (1966) fanden in Gesellschaften mit wenig rechtwinkliger Architektur schwächere Täuschungen. Der Befund ist berühmt, seine Deutung aber bis heute umstritten.\n\nDie Täuschung wächst mit längeren Flossen und spitzeren Winkeln – prüfe es mit den Reglern und deinem Abgleich.',
+  mechanism:['constancy', 'centroid', 'culture'],
+  sources:[
+    'Müller-Lyer, F. C. (1889). Optische Urteilstäuschungen. Archiv für Anatomie und Physiologie, Physiologische Abteilung, Supplement, 263–270.',
+    'Gregory, R. L. (1963). Distortion of visual space as inappropriate constancy scaling. Nature, 199, 678–680.',
+    'Morgan, M. J., Hole, G. J. & Glennerster, A. (1990). Biases and sensitivities in geometrical illusions. Vision Research, 30, 1793–1810.',
+    'Segall, M. H., Campbell, D. T. & Herskovits, M. J. (1966). The Influence of Culture on Visual Perception. Indianapolis: Bobbs-Merrill.',
+  ],
+  params:[
+    { key:'len', label:'Schaftlänge', min:20, max:80, step:1, def:50, unit:'% Breite', group:'Geometrie', didactic:'Die Täuschung wächst mit der Länge mit – der relative Fehler bleibt etwa gleich.' },
+    { key:'fin', label:'Flossenlänge', min:0, max:45, step:1, def:20, unit:'% Schaft', group:'Geometrie', didactic:'Ohne Flossen (0 %) verschwindet die Täuschung; längere Flossen verstärken sie.' },
+    { key:'angle', label:'Flossenwinkel', min:10, max:88, step:1, def:35, unit:'°', group:'Geometrie', didactic:'Spitze Winkel täuschen stärker; nahe 90° wird der Effekt sehr klein.' },
+    { key:'adjust', label:'Abgleich Linie B', min:-40, max:40, step:0.5, def:0, unit:'%', group:'Messung', didactic:'Herstellungsmethode: Der Wert, bei dem beide gleich wirken, misst die Täuschungsstärke direkt.' },
+    { key:'lw', label:'Strichstärke', min:1, max:8, step:0.5, def:3, unit:'px', group:'Darstellung' },
+    { key:'layout', type:'select', label:'Anordnung', def:'stacked', group:'Darstellung', options:[{ v:'stacked', label:'Übereinander' }, { v:'brentano', label:'Brentano (eine Linie)' }], didactic:'Brentano-Form: beide Strecken teilen sich den mittleren Knoten.' },
+    { key:'finColor', type:'bool', label:'Flossen farbig absetzen', def:false, group:'Darstellung', didactic:'Lässt sich die Flosse leichter vom Schaft trennen, wird die Täuschung oft schwächer – teste es.' },
+  ],
+  presets:[
+    { name:'Klassisch', p:{} },
+    { name:'Stark (spitz, lang)', p:{ fin:32, angle:22 } },
+    { name:'Brentano', p:{ layout:'brentano', len:70 } },
+    { name:'Ohne Flossen', p:{ fin:0 } },
+  ],
+  compare:[{ id:'blur', name:'Tiefpass (Schwerpunkt)', filter:'blur', opts:(p, S) => ({ sigma:Math.max(3, Math.min(S.w, S.h * 1.8) * p.len / 100 * Math.max(p.fin, 8) / 100 * 0.45) }) }],
+  render(ctx, S, p, t, rev, { st }) {
+    ctx.fillStyle = '#f3efe6'; ctx.fillRect(0, 0, S.w, S.h);
+    const base = Math.min(S.w, S.h * 1.8) * (p.layout === 'brentano' ? 0.5 : 1);
+    const L = base * p.len / 100, L2 = L * (1 + p.adjust / 100), F = L * p.fin / 100, a = p.angle * Math.PI / 180;
+    const cx = S.w / 2, shafts = [];
+    if (p.layout === 'brentano') {
+      const x0 = cx - (L + L2) / 2, y = S.h * 0.45;
+      shafts.push({ x1:x0, x2:x0 + L, y, ends:['head', 'head'], name:'A' }, { x1:x0 + L, x2:x0 + L + L2, y, ends:['tail', 'tail'], name:'B' });
+    } else {
+      shafts.push({ x1:cx - L / 2, x2:cx + L / 2, y:S.h * 0.36, ends:['head', 'head'], name:'A' },
+                  { x1:cx - L2 / 2, x2:cx + L2 / 2, y:S.h * 0.58, ends:['tail', 'tail'], name:'B' });
+    }
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = p.lw;
+    const fin = (x, y, dir) => { ctx.moveTo(x, y); ctx.lineTo(x + dir * F * Math.cos(a), y - F * Math.sin(a)); ctx.moveTo(x, y); ctx.lineTo(x + dir * F * Math.cos(a), y + F * Math.sin(a)); };
+    for (const s of shafts) {
+      ctx.strokeStyle = '#17181a'; ctx.globalAlpha = 1;
+      ctx.beginPath(); ctx.moveTo(s.x1, s.y); ctx.lineTo(s.x2, s.y); ctx.stroke();
+      ctx.strokeStyle = p.finColor ? '#d9480f' : '#17181a'; ctx.globalAlpha = rev ? 0.28 : 1;
+      ctx.beginPath();
+      fin(s.x1, s.y, s.ends[0] === 'head' ? 1 : -1);   // Spitze am linken Ende: Flossen nach rechts
+      fin(s.x2, s.y, s.ends[1] === 'head' ? -1 : 1);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    st.geo = { shafts, L, L2, F, a };
+  },
+  reveal({ ctx, size:S, st }, p) {
+    const g = st.geo; if (!g) return;
+    const lift = g.F * Math.sin(g.a) + 16;
+    for (const s of g.shafts) H.measure(ctx, s.x1, s.y, s.x2, s.y, `${s.name}: ${fmt(s.x2 - s.x1)} px`, { off:-lift });
+    const xs = [...new Set(g.shafts.flatMap(s => [s.x1, s.x2]).map(x => Math.round(x * 10) / 10))];
+    const y0 = Math.min(...g.shafts.map(s => s.y)) - lift - 20, y1 = Math.max(...g.shafts.map(s => s.y)) + lift;
+    if (p.layout === 'stacked') for (const x of [g.shafts[0].x1, g.shafts[0].x2]) H.line(ctx, x, y0, x, y1, { color:H.AMBER });
+    else for (const x of xs) H.line(ctx, x, y0, x, y1, { color:H.AMBER });
+    const r = g.L2 / g.L;
+    H.badge(ctx, S.w / 2, y1 + 26, Math.abs(r - 1) < 1e-6 ? 'A = B  (physikalisch gleich lang)' : `B / A = ${fmt(r, 3)}`, { color:H.AMBER, size:13 });
+  },
+  measure(p, t, st) {
+    const g = st.geo; if (!g) return [];
+    const rows = [
+      { k:'Schaft A (Spitzen)', v:fmt(g.L, 1) + ' px' },
+      { k:'Schaft B (Schwänze)', v:fmt(g.L2, 1) + ' px' },
+      { k:'Verhältnis B / A', v:fmt(g.L2 / g.L, 3) },
+      { k:'Flossen', v:`${p.fin} % · ${p.angle}°` },
+      { k:'Dein Abgleich', v:(p.adjust > 0 ? '+' : '') + fmt(p.adjust, 1) + ' %' },
+    ];
+    rows.push({ note: p.adjust < 0 ? `B musste um ${fmt(-p.adjust, 1)} % verkürzt werden, um gleich zu wirken → Täuschungsstärke ≈ ${fmt(-p.adjust, 1)} %.`
+      : p.adjust > 0 ? 'B wurde verlängert – ungewöhnlich: für dich wirkte B kürzer.' : 'Noch nicht abgeglichen. Verschiebe „Abgleich“, bis A und B gleich wirken.' });
+    return rows;
+  },
+});
+
+/* ---------- Hermann-Gitter ---------- */
+safeRegister({
+  id:'hermann-gitter', cat:'light', name:'Hermann-Gitter',
+  short:'Graue Flecken an den Kreuzungen – nur dort, wo du nicht hinschaust.',
+  hint:'Lass den Blick über das Gitter wandern; schiebe dann „Wellung“ hoch und vergleiche im Reveal das DoG-Modell.',
+  desc:'Ein regelmäßiges Gitter aus dunklen Quadraten und hellen Straßen. An den Kreuzungen erscheinen flüchtige graue Flecken – außer an der Kreuzung, die man gerade fixiert. Mit weißen Punkten auf grauen Straßen wird daraus das szintillierende Gitter: Die Punkte blitzen schwarz auf.',
+  why:'Klassische Erklärung – laterale Hemmung (Baumgartner 1960): Eine retinale Ganglienzelle mit erregendem Zentrum und hemmendem Umfeld „sieht“ an einer Kreuzung vier helle Arme im Umfeld, in der Straße nur zwei. Mehr Hemmung, schwächere Antwort – die Kreuzung wirkt dunkler. Das DoG-Modell im Reveal (Differenz zweier Gaußfilter) rechnet genau das nach; das Profil zeigt: Die Leuchtdichte ist überall gleich, nur die Modellantwort sinkt an den Kreuzungen.\n\nWarum das nicht alles ist: Die Stärke hängt kaum von der Gittergröße ab, obwohl rezeptive Felder zur Peripherie wachsen (Schiller & Carvey 2005). Und leicht gewellte Straßen löschen die Flecken fast vollständig aus, obwohl die Zentrum-Umfeld-Bilanz gleich bleibt (Geier, Bernáth, Hudák & Séra 2008). Schiebe „Wellung“ hoch: Das DoG-Modell sagt weiterhin Flecken voraus – deine Wahrnehmung nicht.\n\nHeute gilt: Retinale Hemmung liefert einen Beitrag, entscheidend sind aber orientierungsselektive Mechanismen im visuellen Kortex, die gerade, durchgehende Kanten bevorzugen. Das szintillierende Gitter (Schrauf, Lingelbach & Wist 1997) zeigt, dass zusätzlich zeitliche Faktoren wie Blickbewegungen mitspielen.',
+  mechanism:['lateral', 'orient'],
+  sources:[
+    'Hermann, L. (1870). Eine Erscheinung simultanen Contrastes. Pflügers Archiv für die gesamte Physiologie, 3, 13–15.',
+    'Baumgartner, G. (1960). Indirekte Größenbestimmung der rezeptiven Felder der Retina beim Menschen mittels der Hermannschen Gittertäuschung. Pflügers Archiv, 272, 21–22.',
+    'Schrauf, M., Lingelbach, B. & Wist, E. R. (1997). The scintillating grid illusion. Vision Research, 37, 1033–1038.',
+    'Schiller, P. H. & Carvey, C. E. (2005). The Hermann grid illusion revisited. Perception, 34, 1375–1397.',
+    'Geier, J., Bernáth, L., Hudák, M. & Séra, L. (2008). Straightness as the main factor of the Hermann grid illusion. Perception, 37, 651–665.',
+  ],
+  params:[
+    { key:'cell', label:'Quadratgröße', min:16, max:140, step:1, def:62, unit:'px', group:'Geometrie', didactic:'Die Täuschung bleibt über einen großen Größenbereich erhalten – ein Problem für die reine Rezeptivfeld-Erklärung.' },
+    { key:'street', label:'Straßenbreite', min:6, max:60, step:1, def:22, unit:'% Quadrat', group:'Geometrie', didactic:'Sehr breite Straßen schwächen die Flecken: Das Umfeld liegt dann ganz auf der Straße.' },
+    { key:'curve', label:'Wellung', min:0, max:1, step:0.01, def:0, unit:'', group:'Geometrie', didactic:'Geier et al. (2008): schon leichte Wellung löscht die Flecken – das DoG-Modell sagt sie trotzdem voraus.' },
+    { key:'contrast', label:'Kontrast', min:0.05, max:1, step:0.01, def:1, unit:'', group:'Helligkeit', didactic:'Weniger Kontrast → schwächere Flecken, im Modell wie in der Wahrnehmung.' },
+    { key:'polarity', type:'select', label:'Polarität', def:'dark', group:'Helligkeit', options:[{ v:'dark', label:'Dunkle Quadrate' }, { v:'light', label:'Helle Quadrate' }], didactic:'Umgekehrte Polarität: helle Flecken auf dunklen Kreuzungen.' },
+    { key:'scint', type:'bool', label:'Szintillierend (Punkte)', def:false, group:'Variante', didactic:'Schrauf et al. (1997): weiße Scheiben auf grauen Straßen blitzen schwarz auf.' },
+    { key:'dot', label:'Punktgröße', min:0.3, max:1.4, step:0.01, def:0.8, unit:'× Straße', group:'Variante' },
+  ],
+  presets:[
+    { name:'Klassisch', p:{} },
+    { name:'Szintillierend (Schrauf 1997)', p:{ scint:true, street:24, cell:56 } },
+    { name:'Gewellt (Geier 2008)', p:{ curve:0.55 } },
+    { name:'Feines Raster', p:{ cell:24, street:26 } },
+  ],
+  compare:[
+    { id:'dog', name:'Laterale Hemmung (DoG)', filter:'dog', opts:(p, S, st) => { const sw = st.geo ? st.geo.sw : 12; return { sigmaC:sw * 0.22, sigmaS:sw * 0.9, w:0.92 }; } },
+    { id:'blur', name:'Periphere Unschärfe', filter:'blur', opts:(p, S, st) => ({ sigma:(st.geo ? st.geo.sw : 12) * 0.5 }) },
+  ],
+  render(ctx, S, p, t, rev, { st }) {
+    const c = p.contrast, lo = 0.5 - 0.5 * c, hi = 0.5 + 0.5 * c;
+    let sq = p.polarity === 'dark' ? lo : hi, road = p.polarity === 'dark' ? hi : lo;
+    if (p.scint) road = 0.5 + (road - 0.5) * 0.25;             // graue Straßen fürs szintillierende Gitter
+    const cell = p.cell, sw = cell * p.street / 100, pitch = cell + sw;
+    const cx = S.w / 2, cy = S.h / 2, A = p.curve * pitch * 0.1;
+    ctx.fillStyle = gray(sq); ctx.fillRect(0, 0, S.w, S.h);
+    ctx.strokeStyle = gray(road); ctx.lineWidth = sw; ctx.lineCap = 'butt';
+    const kx0 = Math.floor(-cx / pitch) - 1, kx1 = Math.ceil((S.w - cx) / pitch) + 1;
+    const ky0 = Math.floor(-cy / pitch) - 1, ky1 = Math.ceil((S.h - cy) / pitch) + 1;
+    const stepPx = Math.max(2, pitch / 24);
+    ctx.beginPath();
+    for (let k = kx0; k <= kx1; k++) {           // senkrechte Straßen, Wellung mit Nulldurchgang an jeder Kreuzung
+      const x0 = cx + k * pitch;
+      if (!A) { ctx.moveTo(x0, -10); ctx.lineTo(x0, S.h + 10); continue; }
+      for (let y = -pitch; y <= S.h + pitch; y += stepPx) { const x = x0 + A * Math.sin(2 * Math.PI * (y - cy) / pitch); y === -pitch ? ctx.moveTo(x, y) : ctx.lineTo(x, y); }
+    }
+    for (let k = ky0; k <= ky1; k++) {
+      const y0 = cy + k * pitch;
+      if (!A) { ctx.moveTo(-10, y0); ctx.lineTo(S.w + 10, y0); continue; }
+      for (let x = -pitch; x <= S.w + pitch; x += stepPx) { const y = y0 + A * Math.sin(2 * Math.PI * (x - cx) / pitch); x === -pitch ? ctx.moveTo(x, y) : ctx.lineTo(x, y); }
+    }
+    ctx.stroke();
+    if (p.scint) {
+      ctx.fillStyle = gray(p.polarity === 'dark' ? 1 : 0);
+      ctx.beginPath();
+      for (let i = kx0; i <= kx1; i++) for (let j = ky0; j <= ky1; j++) { const x = cx + i * pitch, y = cy + j * pitch; ctx.moveTo(x + sw / 2 * p.dot, y); ctx.arc(x, y, sw / 2 * p.dot, 0, Math.PI * 2); }
+      ctx.fill();
+    }
+    st.geo = { cx, cy, pitch, sw, cell, A };
+  },
+  reveal({ ctx, size:S, st, stim, sim, filterName }, p) {
+    const g = st.geo; if (!g) return;
+    for (const [i, j] of [[0, 0], [1, 0], [0, 1], [1, 1]]) H.circle(ctx, g.cx + i * g.pitch, g.cy + j * g.pitch, g.sw * 0.8);
+    const roadY = x => g.cy + g.A * Math.sin(2 * Math.PI * (x - g.cx) / g.pitch);
+    const x0 = S.w * 0.06, x1 = S.w * 0.94, N = 240, A = [], B = [], ticks = [];
+    ctx.save(); ctx.strokeStyle = H.CYAN; ctx.lineWidth = 1; H.dash(ctx); ctx.beginPath();
+    for (let i = 0; i < N; i++) { const x = lerp(x0, x1, i / (N - 1)), y = roadY(x); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); A.push(stim(x, y)); const v = sim(x, y); if (v != null) B.push(v); }
+    ctx.stroke(); ctx.restore();
+    for (let k = Math.ceil((x0 - g.cx) / g.pitch); g.cx + k * g.pitch <= x1; k++) ticks.push((g.cx + k * g.pitch - x0) / (x1 - x0));
+    const ph = Math.min(120, S.h * 0.2);
+    H.plot(ctx, x0, 112, x1 - x0, ph, [{ data:A, color:'#f5f5f5' }, { data:B, color:H.CYAN }],
+      { title:`Profil entlang der Straße · weiß: Leuchtdichte (konstant) · cyan: ${filterName || 'Modell'} · ┊ Kreuzungen`, ticks });
+  },
+  measure(p, t, st, api) {
+    const g = st.geo; if (!g) return [];
+    const rows = [
+      { k:'Rasterperiode', v:fmt(g.pitch, 1) + ' px' },
+      { k:'Straße / Quadrat', v:fmt(g.sw, 1) + ' / ' + fmt(g.cell) + ' px' },
+      { k:'Wellungsamplitude', v:fmt(g.A, 1) + ' px' },
+    ];
+    const si = api.sim(g.cx, g.cy), ss = api.sim(g.cx + g.pitch / 2, g.cy);
+    if (si != null && ss != null) {
+      rows.push({ k:`${api.filterName}: Straße`, v:fmt(ss, 3) }, { k:`${api.filterName}: Kreuzung`, v:fmt(si, 3) }, { k:'Δ (Straße − Kreuzung)', v:fmt(ss - si, 3) });
+      rows.push({ note:(p.polarity === 'dark' ? ss - si > 0.01 : si - ss > 0.01) ? 'Das Modell sagt an der Kreuzung einen Fleck voraus.' : 'Das Modell sagt hier kaum einen Fleck voraus.' });
+    } else rows.push({ note:'Kein Vergleichsfilter aktiv.' });
+    return rows;
+  },
+});
+
+/* ---------- Ebbinghaus / Titchener-Kreise ---------- */
+safeRegister({
+  id:'ebbinghaus', cat:'size', name:'Ebbinghaus-Täuschung',
+  short:'Zwei gleich große Kreise – der zwischen kleinen Nachbarn wirkt größer.',
+  hint:'Vergleiche die orangen Kreise; mit „Pulsieren“ tauschen die Kränze ihre Größe und das Ziel scheint zu atmen.',
+  desc:'Zwei orange Zielkreise haben denselben Durchmesser. Der linke ist von großen grauen Kreisen umgeben, der rechte von kleinen. Der rechte wirkt deutlich größer. Lässt man die Kränze pulsieren, scheint der in Wirklichkeit konstante Zielkreis zu wachsen und zu schrumpfen.',
+  why:'Größenkontrast: Das Sehsystem beurteilt Größe relativ zur Umgebung. Neben großen Nachbarn wird der Zielkreis kleiner, neben kleinen größer eingeschätzt.\n\nAbstand zählt ebenso wie Größe: Rücken die Nachbarn sehr nah heran, kann der Effekt schwächer werden oder sich umkehren – nahe Konturen lassen das Ziel eher wachsen (Roberts, Harris & Yates 2005). Teste den Regler „Abstand“.\n\nWahrnehmung und Handlung: Aglioti, DeSouza & Goodale (1995) ließen Probanden nach solchen Scheiben greifen. Die Griffweite folgte eher der wahren als der getäuschten Größe – ein viel zitierter Hinweis auf getrennte Pfade für Erkennen (ventral) und Handeln (dorsal). Franz, Gegenfurtner, Bülthoff & Fahle (2000) fanden mit angepasster Methodik keine solche Dissoziation; die Frage ist bis heute offen.\n\nAuch hier gibt es Kulturunterschiede: Die Himba in Namibia urteilten deutlich genauer als britische Vergleichsgruppen (de Fockert, Davidoff, Fagot, Parron & Goldstein 2007).',
+  mechanism:['contrast', 'action', 'culture'],
+  sources:[
+    'Titchener, E. B. (1901). Experimental Psychology: A Manual of Laboratory Practice. New York: Macmillan. (Die Figur geht auf Hermann Ebbinghaus zurück.)',
+    'Aglioti, S., DeSouza, J. F. X. & Goodale, M. A. (1995). Size-contrast illusions deceive the eye but not the hand. Current Biology, 5, 679–685.',
+    'Franz, V. H., Gegenfurtner, K. R., Bülthoff, H. H. & Fahle, M. (2000). Grasping visual illusions: No evidence for a dissociation between perception and action. Psychological Science, 11, 20–25.',
+    'Roberts, B., Harris, M. G. & Yates, T. A. (2005). The roles of inducer size and distance in the Ebbinghaus illusion (Titchener circles). Perception, 34, 847–856.',
+    'de Fockert, J., Davidoff, J., Fagot, J., Parron, C. & Goldstein, J. (2007). More accurate size contrast judgments in the Ebbinghaus illusion by a remote culture. Journal of Experimental Psychology: Human Perception and Performance, 33, 738–742.',
+  ],
+  params:[
+    { key:'size', label:'Zielkreis', min:3, max:12, step:0.1, def:6.5, unit:'% Höhe', group:'Geometrie' },
+    { key:'big', label:'Großer Kranz', min:1, max:2.8, step:0.05, def:1.75, unit:'× Ziel', group:'Geometrie', didactic:'Je größer der Unterschied zwischen den Kränzen, desto stärker der Kontrast.' },
+    { key:'small', label:'Kleiner Kranz', min:0.15, max:0.9, step:0.01, def:0.42, unit:'× Ziel', group:'Geometrie' },
+    { key:'nBig', label:'Anzahl groß', min:3, max:10, step:1, def:6, unit:'', group:'Geometrie' },
+    { key:'nSmall', label:'Anzahl klein', min:4, max:16, step:1, def:9, unit:'', group:'Geometrie' },
+    { key:'dist', label:'Abstand', min:0.05, max:2, step:0.01, def:0.45, unit:'× Ziel', group:'Geometrie', didactic:'Sehr nahe Nachbarn können den Effekt abschwächen oder umkehren (Roberts et al. 2005).' },
+    { key:'pulse', label:'Pulsieren', min:0, max:1, step:0.01, def:0, unit:'', group:'Animation', didactic:'Die Kränze tauschen ihre Größe – der Zielkreis bleibt konstant und scheint trotzdem zu atmen.' },
+    { key:'speed', label:'Tempo', min:0.02, max:1, step:0.01, def:0.25, unit:'Hz', group:'Animation' },
+    { key:'adjust', label:'Abgleich rechtes Ziel', min:-30, max:30, step:0.5, def:0, unit:'%', group:'Messung', didactic:'Verkleinere das rechte Ziel, bis beide gleich wirken – der Wert ist deine Täuschungsstärke.' },
+  ],
+  presets:[
+    { name:'Klassisch', p:{} },
+    { name:'Pulsierend', p:{ pulse:1, speed:0.3 } },
+    { name:'Nahe Nachbarn', p:{ dist:0.08 } },
+    { name:'Extrem', p:{ big:2.5, small:0.25, nSmall:14 } },
+  ],
+  animated:p => p.pulse > 0,
+  render(ctx, S, p, t, rev, { st }) {
+    ctx.fillStyle = '#f7f7f4'; ctx.fillRect(0, 0, S.w, S.h);
+    const s = p.pulse > 0 ? (0.5 - 0.5 * Math.cos(2 * Math.PI * p.speed * t)) * p.pulse : 0;
+    let r = Math.min(S.h, S.w * 0.5) * p.size / 100 * 1.25;
+    const fBL = lerp(p.big, p.small, s), fBR = lerp(p.small, p.big, s);
+    const fit = f => r * (1 + p.dist) + 2 * f * r;                            // äußerer Radius eines Kranzes
+    const need = Math.max(fit(p.big), fit(p.small)), room = Math.min(S.w * 0.24, S.h * 0.46);
+    if (need > room) r *= room / need;
+    const ring = (x, y, n, f, rot) => {
+      const R0 = r * (1 + p.dist);
+      let rb = f * r; const sn = Math.sin(Math.PI / n);
+      rb = Math.min(rb, sn * R0 / (1 - sn) * 0.94);                            // keine Überlappung im Kranz
+      const R = R0 + rb;
+      ctx.beginPath();
+      for (let i = 0; i < n; i++) { const a = rot + i * 2 * Math.PI / n; ctx.moveTo(x + R * Math.cos(a) + rb, y + R * Math.sin(a)); ctx.arc(x + R * Math.cos(a), y + R * Math.sin(a), rb, 0, 2 * Math.PI); }
+      ctx.fill();
+      return { R, rb };
+    };
+    const y = S.h * 0.46, xL = S.w * 0.28, xR = S.w * 0.72, rR = r * (1 + p.adjust / 100);
+    ctx.fillStyle = '#8a9099'; ctx.globalAlpha = rev ? 0.22 : 1;
+    const L = ring(xL, y, p.nBig, fBL, -Math.PI / 2), Rr = ring(xR, y, p.nSmall, fBR, -Math.PI / 2);
+    ctx.globalAlpha = 1; ctx.fillStyle = '#f08c00';
+    ctx.beginPath(); ctx.arc(xL, y, r, 0, 2 * Math.PI); ctx.moveTo(xR + rR, y); ctx.arc(xR, y, rR, 0, 2 * Math.PI); ctx.fill();
+    st.geo = { xL, xR, y, r, rR, L, R:Rr, fBL, fBR };
+  },
+  reveal({ ctx, st }, p) {
+    const g = st.geo; if (!g) return;
+    for (const yy of [g.y - g.r, g.y + g.r]) H.line(ctx, g.xL - g.r - 24, yy, g.xR + g.r + 24, yy);
+    H.circle(ctx, g.xR, g.y, g.r, { color:H.AMBER });
+    H.measure(ctx, g.xL - g.r, g.y, g.xL + g.r, g.y, null);
+    H.badge(ctx, g.xL, g.y + g.L.R + g.L.rb + 18, `Ø ${fmt(2 * g.r)} px`);
+    H.badge(ctx, g.xR, g.y + g.R.R + g.R.rb + 18, `Ø ${fmt(2 * g.rR)} px`);
+    H.badge(ctx, (g.xL + g.xR) / 2, g.y - g.r - 18, Math.abs(g.rR - g.r) < 1e-6 ? 'gleich groß' : `rechts / links = ${fmt(g.rR / g.r, 3)}`, { color:H.AMBER, size:13 });
+  },
+  measure(p, t, st) {
+    const g = st.geo; if (!g) return [];
+    return [
+      { k:'Ziel links Ø', v:fmt(2 * g.r, 1) + ' px' },
+      { k:'Ziel rechts Ø', v:fmt(2 * g.rR, 1) + ' px' },
+      { k:'Nachbar / Ziel links', v:fmt(g.L.rb / g.r, 2) },
+      { k:'Nachbar / Ziel rechts', v:fmt(g.R.rb / g.r, 2) },
+      { k:'Abstand Kante–Kranz', v:fmt(p.dist * g.r, 1) + ' px' },
+      { note:p.adjust < 0 ? `Rechts musste um ${fmt(-p.adjust, 1)} % verkleinert werden → Täuschungsstärke ≈ ${fmt(-p.adjust, 1)} %.` : p.adjust > 0 ? 'Rechts wurde vergrößert – für dich wirkte es kleiner.' : 'Gleiche ab: Verkleinere „Abgleich rechtes Ziel“, bis beide gleich wirken.' },
+    ];
+  },
+});
+
+/* ==========================================================================
+   SIM-PDE · SIM-LIFE · SIM-SCULPT · ETHNO · RENDER-3D  → Etappen 3–5
+   ========================================================================== */
+
+/* ==========================================================================
+   UI · Panel-Tabs, HUD, Toasts, Kontextmenü, Hilfe, Tastatur & Gesten
+   ========================================================================== */
+const Toast = {
+  show(msg, { err = false, action = null, ms = 2600 } = {}) {
+    const box = document.getElementById('toast'); if (!box) return;
+    const t = el('div', { class:'toast' + (err ? ' err' : '') }, msg, action && el('button', { onclick:() => { action.fn(); t.remove(); } }, action.label));
+    box.append(t); while (box.children.length > 3) box.firstChild.remove();
+    setTimeout(() => t.remove(), err ? ms * 2 : ms);
+  },
+};
+
+const TABS = [
+  { id:'browse', name:'Durchblättern' },
+  { id:'layers', name:'Ebenen', stage:3, text:'Bis zu sechs Ebenen mit Mischarten (multiply, add, difference, min, max, screen, xor), Opazität und Sichtbarkeit. Die Komposition ist im Kern bereits angelegt (state.layers, Engine.composite).' },
+  { id:'params', name:'Regler' },
+  { id:'matrix', name:'Matrix', stage:2, text:'8 LFOs + 3 Kreativ-Oszillatoren mit je zwei Zielen, FM/AM-Kopplung, BPM-Sync, Slew, XY-Pad und Routing-Inspektor. Ziele sind alle Regler mit ∿.' },
+  { id:'audio', name:'Audio', stage:2, text:'Mikrofon, lokale Datei, Hüllkurven, Beat-Detektor, Routing-Karte, Sonifikation der Täuschungsstärke, Shepard-Ton und Tritonus-Paradox. Alles bleibt auf dem Gerät.' },
+  { id:'space', name:'Raum', stage:4, text:'Körper (Tuch, Schichtgewebe, Torus, Kugel, Tunnel, Möbius, Helix, Muschel, Kürpig-Skulptur), Morph A→B, Billboard und Textur-Projektion.' },
+  { id:'reveal', name:'Reveal' },
+  { id:'info', name:'Info' },
+  { id:'export', name:'Export' },
+];
+
+const UI = {
+  tab:'browse', q:'', cat:'all', favs:new Set(store.get('prisma.favs', [])),
+  measTimer:0,
+
+  init() {
+    this.tab = store.get('prisma.tab', 'browse'); if (!TABS.some(t => t.id === this.tab)) this.tab = 'browse';
+    const tabs = document.getElementById('tabs');
+    for (const t of TABS) tabs.append(el('button', { role:'tab', id:'tab-' + t.id, 'aria-controls':'tabbody', onclick:() => this.show(t.id) }, t.name, t.stage && el('span', { class:'soon', 'aria-label':`ab Etappe ${t.stage}` }, '·' + t.stage)));
+    document.getElementById('bPrev').onclick = () => this.step(-1);
+    document.getElementById('bNext').onclick = () => this.step(1);
+    document.getElementById('bReveal').onclick = () => State.setReveal(!State.s.reveal.on);
+    document.getElementById('bPlay').onclick = () => this.togglePlay();
+    document.getElementById('bFull').onclick = () => this.fullscreen();
+    document.getElementById('bHelp').onclick = () => this.help();
+    document.getElementById('sheetHandle').onclick = () => {
+      const app = document.getElementById('app'), seq = ['min', 'half', 'full'];
+      app.dataset.sheet = seq[(seq.indexOf(app.dataset.sheet) + 1) % 3];
+    };
+    setInterval(() => { if (this.tab === 'info') this.refreshMeasure(); }, 250);
+    this.refresh();
+  },
+  show(id) { this.tab = id; store.set('prisma.tab', id); this.refresh(); },
+  togglePlay() {
+    Engine.paused = !Engine.paused; Engine.dirty = true;
+    const b = document.getElementById('bPlay');
+    b.textContent = Engine.paused ? '▶︎' : '❚❚'; b.setAttribute('aria-pressed', Engine.paused);
+    b.setAttribute('aria-label', Engine.paused ? 'Wiedergabe fortsetzen' : 'Wiedergabe pausieren');
+  },
+  fullscreen() {
+    const app = document.getElementById('app');
+    if (document.fullscreenElement) { document.exitFullscreen(); return; }
+    if (app.requestFullscreen) app.requestFullscreen().catch(() => app.classList.toggle('fs'));
+    else app.classList.toggle('fs');
+  },
+  /** Blättert in der aktuellen Auswahl (Suche/Filter), sonst im ganzen Katalog. */
+  step(d) {
+    const list = this.filtered(); const L = list.length ? list : Prisma.list();
+    const i = L.findIndex(m => m.id === State.mod.id);
+    State.setModule(L[(i + d + L.length) % L.length].id);
+  },
+  filtered() {
+    const q = this.q.trim().toLowerCase();
+    return Prisma.list().filter(m => {
+      if (this.cat === 'fav' && !this.favs.has(m.id)) return false;
+      if (this.cat !== 'all' && this.cat !== 'fav' && m.cat !== this.cat) return false;
+      if (!q) return true;
+      return [m.name, m.short, m.desc, catName(m.cat), ...m.mechanism.map(k => MECH[k][0])].join(' ').toLowerCase().includes(q);
+    });
+  },
+  toggleFav(id) {
+    this.favs.has(id) ? this.favs.delete(id) : this.favs.add(id);
+    store.set('prisma.favs', [...this.favs]);
+    this.refresh();
+  },
+
+  /* ---------- Kopfzeilen, Tabs ---------- */
+  refresh() {
+    const m = State.mod;
+    document.getElementById('tName').textContent = m.name;
+    document.getElementById('tCat').textContent = catName(m.cat) + (m.short ? ' · ' + m.short : '');
+    document.getElementById('cv').setAttribute('aria-label', `${m.name}: ${m.desc}`);
+    document.title = `${m.name} · Prisma`;
+    for (const t of TABS) document.getElementById('tab-' + t.id).setAttribute('aria-selected', t.id === this.tab);
+    const body = document.getElementById('tabbody'), y = body.scrollTop;
+    body.replaceChildren(this['tab_' + this.tab] ? this['tab_' + this.tab]() : this.tabSoon(TABS.find(t => t.id === this.tab)));
+    body.setAttribute('aria-labelledby', 'tab-' + this.tab);
+    body.scrollTop = y;
+    this.refreshReveal(true);
+  },
+  refreshValues() {             // leichtgewichtig: nur Zahlen der Regler
+    for (const n of document.querySelectorAll('[data-key]')) {
+      const sp = Specs.all[n.dataset.key], v = State.getParam(sp.key);
+      if (n.matches('.v')) n.textContent = this.fmtVal(sp, v);
+      else if (n.type === 'checkbox') n.checked = v;
+      else if (document.activeElement !== n) n.value = v;
+    }
+  },
+  refreshReveal(skipBody) {
+    const on = State.s.reveal.on, m = State.mod;
+    const b = document.getElementById('bReveal'); b.setAttribute('aria-pressed', on);
+    const cap = document.getElementById('cap'); cap.classList.toggle('rev', on);
+    if (on) {
+      const first = m.why.split('\n')[0].split(/(?<=[.!?])\s/)[0];
+      cap.replaceChildren(el('span', { class:'m' }, 'Warum · ' + (m.mechanism.map(k => MECH[k][0]).join(' · ') || 'Mechanismus')), el('span', { class:'rest' }, ' — ' + first));
+    } else cap.textContent = m.hint || m.short;
+    if (!skipBody && (this.tab === 'info' || this.tab === 'reveal')) this.refresh();
+  },
+  refreshLog() { const n = document.getElementById('log'); if (n) n.textContent = Report.list.join('\n') || '–'; },
+  fps(a, b) { document.getElementById('fps').textContent = `${a} · ${b}`; },
+  fmtVal(sp, v) {
+    if (sp.type === 'bool') return v ? 'an' : 'aus';
+    if (sp.type === 'select') return (sp.options.find(o => o.v === v) || {}).label || v;
+    return fmt(v, decimals(sp.step)) + (sp.unit ? ' ' + sp.unit : '');
+  },
+  tabSoon(t) {
+    return el('div', {}, el('h2', {}, t.name), el('div', { class:'box' }, el('h4', {}, `Folgt in Etappe ${t.stage}`), el('p', {}, t.text)),
+      el('p', { class:'muted small' }, 'Die Datenstrukturen dafür sind im Zustand schon reserviert, damit Links und Exporte aus Etappe 1 später gültig bleiben.'));
+  },
+
+  /* ---------- Durchblättern ---------- */
+  tab_browse() {
+    const wrap = el('div');
+    const search = el('input', { type:'search', placeholder:'Suchen: Name, Mechanismus, Kategorie …', 'aria-label':'Katalog durchsuchen', value:this.q });
+    search.addEventListener('input', () => { this.q = search.value; renderList(); });
+    const chips = el('div', { class:'chips', role:'group', 'aria-label':'Kategorien' });
+    const counts = {}; for (const m of Prisma.list()) counts[m.cat] = (counts[m.cat] || 0) + 1;
+    const chip = (id, label, n) => el('button', { class:'chip', 'aria-pressed':this.cat === id, onclick:() => { this.cat = id; this.refresh(); } }, label, n != null && el('span', { class:'n' }, n));
+    chips.append(chip('all', 'Alle', Prisma.order.length), chip('fav', '★ Favoriten', this.favs.size));
+    for (const c of CATS) if (counts[c.id]) chips.append(chip(c.id, c.name, counts[c.id]));
+    const list = el('div', { class:'cards', role:'list' });
+    const renderList = () => {
+      const L = this.filtered();
+      list.replaceChildren(...L.map(m => {
+        const star = el('button', { class:'star', 'aria-pressed':this.favs.has(m.id), 'aria-label':`${m.name} als Favorit`, onclick:e => { e.stopPropagation(); this.toggleFav(m.id); } }, '★');
+        return el('div', { class:'card', role:'button', tabindex:0, 'aria-current':m.id === State.mod.id, onclick:() => State.setModule(m.id), onkeydown:e => { if (e.key === 'Enter') State.setModule(m.id); } },
+          el('div', {}, el('b', {}, m.name), ' ', el('span', { class:'cat' }, catName(m.cat))), star, el('div', { class:'c' }, m.short));
+      }));
+      if (!L.length) list.append(el('p', { class:'muted' }, 'Nichts gefunden.'));
+    };
+    renderList();
+    const missing = CATS.filter(c => !counts[c.id]).map(c => c.name).join(', ');
+    wrap.append(el('h2', {}, 'Katalog'), search, chips, list,
+      el('div', { class:'row', style:'margin-top:10px' }, el('button', { class:'btn grow', onclick:() => this.step(-1) }, '◀ Zurück'), el('button', { class:'btn grow', onclick:() => this.step(1) }, 'Weiter ▶')),
+      missing && el('p', { class:'muted small', style:'margin-top:12px' }, 'Weitere Kategorien folgen in den nächsten Etappen: ' + missing + '.'));
+    return wrap;
+  },
+
+  /* ---------- Regler ---------- */
+  tab_params() {
+    const m = State.mod, wrap = el('div');
+    wrap.append(el('h2', {}, m.name));
+    if (m.presets.length) wrap.append(el('div', { class:'chips', 'aria-label':'Szenen' }, m.presets.map(pr => el('button', { class:'chip', onclick:() => State.applyPreset(m, pr) }, pr.name))));
+    const groups = {};
+    for (const k of m.paramKeys) { const sp = Specs.all[k]; (groups[sp.group] = groups[sp.group] || []).push(sp); }
+    for (const [g, specs] of Object.entries(groups)) {
+      wrap.append(el('h2', {}, g));
+      for (const sp of specs) wrap.append(this.control(sp));
+    }
+    wrap.append(el('div', { class:'row', style:'margin-top:12px' },
+      el('button', { class:'btn grow', onclick:() => State.resetModule(m) }, 'Standardwerte'),
+      el('button', { class:'btn grow', onclick:() => State.randomize(m) }, 'Zufall (R)')));
+    wrap.append(el('p', { class:'muted small', style:'margin-top:10px' }, '∿ = Modulationsziel (Matrix ab Etappe 2). Doppelklick auf einen Namen setzt den Regler zurück.'));
+    return wrap;
+  },
+  control(sp) {
+    const v = State.getParam(sp.key), id = 'c-' + sp.key.replace(/\W/g, '_');
+    const val = el('span', { class:'v', 'data-key':sp.key }, this.fmtVal(sp, v));
+    const lab = el('label', { for:id, ondblclick:() => { delete State.s.params[sp.key]; changed({ history:true }); } }, el('span', { class:'k' }, sp.label), val);
+    let input;
+    if (sp.type === 'range') {
+      input = el('input', { type:'range', id, min:sp.min, max:sp.max, step:sp.step, value:v, 'data-key':sp.key, 'aria-describedby':sp.didactic ? id + '-d' : null });
+      input.addEventListener('input', () => State.setParam(sp.key, input.value));
+    } else if (sp.type === 'bool') {
+      input = el('input', { type:'checkbox', id, 'data-key':sp.key }); input.checked = v;
+      input.addEventListener('change', () => State.setParam(sp.key, input.checked));
+      return el('div', { class:'ctl' }, el('label', { for:id }, el('span', { class:'row' }, input, sp.label), val), sp.didactic && el('div', { class:'did', id:id + '-d' }, sp.didactic));
+    } else {
+      input = el('select', { id, 'data-key':sp.key }, sp.options.map(o => el('option', { value:o.v, selected:o.v === v }, o.label)));
+      input.addEventListener('change', () => State.setParam(sp.key, input.value));
+    }
+    return el('div', { class:'ctl' + (sp.mod ? ' mod' : ''), title:sp.didactic || null }, lab, input, sp.didactic && el('div', { class:'did', id:id + '-d' }, sp.didactic));
+  },
+
+  /* ---------- Reveal ---------- */
+  tab_reveal() {
+    const m = State.mod, R = State.s.reveal, wrap = el('div');
+    wrap.append(el('h2', {}, 'Auflösen'),
+      el('button', { class:'btn ' + (R.on ? 'pri' : ''), style:'width:100%', 'aria-pressed':R.on, onclick:() => State.setReveal(!R.on) }, R.on ? '◎ Reveal ist an – ausschalten' : '◎ Reveal einschalten (Space)'),
+      el('p', { class:'muted small', style:'margin-top:6px' }, 'Space tippen schaltet um, Space halten zeigt die Auflösung nur solange gedrückt. Auf Touch: einmal auf die Bühne tippen.'));
+    const hasF = m.compare.length > 0;
+    wrap.append(el('h2', {}, 'Ansicht'),
+      el('div', { class:'seg', role:'group', 'aria-label':'Reveal-Ansicht' }, VIEWS.map(([id, name]) =>
+        el('button', { 'aria-pressed':R.view === id, disabled:!hasF && (id === 'split' || id === 'sim'), onclick:() => { R.view = id; R.on = true; changed({ reveal:true }); } }, name))));
+    if (hasF) {
+      wrap.append(el('h2', {}, 'Wahrnehmungssimulation'),
+        el('div', { class:'seg', role:'group', 'aria-label':'Vergleichsfilter' }, m.compare.map(f =>
+          el('button', { 'aria-pressed':(R.filter || m.compare[0].id) === f.id, onclick:() => { R.filter = f.id; changed({ reveal:true }); } }, f.name))));
+      const sl = el('input', { type:'range', min:0.1, max:0.9, step:0.01, value:R.split, 'aria-label':'Teilungsposition' });
+      sl.addEventListener('input', () => { R.split = +sl.value; Engine.dirty = true; Hash.write(); });
+      wrap.append(el('div', { class:'ctl' }, el('label', {}, 'Teilung (auch auf der Bühne ziehbar)'), sl));
+    } else wrap.append(el('p', { class:'muted small' }, 'Dieses Modul hat keine Simulationsansicht.'));
+    wrap.append(el('h2', {}, 'Was Reveal tut'), el('div', { class:'box small' },
+      el('p', {}, el('b', {}, 'Messung'), ' – gestrichelte Cyan-Linien und Zahlen-Plaketten.'),
+      el('p', {}, el('b', {}, 'Wahrheit'), ' – Originalmaße, Lote, Profile: was physikalisch da ist.'),
+      el('p', {}, el('b', {}, 'Text'), ' – das Info-Panel springt von „Was passiert“ auf „Warum“.'),
+      el('p', { style:'margin:0' }, el('b', {}, 'Vergleich'), ' – Reiz neben einem Modell der Wahrnehmung.')));
+    wrap.append(el('h2', {}, 'Mechanismen hier'), ...m.mechanism.map(k => el('div', { class:'box small' }, el('b', {}, MECH[k][0]), el('p', { style:'margin:4px 0 0' }, MECH[k][1]))));
+    return wrap;
+  },
+
+  /* ---------- Info & Messwerte ---------- */
+  tab_info() {
+    const m = State.mod, on = State.s.reveal.on, wrap = el('div');
+    const paras = s => s.split('\n\n').map(t => el('p', {}, t));
+    wrap.append(el('h3', {}, m.name), el('p', { class:'muted small' }, catName(m.cat) + ' · ' + (m.hint || '')));
+    wrap.append(el('div', {}, m.mechanism.map(k => el('span', { class:'mech' + (on ? ' on' : ''), title:MECH[k][1] }, MECH[k][0]))));
+    const what = on ? el('details', { class:'box' }, el('summary', {}, 'Was passiert'), ...paras(m.desc)) : el('div', { class:'box hl' }, el('h4', {}, 'Was passiert'), ...paras(m.desc));
+    const why = on ? el('div', { class:'box hl' }, el('h4', {}, 'Warum'), ...paras(m.why)) : el('details', { class:'box' }, el('summary', {}, 'Warum (oder Reveal einschalten)'), ...paras(m.why));
+    wrap.append(...(on ? [why, what] : [what, why]));
+    wrap.append(el('h2', {}, 'Messwerte'), el('table', { class:'meas', id:'meas' }));
+    if (m.sources.length) wrap.append(el('h2', {}, 'Quellen'), el('ol', { class:'src' }, m.sources.map(s => el('li', {}, s))));
+    wrap.append(el('h2', {}, 'Laufzeit'), this.runtimeBox());
+    const light = el('input', { type:'checkbox', id:'qLight' }); light.checked = State.s.quality.light;
+    light.addEventListener('change', () => { State.s.quality.light = light.checked; State.s.quality.scale = 1; Engine.resize(); Hist.commitSoon(); });
+    wrap.append(el('div', { class:'ctl' }, el('label', { for:'qLight' }, el('span', { class:'row' }, light, 'Leichtes Profil (1× Pixeldichte)'), el('span', { class:'v' }, Math.round(State.s.quality.scale * 100) + ' %'))));
+    wrap.append(el('h2', {}, 'Meldungen'), el('div', { class:'log', id:'log' }, Report.list.join('\n') || '–'));
+    setTimeout(() => this.refreshMeasure(), 0);
+    return wrap;
+  },
+  refreshMeasure() {
+    const t = document.getElementById('meas'); if (!t) return;
+    const m = State.mod, rt = Engine.rts[State.s.sel];
+    if (!m.measure || !rt) { t.replaceChildren(el('tr', {}, el('td', { class:'muted' }, 'Keine Messwerte für dieses Modul.'))); return; }
+    let rows;
+    try { rows = m.measure(State.paramsOf(m), Engine.T, rt.st, { sim:(x, y) => Engine.sampleSim(x, y), stim:(x, y) => Engine.sampleStim(x, y), filterName:(Engine.activeFilter() || {}).name || 'Modell' }) || []; }
+    catch (e) { Report.error(m.name + ' · measure', e); rows = []; }
+    t.replaceChildren(...rows.map(r => r.note ? el('tr', { class:'note' }, el('td', { colspan:2 }, r.note)) : el('tr', {}, el('td', {}, r.k), el('td', { class:'v' }, r.v))));
+  },
+  runtimeBox() {
+    const box = el('div', { class:'kv' });
+    for (const it of Runtime.items) box.append(el('span', {}, it.k), el('span', { class:it.ok === true ? 'ok' : it.ok === false ? 'no' : 'wa' }, it.v));
+    return box;
+  },
+
+  /* ---------- Export ---------- */
+  tab_export() {
+    const wrap = el('div');
+    const link = el('input', { type:'text', readonly:true, value:location.href.split('#')[0] + Hash.encode(), 'aria-label':'Link zum aktuellen Zustand' });
+    wrap.append(el('h2', {}, 'Bild'), el('button', { class:'btn pri', style:'width:100%', onclick:exportPNG }, 'PNG speichern (P)'),
+      el('p', { class:'muted small', style:'margin-top:6px' }, 'Exportiert genau, was auf der Bühne zu sehen ist – inklusive Reveal-Overlay, falls aktiv.'));
+    wrap.append(el('h2', {}, 'Link teilen'), link,
+      el('div', { class:'row', style:'margin-top:6px' }, el('button', { class:'btn grow', onclick:() => copyText(link.value) }, 'Kopieren')),
+      el('p', { class:'muted small', style:'margin-top:6px' }, 'Der Link öffnet genau dieses Modul mit diesen Parametern und diesem Reveal-Zustand. Nichts wird hochgeladen – der Zustand steckt im Link selbst.'));
+    const file = el('input', { type:'file', accept:'application/json,.json', class:'sr', id:'jsonIn' });
+    file.addEventListener('change', () => { const f = file.files[0]; if (f) f.text().then(importJSON).catch(e => Report.error('Import', e)); file.value = ''; });
+    wrap.append(el('h2', {}, 'Zustand (JSON)'), el('div', { class:'row' },
+      el('button', { class:'btn grow', onclick:exportJSON }, 'JSON exportieren'),
+      el('label', { class:'btn grow', for:'jsonIn', style:'display:inline-flex;align-items:center;justify-content:center;cursor:pointer' }, 'JSON importieren'), file));
+    // Eigene Presets (lokal)
+    const presets = store.get('prisma.presets', []);
+    const name = el('input', { type:'text', placeholder:'Name des Presets', 'aria-label':'Preset-Name' });
+    wrap.append(el('h2', {}, 'Eigene Presets'), el('div', { class:'row' }, el('div', { class:'grow' }, name),
+      el('button', { class:'btn', onclick:() => {
+        const n = name.value.trim() || `${State.mod.name} ${new Date().toLocaleString()}`;
+        presets.unshift({ name:n, state:JSON.parse(State.snapshot()) }); presets.length = Math.min(presets.length, 50);
+        if (!store.set('prisma.presets', presets)) Toast.show('Lokaler Speicher nicht verfügbar – nutze den JSON-Export.', { err:true });
+        this.refresh();
+      } }, 'Speichern')));
+    wrap.append(el('div', { class:'cards', style:'margin-top:8px' }, presets.length ? presets.map((pr, i) => el('div', { class:'card', role:'button', tabindex:0, onclick:() => importJSON(JSON.stringify(pr.state)) },
+      el('b', {}, pr.name), el('button', { class:'star', 'aria-label':'Preset löschen', onclick:e => { e.stopPropagation(); presets.splice(i, 1); store.set('prisma.presets', presets); this.refresh(); } }, '✕'),
+      el('div', { class:'c' }, (pr.state.layers || []).map(l => (Prisma.get(l.mod) || { name:l.mod }).name).join(' + ')))) : el('p', { class:'muted small' }, 'Noch keine eigenen Presets.')));
+    return wrap;
+  },
+
+  /* ---------- Hilfe, Kontextmenü ---------- */
+  help() {
+    const d = document.getElementById('help');
+    const rows = [['← / →', 'Modul blättern'], ['Space', 'Reveal umschalten · halten = kurz zeigen'], ['K', 'Play / Pause'], ['Z · Umschalt+Z / Y', 'Rückgängig · Wiederholen'], ['R', 'Zufällige Parameter'], ['P', 'PNG speichern'], ['F', 'Vollbild'], ['?', 'Diese Hilfe'], ['M', 'Modulation an/aus (ab Etappe 2)'], ['N', 'Neue Quelle/Ebene (ab Etappe 3)'], ['1 / 2', 'Fläche / Raum (ab Etappe 4)']];
+    const gest = [['Tippen', 'Reveal umschalten'], ['Doppeltipp', 'Vollbild'], ['Wischen ← →', 'Modul blättern'], ['Lang drücken', 'Kontextmenü'], ['Ziehen am ⇔', 'Split-Teilung verschieben'], ['Zwei Finger', 'Zoom / Rotation (ab Etappe 4)']];
+    d.replaceChildren(el('h3', {}, 'Prisma – Bedienung'), el('p', { class:'muted small' }, `Version ${VERSION}. Tastatur und Gesten sind in Fläche und Raum identisch.`),
+      el('table', {}, rows.map(([k, v]) => el('tr', {}, el('td', {}, el('kbd', {}, k)), el('td', {}, v)))),
+      el('h2', {}, 'Touch'), el('table', {}, gest.map(([k, v]) => el('tr', {}, el('td', {}, k), el('td', {}, v)))),
+      el('p', { style:'margin-top:12px' }, el('button', { class:'btn pri', onclick:() => d.close() }, 'Schließen')));
+    d.showModal();
+  },
+  ctxMenu(x, y) {
+    const box = document.getElementById('ctx'), m = State.mod;
+    const item = (label, fn) => el('button', { role:'menuitem', onclick:() => { this.ctxClose(); fn(); } }, label);
+    box.replaceChildren(item(State.s.reveal.on ? 'Reveal aus' : 'Reveal an', () => State.setReveal(!State.s.reveal.on)),
+      item(this.favs.has(m.id) ? '★ Favorit entfernen' : '☆ Als Favorit', () => this.toggleFav(m.id)),
+      item('Zufällige Parameter', () => State.randomize(m)), item('Standardwerte', () => State.resetModule(m)),
+      item('PNG speichern', exportPNG), item('Link kopieren', () => copyText(location.href)));
+    const st = document.getElementById('stage').getBoundingClientRect();
+    box.style.display = 'flex';
+    box.style.left = clamp(x - st.left, 6, st.width - box.offsetWidth - 6) + 'px';
+    box.style.top = clamp(y - st.top, 6, st.height - box.offsetHeight - 6) + 'px';
+    box.querySelector('button').focus();
+  },
+  ctxClose() { document.getElementById('ctx').style.display = 'none'; },
+};
+
+/* ---------- Export-Helfer ---------- */
+function download(blob, name) {
+  const a = el('a', { href:URL.createObjectURL(blob), download:name });
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+const stamp = () => new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+function exportPNG() {
+  Engine.draw();
+  Engine.cv.toBlob(b => b ? (download(b, `prisma-${State.mod.id}-${stamp()}.png`), Toast.show('PNG gespeichert.')) : Report.error('PNG', 'toBlob lieferte nichts'), 'image/png');
+}
+function exportJSON() {
+  const data = { app:'prisma', version:VERSION, created:new Date().toISOString(), state:JSON.parse(State.snapshot()) };
+  download(new Blob([JSON.stringify(data, null, 2)], { type:'application/json' }), `prisma-${State.mod.id}-${stamp()}.json`);
+}
+function importJSON(text) {
+  let raw; try { raw = JSON.parse(text); } catch (e) { Report.error('Import', 'Keine gültige JSON-Datei'); return; }
+  const { state, warnings } = sanitizeState(raw.state || raw);
+  State.s = state; Hist.commit(); changed({ ui:true, hashPush:true }); Engine.resize();
+  Toast.show(warnings.length ? `Geladen mit ${warnings.length} Hinweis(en): ${warnings[0]}` : 'Zustand geladen.', { err:warnings.length > 0 });
+}
+function copyText(t) {
+  const ok = () => Toast.show('Link kopiert.');
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(ok, () => Toast.show('Kopieren nicht erlaubt – bitte manuell markieren.', { err:true }));
+  else Toast.show('Zwischenablage nicht verfügbar – bitte manuell markieren.', { err:true });
+}
+
+/* ---------- Tastatur ---------- */
+const Keys = {
+  spaceAt:0, spacePrev:false,
+  init() {
+    addEventListener('keydown', e => this.down(e));
+    addEventListener('keyup', e => this.up(e));
+  },
+  ignore(e) {
+    const t = e.target, tag = t && t.tagName;
+    if (e.ctrlKey && e.key.toLowerCase() !== 'z' || e.metaKey && e.key.toLowerCase() !== 'z' || e.altKey) return true;
+    if (tag === 'TEXTAREA' || tag === 'SELECT' || (tag === 'INPUT' && t.type !== 'checkbox' && !(t.type === 'range' && !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'].includes(e.key)))) return true;
+    if ((tag === 'BUTTON' || (tag === 'INPUT' && t.type === 'checkbox')) && (e.key === ' ' || e.key === 'Enter')) return true;
+    if (document.querySelector('dialog[open]') && e.key !== '?') return true;
+    return false;
+  },
+  down(e) {
+    if (e.key === 'Escape') { UI.ctxClose(); return; }
+    if (this.ignore(e)) return;
+    const k = e.key;
+    if (k === ' ') { e.preventDefault(); if (!e.repeat) { this.spaceAt = performance.now(); this.spacePrev = State.s.reveal.on; State.setReveal(!this.spacePrev); } return; }
+    const act = {
+      ArrowLeft:() => UI.step(-1), ArrowRight:() => UI.step(1),
+      k:() => UI.togglePlay(), z:() => Hist.go(e.shiftKey ? 1 : -1), y:() => Hist.go(1),
+      r:() => State.randomize(State.mod), p:() => exportPNG(), f:() => UI.fullscreen(), '?':() => UI.help(),
+      m:() => Toast.show('Modulationsmatrix folgt in Etappe 2.'), n:() => Toast.show('Ebenen folgen in Etappe 3.'),
+      1:() => Toast.show('Fläche/Raum folgt in Etappe 4.'), 2:() => Toast.show('Fläche/Raum folgt in Etappe 4.'),
+    }[k.length === 1 ? k.toLowerCase() : k];
+    if (act) { e.preventDefault(); act(); }
+  },
+  up(e) {
+    if (e.key !== ' ' || !this.spaceAt) return;
+    if (performance.now() - this.spaceAt > 400) State.setReveal(this.spacePrev);   // gehalten → nur kurz gezeigt
+    this.spaceAt = 0;
+  },
+};
+
+/* ---------- Gesten auf der Bühne ---------- */
+const Gest = {
+  p:null, tapTimer:0, lastTap:0, longTimer:0,
+  init() {
+    const cv = Engine.cv;
+    cv.addEventListener('pointerdown', e => this.down(e));
+    cv.addEventListener('pointermove', e => this.move(e));
+    cv.addEventListener('pointerup', e => this.up(e));
+    cv.addEventListener('pointercancel', () => { this.p = null; clearTimeout(this.longTimer); });
+    cv.addEventListener('contextmenu', e => { e.preventDefault(); UI.ctxMenu(e.clientX, e.clientY); });
+    document.addEventListener('pointerdown', e => { if (!e.target.closest('#ctx')) UI.ctxClose(); }, true);
+  },
+  local(e) { const r = Engine.cv.getBoundingClientRect(); return { x:e.clientX - r.left, y:e.clientY - r.top }; },
+  onDivider(x) { const R = State.s.reveal; return R.on && Engine.view() === 'split' && Math.abs(x - R.split * Engine.W) < 22; },
+  down(e) {
+    if (e.button > 0) return;
+    const q = this.local(e);
+    this.p = { x0:q.x, y0:q.y, t0:performance.now(), div:this.onDivider(q.x), moved:false };
+    Engine.cv.setPointerCapture(e.pointerId);
+    clearTimeout(this.longTimer);
+    this.longTimer = setTimeout(() => { if (this.p && !this.p.moved) { this.p.long = true; UI.ctxMenu(e.clientX, e.clientY); } }, 550);
+  },
+  move(e) {
+    const q = this.local(e);
+    Engine.cv.style.cursor = this.onDivider(q.x) ? 'ew-resize' : 'pointer';
+    if (!this.p) return;
+    if (Math.hypot(q.x - this.p.x0, q.y - this.p.y0) > 8) { this.p.moved = true; clearTimeout(this.longTimer); }
+    if (this.p.div) { State.s.reveal.split = clamp(q.x / Engine.W, 0.1, 0.9); Engine.dirty = true; }
+  },
+  up(e) {
+    clearTimeout(this.longTimer);
+    const p = this.p; this.p = null; if (!p || p.long) return;
+    const q = this.local(e), dx = q.x - p.x0, dy = q.y - p.y0, dt = performance.now() - p.t0;
+    if (p.div) { Hash.write(); return; }
+    if (Math.abs(dx) > 70 && Math.abs(dx) > 2 * Math.abs(dy) && dt < 700) { UI.step(dx < 0 ? 1 : -1); return; }
+    if (p.moved || dt > 400) return;
+    const now = performance.now();
+    if (now - this.lastTap < 280) { clearTimeout(this.tapTimer); this.lastTap = 0; UI.fullscreen(); return; }
+    this.lastTap = now;
+    if (State.mod.interactive) return;
+    this.tapTimer = setTimeout(() => State.setReveal(!State.s.reveal.on), 280);
+  },
+};
+
+/* ==========================================================================
+   RUNTIME-CHECK · validateRuntime
+   ========================================================================== */
+const Runtime = { items:[] };
+function validateRuntime() {
+  const it = [];
+  const c2 = !!document.createElement('canvas').getContext('2d');
+  it.push({ k:'Canvas 2D', v:c2 ? 'verfügbar' : 'fehlt – Prisma kann nicht zeichnen', ok:c2 });
+  let gl = null;
+  try { gl = document.createElement('canvas').getContext('webgl2'); } catch { gl = null; }
+  if (gl) {
+    const cbf = !!gl.getExtension('EXT_color_buffer_float'), fb = !!gl.getExtension('EXT_float_blend');
+    const hf = cbf || !!gl.getExtension('EXT_color_buffer_half_float');
+    // Regel aus der Spezifikation: RGBA32F nur mit Blend-Support, sonst RGBA16F
+    const tgt = cbf && fb ? 'RGBA32F (FLOAT)' : hf ? 'RGBA16F (HALF_FLOAT)' : 'RGBA8 (Fallback)';
+    it.push({ k:'WebGL2', v:'verfügbar', ok:true }, { k:'Float-Renderziel', v:tgt, ok:cbf || hf ? true : null });
+    const lose = gl.getExtension('WEBGL_lose_context'); lose && lose.loseContext();
+  } else it.push({ k:'WebGL2', v:'fehlt – 2D-Pfad für Illusionen bleibt nutzbar', ok:null });
+  let ls = false; try { localStorage.setItem('prisma.t', '1'); localStorage.removeItem('prisma.t'); ls = true; } catch {}
+  it.push({ k:'Lokaler Speicher', v:ls ? 'verfügbar' : 'gesperrt – Favoriten/Presets nur in dieser Sitzung', ok:ls ? true : null });
+  it.push({ k:'Module', v:`${Prisma.order.length} registriert`, ok:Prisma.order.length > 0 });
+  it.push({ k:'Netzwerk', v:'per CSP gesperrt (connect-src none)', ok:true });
+  it.push({ k:'Bewegung', v:matchMedia('(prefers-reduced-motion: reduce)').matches ? 'reduziert (Animation × 0,3)' : 'normal', ok:true });
+  Runtime.items = it;
+  if (!c2) throw new Error('Canvas 2D fehlt.');
+  if (!Prisma.order.length) throw new Error('Keine Module registriert.');
+}
+
+/* ==========================================================================
+   INTRO · Einführungs-Slides  → Etappe 5
+   BOOT
+   ========================================================================== */
+function boot() {
+  try { validateRuntime(); }
+  catch (e) { document.getElementById('cap').textContent = 'Start nicht möglich: ' + e.message; Report.error('Start', e); return; }
+  State.s = defaultState();
+  Hash.apply();
+  const m = State.mod;
+  if (!m.compare.some(c => c.id === State.s.reveal.filter)) State.s.reveal.filter = m.compare[0] ? m.compare[0].id : null;
+  Hist.commit();
+  Engine.init(); UI.init(); Keys.init(); Gest.init();
+  Report.ready = true;
+  if (Report.list.length) Toast.show(`${Report.list.length} Meldung(en) beim Start – siehe Info › Meldungen.`, { err:true });
+  addEventListener('popstate', () => { if (Hash.apply()) { Engine.rts = []; changed({ ui:true }); } });
+  addEventListener('hashchange', () => { if (Hash.encode() !== location.hash && Hash.apply()) changed({ ui:true }); });
+  if (!location.hash) Hash.write();
+}
+boot();
+</script>
+</body>
+</html>
