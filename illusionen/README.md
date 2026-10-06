@@ -1,6 +1,6 @@
 # Illusionslabor
 
-Interaktive, animierte Sammlung von 88 optischen Täuschungen und Wahrnehmungseffekten – ohne Abhängigkeiten, reines HTML/CSS/Canvas.
+Interaktive, animierte Sammlung von 125 optischen Täuschungen, Wahrnehmungseffekten und interaktiven Experimenten aus der Sehforschung – ohne Abhängigkeiten, reines HTML/CSS/Canvas.
 
 **Öffnen:** `illusionen/index.html` (lokal per Doppelklick oder über GitHub Pages unter `/illusionen/`).
 
@@ -23,7 +23,11 @@ Interaktive, animierte Sammlung von 88 optischen Täuschungen und Wahrnehmungsef
 | `illusions-helligkeit.js`, `-2.js` | Helligkeit & Farbe (Adelson, Hermann-Gitter, Benham, Koffka, Konfetti, Farbgitter …) |
 | `illusions-bewegung.js`, `-2.js` | Bewegung (Rotierende Schlangen, Stepping Feet, Ternus, Ames-Fenster, Punktlicht-Läufer …) |
 | `illusions-wahrnehmung.js`, `-2.js` | Mehrdeutig & Konturen (Kanizsa, Necker, Penrose, Blivet, Glass-Muster …) |
+| `illusions-bewegung-3.js` | Bewegungssimulationen (Kinetischer Tiefeneffekt, Optischer Fluss, Parallaxe, Bewegung 2. Ordnung, Belebtheit …) |
+| `illusions-muster.js` | Muster & Interferenz (Moiré-Explorer, Moiré-Lupe, Wellen-Interferenz, Op-Art, Reaktions-Diffusion, Phyllotaxis, Campbell-Robson …) |
+| `illusions-farbe.js` | Farbe & Licht (Additive Mischung, Zapfen & Spektrum, Gegenfarben, Farbfehlsichtigkeit, Purkinje, Stroop …) |
 | `illusions-effekte.js` | Sehen & Gehirn (Veränderungsblindheit, Crowding, Flimmerfusion, Autostereogramm, RDK) |
+| `illusions-forschung.js` | Experimente (Laterale Hemmung, Rezeptives Feld, Staircase-Schwelle, Nonius, Weber, Gestalt, Visuelle Suche, Kipp-Nachwirkung) |
 
 ## Neue Illusion hinzufügen
 

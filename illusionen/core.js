@@ -5,6 +5,8 @@ window.CATS = {
   helligkeit: "Helligkeit & Farbe",
   bewegung: "Bewegung",
   wahrnehmung: "Mehrdeutig & Konturen",
+  muster: "Muster & Interferenz",
+  farbe: "Farbe & Licht",
   effekte: "Sehen & Gehirn"
 };
 window.addIllusion = function (def) { ILLUSIONS.push(def); };
@@ -50,6 +52,10 @@ window.H = {
   },
   gray(v) { v = Math.round(H.clamp(v, 0, 255)); return `rgb(${v},${v},${v})`; },
   hsl(h, s, l) { return `hsl(${h},${s}%,${l}%)`; },
+  offscreen(p, key, w, h) { // kleines Offscreen-Canvas pro Illusion (für ImageData-Simulationen)
+    if (!p._off || p._off.width !== w || p._off.height !== h || p._offKey !== key) { p._off = document.createElement("canvas"); p._off.width = w; p._off.height = h; p._offKey = key; p._img = null; }
+    return p._off;
+  },
   fixation(ctx, x, y, color) {
     ctx.save(); ctx.strokeStyle = color || "#ff3b3b"; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(x - 7, y); ctx.lineTo(x + 7, y); ctx.moveTo(x, y - 7); ctx.lineTo(x, y + 7); ctx.stroke();

@@ -134,7 +134,7 @@
     }
   });
   addIllusion({
-    id: "moire", cat: "wahrnehmung", name: "Moiré-Muster", short: "Muster aus Überlagerung",
+    id: "moire", cat: "muster", name: "Moiré-Muster", short: "Muster aus Überlagerung",
     hint: "Zwei identische Liniengitter überlagern sich; eines dreht sich langsam. Die großen, wandernden Streifen existieren in keinem der beiden Gitter.",
     desc: "Aus zwei feinen Gittern entstehen grobe, bewegte Interferenzmuster.",
     why: "Kein Wahrnehmungsfehler im engeren Sinn, sondern Mathematik: Die Differenzfrequenz zweier Muster ist niedrig und damit gut sichtbar. Das Auge tut nur, was ein Rasterdrucker auch tut.",
